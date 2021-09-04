@@ -5,16 +5,22 @@ use std::process::Command;
 
 struct MyCmdConfig {
     base_directory: PathBuf,
+    debug_mode: bool,
 }
 
 static DEFAULT_COMMAND_BASE_DIR_NAME: &str = "mycmd";
+static DEBUG_ENV_VAR_NAME: &str = "MYCMD_DEBUG";
 static COMPLETION_FLAG: &str = "--mycmd-complete";
 
 impl MyCmdConfig {
     pub fn new() -> Self {
+        let debug_mode: bool = env::var(DEBUG_ENV_VAR_NAME).is_ok();
+        let base_directory: PathBuf =
+            Path::new(&env::var("HOME").unwrap()).join(DEFAULT_COMMAND_BASE_DIR_NAME);
+
         Self {
-            base_directory: Path::new(&env::var("HOME").unwrap())
-                .join(DEFAULT_COMMAND_BASE_DIR_NAME),
+            base_directory,
+            debug_mode,
         }
     }
 }
@@ -22,6 +28,11 @@ impl MyCmdConfig {
 struct CommandWithArguments {
     command_path: PathBuf,
     args: Vec<String>,
+}
+
+fn find_completions(config: MyCmdConfig, mycmd_args: Vec<String>) {
+    let mut potential_path: PathBuf = config.base_directory;
+    let mut args_iter = mycmd_args.iter();
 }
 
 fn find_command(
@@ -68,18 +79,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     args.next();
+    let args_vec: Vec<_> = args.collect();
 
-    let cmd_with_args: CommandWithArguments = find_command(my_cmd_config, args.collect())?;
+    // For simplicty, only look accept the completion flag at the last position
+    if args_vec.last().unwrap() == COMPLETION_FLAG {
+        println!("Received completion argument!");
+        let mut args_vec = args_vec;
+        args_vec.pop();
+        find_completions(my_cmd_config, args_vec);
+    } else {
+        let cmd_with_args: CommandWithArguments = find_command(my_cmd_config, args_vec)?;
 
-    println!("Found command at: {:?}", cmd_with_args.command_path);
+        println!("Found command at: {:?}", cmd_with_args.command_path);
 
-    let mut command = Command::new(cmd_with_args.command_path);
+        let mut command = Command::new(cmd_with_args.command_path);
 
-    if !cmd_with_args.args.is_empty() {
-        command.args(cmd_with_args.args);
+        if !cmd_with_args.args.is_empty() {
+            println!("Found command arguments with: {:?}", cmd_with_args.args);
+            command.args(cmd_with_args.args);
+        }
+
+        command.exec();
     }
-
-    command.exec();
 
     Ok(())
 }

@@ -1,0 +1,99 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Base Shell Library
+#   Library to be sourced with common routines for MyCmd scripts and commands
+
+# TODO: Decide on conventions and standards for variable and function naming.
+
+# Set options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# TODO: Evaluate programs and builtins used and provide checks for non-standard
+#       things, like coreutils variants that need installed.
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+	echo >&2 "$0 is a library only meant to be sourced."
+	exit 1
+}
+
+# This library should only be sourced once. Technique borrowed from
+# https://stackoverflow.com/a/64534652
+[ -n "${_MYCMD_LIB-}" ] && return; export readonly _MYCMD_LIB=1;
+
+# If not set, or set to a non-existent directory, fall back and set
+# MYCMD_BASE_DIR to the directory this file is in.
+if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
+	MYCMD_BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+	readonly MYCMD_BASE_DIR; export MYCMD_BASE_DIR
+
+	# TODO: Change to `trace` or `debug` function I write
+	echo "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
+fi
+
+# TODO: Provide methods for providing cross-platform locations of dependencies
+#       For example, client scripts will call __uses_sed() after this file is sourced.
+#       That function sets the _SED_BIN path for the binary.
+
+# Explicitly source a MyCmd library and its dependencies
+# by providing the directory name of the MyCmd library relative
+# to the MYCMD_BASE_DIR.
+#
+# For example, to source the library in ~/mycmd/requests/service1,
+# call this like this:
+# 	_mycmd.source_mycmd_lib "requests/service1"
+function _mycmd.source_mycmd_lib()
+{
+	# TODO: Validation of parmaeters
+	local -r library_path="$1"
+
+	local dir_parts
+	# shellcheck disable=SC2162
+	IFS="/" read -a dir_parts <<< "${library_path}"
+	readonly dir_parts
+
+	echo "dir parts: ${dir_parts[*]}"
+
+	# Start at the base directory
+	local lib_dir="${MYCMD_BASE_DIR}"
+
+	for dir in "${dir_parts[@]}"; do
+		lib_dir="${lib_dir}/${dir}"
+
+		# Look for a script named <dirname>-lib in <dirname>
+		local lib_script="${lib_dir}/${dir}-lib"
+
+		if [[ -e "${lib_script}" ]]; then
+			# shellcheck source=/dev/null
+			source "${lib_script}"
+		fi
+	done
+}
+
+# Walks the MyCmd directory hierarchy starting from the direct child
+# of MYCMD_BASE_DIR down to the directory the calling command script
+# is in and sources the library file <directory_name>-lib if it exists
+function _mycmd.auto_source_mycmd_libs()
+{
+	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
+
+	if [[ "${MYCMD_BASE_DIR}" == "${running_cmd_dir}" ]]; then
+		# TODO: Change to `trace` or `debug` function I write
+		echo "No additional libraries to automatically source, command is in ${MYCMD_BASE_DIR}."
+		return
+	fi
+
+	# TODO: Dependency on `realpath` from GNU coreutils
+	local -r relative_path="$(realpath --relative-to="${MYCMD_BASE_DIR}" "${running_cmd_dir}")"
+
+	# TODO: Validate that running_cmd_dir is a child path of MYCMD_BASE_DIR
+	_mycmd.source_mycmd_lib "${relative_path}"
+}
+
+# TODO: Set up trap and clean up functions.
+
+# TODO: Provide convenience methods for logging and terminal output
+

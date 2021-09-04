@@ -1,0 +1,21 @@
+# -*- mode: sh -*-
+# shellcheck shell=bash
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+	echo >&2 "$0 is a library only meant to be sourced."
+	exit 1
+}
+
+# This library should only be sourced once. Technique borrowed from
+# https://stackoverflow.com/a/64534652
+[ -n "${_MYCMD_REQUESTS_LIB:-}" ] && return; export readonly _MYCMD_REQUESTS_LIB=1;
+
+echo "The requests library has been sourced."
+
+function make_service_request()
+{
+    echo "make_service_request called with arguments: $*"
+}
