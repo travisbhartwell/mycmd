@@ -22,13 +22,15 @@ set -o nounset -o errexit -o errtrace -o pipefail
 
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
-[ -n "${_MYCMD_LIB-}" ] && return; export readonly _MYCMD_LIB=1;
+[ -n "${_MYCMD_LIB-}" ] && return
+export readonly _MYCMD_LIB=1
 
 # If not set, or set to a non-existent directory, fall back and set
 # MYCMD_BASE_DIR to the directory this file is in.
 if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
 	MYCMD_BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
-	readonly MYCMD_BASE_DIR; export MYCMD_BASE_DIR
+	readonly MYCMD_BASE_DIR
+	export MYCMD_BASE_DIR
 
 	# TODO: Change to `trace` or `debug` function I write
 	echo "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
@@ -45,17 +47,14 @@ fi
 # For example, to source the library in ~/mycmd/requests/service1,
 # call this like this:
 # 	_mycmd.source_mycmd_lib "requests/service1"
-function _mycmd.source_mycmd_lib()
-{
+function _mycmd.source_mycmd_lib() {
 	# TODO: Validation of parmaeters
 	local -r library_path="$1"
 
 	local dir_parts
 	# shellcheck disable=SC2162
-	IFS="/" read -a dir_parts <<< "${library_path}"
+	IFS="/" read -a dir_parts <<<"${library_path}"
 	readonly dir_parts
-
-	echo "dir parts: ${dir_parts[*]}"
 
 	# Start at the base directory
 	local lib_dir="${MYCMD_BASE_DIR}"
@@ -76,8 +75,7 @@ function _mycmd.source_mycmd_lib()
 # Walks the MyCmd directory hierarchy starting from the direct child
 # of MYCMD_BASE_DIR down to the directory the calling command script
 # is in and sources the library file <directory_name>-lib if it exists
-function _mycmd.auto_source_mycmd_libs()
-{
+function _mycmd.auto_source_mycmd_libs() {
 	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
 
 	if [[ "${MYCMD_BASE_DIR}" == "${running_cmd_dir}" ]]; then
@@ -96,4 +94,55 @@ function _mycmd.auto_source_mycmd_libs()
 # TODO: Set up trap and clean up functions.
 
 # TODO: Provide convenience methods for logging and terminal output
+function mycmd.log() {
+	echo >&2 -e "${1-}"
+}
 
+function mycmd._log_input() {
+	local fn=$1
+
+	mycmd.log "Start of input to '${fn}' on STDIN:"
+
+	cat - | sed -e "s/\(.*\)/INPUT:\t \1/" >&2
+
+	mycmd.log "\nEnd of input to '${fn}' on STDIN."
+}
+
+function mycmd._log_output() {
+	local fn=$1
+
+	mycmd.log "Start of output from '${fn}' on STDOUT:"
+
+	cat - | sed -e "s/\(.*\)/OUTPUT:\t \1/" >&2
+
+	mycmd.log "\nEnd of output from '${fn}' on STDOUT."
+}
+
+# Used to easily trace execution of a shell script.
+# Logs - by default to stderr - the following:
+# - any arguments used to call the function
+# - any input on stdin to the function
+# - any output on stderr from the function
+# TODO: Have an optional argument to log to a file instead of stderr
+# TODO: Have an optional argument for the function name to use in log output
+function mycmd.log_function() {
+	local -r fn=$1
+	shift
+
+	if [ -n "${MYCMD_DEBUG-}" ]; then
+		mycmd.log "Calling function '${fn}':"
+
+		if (($# > 0)); then
+			for ((i = 1; i <= "$#"; i++)); do
+				mycmd.log "\targument ${i}: ${!i}"
+			done
+		fi
+
+		cat - |
+			tee >(mycmd._log_input "${fn}") |
+			$fn "$@" |
+			tee >(mycmd._log_output "${fn}")
+	else
+		$fn "$@"
+	fi
+}
