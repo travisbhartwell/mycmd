@@ -36,6 +36,31 @@ if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
 	echo "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
 fi
 
+_MYCMD_OS="$(uname -s)"
+readonly _MYCMD_OS
+
+# Set other constants used everywhere.
+# TODO: Should these instead be sest in the mycmd wrapper script?
+case ${_MYCMD_OS} in
+	Darwin)
+		# https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html#//apple_ref/doc/uid/TP40010672-CH10-SW1
+		MYCMD_CACHE_DIR=$HOME/Library/Caches/mycmd
+		;;
+
+	Linux)
+		# TODO: Probably should use something with XDG
+		MYCMD_CACHE_DIR=$HOME/.cache/mycmd
+		;;
+
+	*)
+		echo >&2 "OS ${_MYCMD_OS} is not currently supported."
+		exit 1
+		;;
+esac
+
+readonly MYCMD_CACHE_DIR
+mkdir -p "${MYCMD_CACHE_DIR}"
+
 # TODO: Provide methods for providing cross-platform locations of dependencies
 #       For example, client scripts will call __uses_sed() after this file is sourced.
 #       That function sets the _SED_BIN path for the binary.
@@ -72,20 +97,32 @@ function _mycmd.source_mycmd_lib() {
 	done
 }
 
+function _mycmd.running_cmd_name() {
+	local -r running_cmd="${BASH_SOURCE[-1]}"
+
+	basename "${running_cmd}"
+}
+
+function _mycmd.running_cmd_relative_path() {
+	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
+
+	# TODO: Dependency on `realpath` from GNU coreutils
+	local -r relative_path="$(realpath --relative-to="${MYCMD_BASE_DIR}" "${running_cmd_dir}")"
+
+	echo "${relative_path}"
+}
+
 # Walks the MyCmd directory hierarchy starting from the direct child
 # of MYCMD_BASE_DIR down to the directory the calling command script
 # is in and sources the library file <directory_name>-lib if it exists
 function _mycmd.auto_source_mycmd_libs() {
-	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
+	local -r relative_path=$(_mycmd.running_cmd_relative_path)
 
-	if [[ "${MYCMD_BASE_DIR}" == "${running_cmd_dir}" ]]; then
-		# TODO: Change to `trace` or `debug` function I write
-		echo "No additional libraries to automatically source, command is in ${MYCMD_BASE_DIR}."
+	# TODO Properly error on things outside of MYCMD_BASE_DIR
+	if [[ "${relative_path}" == "." ]]; then
+		mycmd.log "No additional libraries to automatically source, command is in ${MYCMD_BASE_DIR}."
 		return
 	fi
-
-	# TODO: Dependency on `realpath` from GNU coreutils
-	local -r relative_path="$(realpath --relative-to="${MYCMD_BASE_DIR}" "${running_cmd_dir}")"
 
 	# TODO: Validate that running_cmd_dir is a child path of MYCMD_BASE_DIR
 	_mycmd.source_mycmd_lib "${relative_path}"
@@ -145,4 +182,44 @@ function mycmd.log_function() {
 	else
 		$fn "$@"
 	fi
+}
+
+# Functions for managing caches and temporary files
+# TODO: Create these in a command execution specific directory
+# TODO: Add traps for auto clean up temp directory
+function mycmd.get_named_temp_file() {
+	if (($# < 1)); then
+		mycmd.log "Missing required parameter TEMP_FILE_NAME to mycmd.get_named_temp_file."
+		return 1
+	fi
+}
+
+# TODO: Create convenience functions for using and capturing output that needs to be processed multiple times
+
+# mycmd.get_named_cache_file returns the path name of a file to use for
+# caching. These files are used for caching state in between runs of commands.
+function mycmd.get_named_cache_file() {
+	if (($# < 1)); then
+		mycmd.log "Missing required parameter CACHE_FILE_NAME to mycmd.get_named_cache_file."
+		return 1
+	fi
+
+	local -r cache_file_name=$1
+	local -r running_cmd_relative_path=$(_mycmd.running_cmd_relative_path)
+	local -r running_cmd_name=$(_mycmd.running_cmd_name)
+
+	local cmd_base_cache_dir
+	cmd_base_cache_dir="${MYCMD_CACHE_DIR}/${running_cmd_relative_path}/${running_cmd_name}"
+	cmd_base_cache_dir="$(realpath -m "${cmd_base_cache_dir}")"
+	readonly cmd_base_cache_dir
+
+	# TODO: Do we want to change the permissions on the cache directrory?
+	mkdir -p "${cmd_base_cache_dir}"
+
+	local named_cache_file
+	named_cache_file="${cmd_base_cache_dir}/${cache_file_name}"
+	named_cache_file="$(realpath -m "${named_cache_file}")"
+	readonly named_cache_file
+
+	echo "${named_cache_file}"
 }

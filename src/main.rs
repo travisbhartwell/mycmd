@@ -8,6 +8,7 @@ struct MyCmdConfig {
     debug_mode: bool,
 }
 
+static MYCMD_BASE_DIR_ENV_VAR_NAME: &str = "MYCMD_BASE_DIR";
 static DEFAULT_COMMAND_BASE_DIR_NAME: &str = "mycmd";
 static DEBUG_ENV_VAR_NAME: &str = "MYCMD_DEBUG";
 static COMPLETION_FLAG: &str = "--mycmd-complete";
@@ -30,16 +31,20 @@ struct CommandWithArguments {
     args: Vec<String>,
 }
 
-fn find_completions(config: MyCmdConfig, mycmd_args: Vec<String>) {
-    let mut potential_path: PathBuf = config.base_directory;
+fn find_completions(config: &MyCmdConfig, mycmd_args: Vec<String>) {
+    let mut potential_path: PathBuf = config.base_directory.clone();
     let mut args_iter = mycmd_args.iter();
+
+    for arg in args_iter {
+        println!("Argument: {:?}", arg);
+    }
 }
 
 fn find_command(
-    config: MyCmdConfig,
+    config: &MyCmdConfig,
     mycmd_args: Vec<String>,
 ) -> Result<CommandWithArguments, &'static str> {
-    let mut potential_path: PathBuf = config.base_directory;
+    let mut potential_path: PathBuf = config.base_directory.clone();
     let mut args_iter = mycmd_args.iter();
 
     loop {
@@ -81,25 +86,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     args.next();
     let args_vec: Vec<_> = args.collect();
 
-    // For simplicty, only look accept the completion flag at the last position
+    // For simplicty, only look for the completion flag at the last position
     if args_vec.last().unwrap() == COMPLETION_FLAG {
         println!("Received completion argument!");
         let mut args_vec = args_vec;
         args_vec.pop();
-        find_completions(my_cmd_config, args_vec);
+        find_completions(&my_cmd_config, args_vec);
     } else {
-        let cmd_with_args: CommandWithArguments = find_command(my_cmd_config, args_vec)?;
+        let cmd_with_args: CommandWithArguments = find_command(&my_cmd_config, args_vec)?;
 
         println!("Found command at: {:?}", cmd_with_args.command_path);
 
-        let mut command = Command::new(cmd_with_args.command_path);
-
-        if !cmd_with_args.args.is_empty() {
-            println!("Found command arguments with: {:?}", cmd_with_args.args);
-            command.args(cmd_with_args.args);
-        }
-
-        command.exec();
+        Command::new(cmd_with_args.command_path)
+            .args(cmd_with_args.args)
+            .env(
+                MYCMD_BASE_DIR_ENV_VAR_NAME,
+                my_cmd_config.base_directory.to_owned(),
+            )
+            .exec();
     }
 
     Ok(())
