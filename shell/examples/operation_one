@@ -5,16 +5,12 @@ set -o nounset -o errexit -o errtrace -o pipefail
 
 [ -z "${MYCMD_BASE_DIR-}" ] && {
     echo >&2 "The script $0 should only be launched using 'mycmd'."
-	exit 1
+    exit 1
 }
 
-# shellcheck source=../../mycmd-lib
-source "${MYCMD_BASE_DIR}/mycmd-lib"
+mycmd.auto_source_mycmd_libs
 
-_mycmd.auto_source_mycmd_libs
-
-function main()
-{
+function main() {
     operation1 "$@"
 }
 

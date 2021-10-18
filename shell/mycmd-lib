@@ -1,16 +1,15 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
+# ------------------------------------------------------------------------------
 # MyCmd Base Shell Library
 #   Library to be sourced with common routines for MyCmd scripts and commands
 
-# TODO: Decide on conventions and standards for variable and function naming.
-
+# ------------------------------------------------------------------------------
+# Basic Housekeeping
+#
 # Set options for safety
 set -o nounset -o errexit -o errtrace -o pipefail
-
-# TODO: Evaluate programs and builtins used and provide checks for non-standard
-#       things, like coreutils variants that need installed.
 
 # This file should only be sourced and not executed directly, so exit with error
 # with execution is attempted. Technique borrowed from
@@ -25,22 +24,100 @@ set -o nounset -o errexit -o errtrace -o pipefail
 [ -n "${_MYCMD_LIB-}" ] && return
 export readonly _MYCMD_LIB=1
 
-# If not set, or set to a non-existent directory, fall back and set
-# MYCMD_BASE_DIR to the directory this file is in.
+# ------------------------------------------------------------------------------
+# Basic Logging and Output Functions
+#
+#   These are defined as early as possible to enable to be used through-out this
+#   file. See the Additional Logging Support section below for additional
+#   functionality.
+#
+#   In general, use these functions for any output that the user may see, and use
+#   echo for interal implementation use for functions that are meant to be called
+#   in sub-shells to capture output.
+
+# mycmd.output
+#   Convenience for runtime output to stdout. Provided for symmetry in output
+#   functions.
+function mycmd.output() {
+	echo -e "$*"
+}
+
+# mycmd.log
+#   Convenience for runtime logging to stderr.
+function mycmd.log() {
+	echo >&2 -e "$*"
+}
+
+# mycmd.debug
+#   Optionally log when MYCMD_DEBUG is set. Useful for debugging output.
+function mycmd.debug() {
+	if [ -n "${MYCMD_DEBUG-}" ]; then
+		mycmd.log "[DEBUG] $*"
+	fi
+}
+
+# mycmd.trace
+#   Optionally log when MYCMD_TRACE is set. Useful for tracing script execution.
+function mycmd.trace() {
+	if [ -n "${MYCMD_TRACE-}" ]; then
+		mycmd.log "[TRACE] $*"
+	fi
+}
+
+# mycmd.err_exit
+#   Output an error message to stderr and exit with a non-zero exit code.
+#
+#   $1 - Exit code to use
+#   Remainder - Error message
+function mycmd.err_exit() {
+	local -r exit_code=$1
+	shift
+
+	mycmd.log "$*"
+	exit "${exit_code}"
+}
+
+# ------------------------------------------------------------------------------
+# Set MYCMD_BASE_DIR
+#
+#   If not set, or set to a non-existent directory, fall back and set
+#   MYCMD_BASE_DIR to the directory this file is in.
 if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
 	MYCMD_BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 	readonly MYCMD_BASE_DIR
 	export MYCMD_BASE_DIR
 
-	# TODO: Change to `trace` or `debug` function I write
-	echo "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
+	mycmd.trace "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
 fi
 
+# -------------------------------------------------------------------------------
+# Library Deferred Commands Support
+#
+#   Commands to run after all libraries are sourced
+declare -ax _MYCMD_DEFERRED_STARTUP=()
+
+# mycmd.defer_at_startup
+#  Called with a command to call at the end of evaluating the library.
+#
+#  These commands are explicitly called by the explicit call to
+#  _mycmd.run_startup_deferreds at the end of this file.
+function mycmd.defer_at_startup() {
+	_MYCMD_DEFERRED_STARTUP+=("$*")
+}
+
+function _mycmd.run_startup_deferreds() {
+	for command in "${_MYCMD_DEFERRED_STARTUP[@]}"; do
+		mycmd.trace >&2 "Executing '${command}'."
+		${command}
+	done
+}
+
+# -------------------------------------------------------------------------------
+# MyCmd Operation System Support
+#   Common variables set according to OS being run on.
 _MYCMD_OS="$(uname -s)"
 readonly _MYCMD_OS
 
-# Set other constants used everywhere.
-# TODO: Should these instead be sest in the mycmd wrapper script?
 case ${_MYCMD_OS} in
 	Darwin)
 		# https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html#//apple_ref/doc/uid/TP40010672-CH10-SW1
@@ -48,31 +125,117 @@ case ${_MYCMD_OS} in
 		;;
 
 	Linux)
-		# TODO: Probably should use something with XDG
 		MYCMD_CACHE_DIR=$HOME/.cache/mycmd
 		;;
 
 	*)
-		echo >&2 "OS ${_MYCMD_OS} is not currently supported."
-		exit 1
+		mycmd.err_exit 1 "OS ${_MYCMD_OS} is not currently supported."
 		;;
 esac
 
 readonly MYCMD_CACHE_DIR
+mycmd.trace "Creating cache directory ${MYCMD_CACHE_DIR} if needed."
 mkdir -p "${MYCMD_CACHE_DIR}"
 
-# TODO: Provide methods for providing cross-platform locations of dependencies
-#       For example, client scripts will call __uses_sed() after this file is sourced.
-#       That function sets the _SED_BIN path for the binary.
+# ------------------------------------------------------------------------------
+# Convenience methods for calling functions
 
-# Explicitly source a MyCmd library and its dependencies
-# by providing the directory name of the MyCmd library relative
-# to the MYCMD_BASE_DIR.
+# mycmd.function_exists
+#   Test whether the specified shell function has been defined
+function mycmd.function_exists() {
+	declare -F "$1" >/dev/null
+}
+
+# mycmd.call_if_function_exists
+#  	If the named function exists, call with the subsequent arguments. Otherwise,
+#  	do nothing.
+function mycmd.call_if_function_exists() {
+	local -r fn=$1
+	shift
+
+	if mycmd.function_exists "${fn}"; then
+		"${fn}" "$@"
+	fi
+}
+
+# ------------------------------------------------------------------------------
+# Convenience methods for locating common utilities cross platform
+
+# MYCMD_BIN
+#   An exported associative array used for dependencies that are in different
+#   locations and/or names depending on the platform or host a script is
+#   being run on.
 #
-# For example, to source the library in ~/mycmd/requests/service1,
-# call this like this:
-# 	_mycmd.source_mycmd_lib "requests/service1"
-function _mycmd.source_mycmd_lib() {
+#     Keys:  command names
+#     Value: the path of the given command
+declare -Ax MYCMD_BIN
+
+# _mycmd._locate_bin
+#   Attempt to find the given command on the PATH. If found, return the full path.
+function _mycmd._locate_bin() {
+	local -r command=$1
+	local command_path
+
+	if command_path=$(which "${command}" 2>/dev/null); then
+		echo "${command_path}"
+	else
+		return 1
+	fi
+}
+
+# mycmd.init_bin
+#  If not already set, attempt to set MYCMD_BIN for the given command name. Will
+#  first call mycmd_local.init_bin, if the user has defined mycmd-local-lib, and
+#  use the value from there as an override.
+#
+#  Common commands like sed, which require a different name if using GNU set installed
+#  from HomeBrew on Mac OS, are included here.
+#
+#  It is intended that when this function is callled, the command is a required
+#  dependency and thus this will exit with an error if the command cannot be found.
+function mycmd.init_bin() {
+	local -r command=$1
+
+	mycmd.call_if_function_exists mycmd_local.init_bin "$@"
+
+	[[ -v MYCMD_BIN["$command"] ]] && {
+		mycmd.debug "'${command}' already defined at '${MYCMD_BIN[$command]}'"
+		return 0
+	}
+
+	local command_path
+
+	case "${command}+${_MYCMD_OS}" in
+		"sed+Darwin")
+			if sed_path=$(_mycmd._locate_bin gsed); then
+				MYCMD_BIN[$command]="${sed_path}"
+			else
+				mycmd.err_exit 1 "Unable to locate GNU sed, please install from Homebrew with 'brew install gnu-sed'"
+			fi
+			;;
+		*)
+			if command_path=$(_mycmd._locate_bin "${command}"); then
+				MYCMD_BIN[$command]="${command_path}"
+			else
+				mycmd.err_exit 1 "Unable to locate path for '${command}'."
+			fi
+			;;
+
+	esac
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Sourcing Support
+
+# _mycmd.source_mycmd_lib
+#   Explicitly source a MyCmd library and its dependencies by providing the
+#   directory name of the MyCmd library relative to the MYCMD_BASE_DIR.
+#
+#   For example, to source the library in ~/mycmd/requests/service1, call this
+#   like this:
+#
+# 	mycmd.source_mycmd_lib "requests/service1"
+function mycmd.source_mycmd_lib() {
 	# TODO: Validation of parmaeters
 	local -r library_path="$1"
 
@@ -112,10 +275,11 @@ function _mycmd.running_cmd_relative_path() {
 	echo "${relative_path}"
 }
 
-# Walks the MyCmd directory hierarchy starting from the direct child
-# of MYCMD_BASE_DIR down to the directory the calling command script
-# is in and sources the library file <directory_name>-lib if it exists
-function _mycmd.auto_source_mycmd_libs() {
+# mycmd.auto_source_mycmd_libs
+#   Walks the MyCmd directory hierarchy starting from the direct child of MYCMD_BASE_DIR
+#   down to the directory the calling command script is in and sources the library file
+#   <directory_name>-lib if it exists
+function mycmd.auto_source_mycmd_libs() {
 	local -r relative_path=$(_mycmd.running_cmd_relative_path)
 
 	# TODO Properly error on things outside of MYCMD_BASE_DIR
@@ -125,49 +289,167 @@ function _mycmd.auto_source_mycmd_libs() {
 	fi
 
 	# TODO: Validate that running_cmd_dir is a child path of MYCMD_BASE_DIR
-	_mycmd.source_mycmd_lib "${relative_path}"
+	mycmd.source_mycmd_lib "${relative_path}"
 }
 
-# TODO: Set up trap and clean up functions.
+function _mycmd.source_local_override() {
+	local -r local_lib="${MYCMD_BASE_DIR}/mycmd-local-lib"
 
-# TODO: Provide convenience methods for logging and terminal output
-function mycmd.log() {
-	echo >&2 -e "${1-}"
+	# shellcheck source=/dev/null
+	[[ -e "${local_lib}" ]] && source "${local_lib}"
 }
 
+# ------------------------------------------------------------------------------
+# Convenience methods and variables for terminal output
+#
+#   Users set the environment variabled MYCMD_FORCE_COLOR to force MyCmd to
+#   output in color if output is being redirected.
+#
+#   The associative arrays MYCMD_FG_COLOR, MYCMD_BG_COLOR, and MYCMD_TEXT_ATTR
+#   are provided as conveniences for the terminal escape codes for common
+#   terminal foreground colors, background colors, and text attributes,
+#   respectively. In each case, the keys are the names of the colors or
+#   attributes.
+#
+#   Examples:
+#     - Display the given text in bold:
+#       mycmd.output "${MYCMD_TEXT_ATTR[bold]}This is bold${MYCMD_TEXT_ATTR[reset]}"
+#     - Display the given text with a blue background and magenta text:
+#       mycmd.output "${MYCMD_BG_COLOR[blue]}${MYCMD_FG_COLOR[magenta]}This is bold${MYCMD_FG_COLOR[default]}${MYCMD_BG_COLOR[default]}"
+#
+#    Note that you generally need to either set thing back to default for colors or reset for text attributes when you are finished.
+#
+#   Handy reference: https://wiki.bash-hackers.org/scripting/terminalcodes
+# TODO: Check for terminal capabilities?
+if [[ -t 1 || -n "${MYCMD_FORCE_COLOR-}" ]]; then
+	readonly _MYCMD_IS_TTY=1
+	mycmd.init_bin tput
+fi
+
+# tput
+#   Simple function wrapper around the tput command that is a no-op
+#   if we aren't running from a terminal.
+function tput() {
+	if [[ -n "${_MYCMD_IS_TTY-}" ]]; then
+		"${MYCMD_BIN[tput]}" "$@"
+	else
+		# Do Nothing
+		return 0
+	fi
+}
+
+# MYCMD_FG_COLOR
+#   An exported associative array with common foreground color definitions.
+#
+#   Provided colors:
+#   - black
+#   - red
+#   - green
+#   - yellow
+#   - blue
+#   - magenta
+#   - cyan
+#   - white
+declare -Ax MYCMD_FG_COLOR
+function _mycmd.define_fg_colors() {
+	MYCMD_FG_COLOR[black]=$(tput setaf 0)
+	MYCMD_FG_COLOR[red]=$(tput setaf 1)
+	MYCMD_FG_COLOR[green]=$(tput setaf 2)
+	MYCMD_FG_COLOR[yellow]=$(tput setaf 3)
+	MYCMD_FG_COLOR[blue]=$(tput setaf 4)
+	MYCMD_FG_COLOR[magenta]=$(tput setaf 5)
+	MYCMD_FG_COLOR[cyan]=$(tput setaf 6)
+	MYCMD_FG_COLOR[white]=$(tput setaf 7)
+	# MYCMD_FG_COLOR[default]=$(tput setaf 9)
+}
+mycmd.defer_at_startup _mycmd.define_fg_colors
+
+# MYCMD_FG_COLOR
+#   An exported associative array with common foreground color definitions.
+#
+#   Provided colors:
+#   - black
+#   - red
+#   - green
+#   - yellow
+#   - blue
+#   - magenta
+#   - cyan
+#   - white
+declare -Ax MYCMD_BG_COLOR
+function _mycmd.define_bg_colors() {
+	MYCMD_BG_COLOR[black]=$(tput setab 0)
+	MYCMD_BG_COLOR[red]=$(tput setab 1)
+	MYCMD_BG_COLOR[green]=$(tput setab 2)
+	MYCMD_BG_COLOR[yellow]=$(tput setab 3)
+	MYCMD_BG_COLOR[blue]=$(tput setab 4)
+	MYCMD_BG_COLOR[magenta]=$(tput setab 5)
+	MYCMD_BG_COLOR[cyan]=$(tput setab 6)
+	MYCMD_BG_COLOR[white]=$(tput setab 7)
+	# MYCMD_BG_COLOR[default]=$(tput setab 9)
+}
+mycmd.defer_at_startup _mycmd.define_bg_colors
+
+# MYCMD_FG_COLOR
+#   An exported associative array with common text attributes.
+#
+#   Provided attributes include:
+#   - reset -- resets all attributes (including colors) to the defaults
+#   - bold
+#   - dim
+#   - start_standout
+#   - end_standout
+#   - start_under - start underline
+#   - end_under - end underline
+declare -A MYCMD_TEXT_ATTR
+function _mycmd.define_text_attrs() {
+	MYCMD_TEXT_ATTR[reset]=$(tput sgr0)
+	MYCMD_TEXT_ATTR[bold]=$(tput bold)
+	MYCMD_TEXT_ATTR[dim]=$(tput dim)
+	MYCMD_TEXT_ATTR[start_standout]=$(tput smso)
+	MYCMD_TEXT_ATTR[end_standout]=$(tput rmso)
+	MYCMD_TEXT_ATTR[start_under]=$(tput smul)
+	MYCMD_TEXT_ATTR[end_under]=$(tput rmul)
+}
+mycmd.defer_at_startup _mycmd.define_text_attrs
+
+# ------------------------------------------------------------------------------
+# Additional Logging Support Functions
+
+mycmd.defer_at_startup mycmd.init_bin sed
 function mycmd._log_input() {
 	local fn=$1
 
-	mycmd.log "Start of input to '${fn}' on STDIN:"
+	mycmd.log "${MYCMD_TEXT_ATTR[bold]}Start of input to '${fn}' on STDIN:${MYCMD_TEXT_ATTR[reset]}"
 
-	cat - | sed -e "s/\(.*\)/INPUT:\t \1/" >&2
+	cat - | "${MYCMD_BIN[sed]}" -e "s/\(.*\)/${MYCMD_TEXT_ATTR[bold]}INPUT:${MYCMD_TEXT_ATTR[reset]}\t \1/" >&2
 
-	mycmd.log "\nEnd of input to '${fn}' on STDIN."
+	mycmd.log "\n${MYCMD_TEXT_ATTR[bold]}End of input to '${fn}' on STDIN.${MYCMD_TEXT_ATTR[reset]}"
 }
 
+mycmd.defer_at_startup mycmd.init_bin sed
 function mycmd._log_output() {
 	local fn=$1
 
-	mycmd.log "Start of output from '${fn}' on STDOUT:"
+	mycmd.log "${MYCMD_TEXT_ATTR[bold]}Start of output from '${fn}' on STDOUT:${MYCMD_TEXT_ATTR[reset]}"
 
-	cat - | sed -e "s/\(.*\)/OUTPUT:\t \1/" >&2
+	cat - | "${MYCMD_BIN[sed]}" -e "s/\(.*\)/${MYCMD_TEXT_ATTR[bold]}OUTPUT:${MYCMD_TEXT_ATTR[reset]}\t \1/" >&2
 
-	mycmd.log "\nEnd of output from '${fn}' on STDOUT."
+	mycmd.log "\n${MYCMD_TEXT_ATTR[bold]}End of output from '${fn}' on STDOUT.${MYCMD_TEXT_ATTR[reset]}"
 }
 
-# Used to easily trace execution of a shell script.
-# Logs - by default to stderr - the following:
-# - any arguments used to call the function
-# - any input on stdin to the function
-# - any output on stderr from the function
-# TODO: Have an optional argument to log to a file instead of stderr
-# TODO: Have an optional argument for the function name to use in log output
+# mycmd.log_function
+#   Used to easily trace execution of a shell script.
+#   Logs - by default to stderr - the following:
+#   - any arguments used to call the function
+#   - any input on stdin to the function
+#   - any output on stderr from the function
 function mycmd.log_function() {
 	local -r fn=$1
 	shift
 
 	if [ -n "${MYCMD_DEBUG-}" ]; then
-		mycmd.log "Calling function '${fn}':"
+		mycmd.log "${MYCMD_TEXT_ATTR[bold]}Calling function '${fn}':${MYCMD_TEXT_ATTR[reset]}"
 
 		if (($# > 0)); then
 			for ((i = 1; i <= "$#"; i++)); do
@@ -184,20 +466,13 @@ function mycmd.log_function() {
 	fi
 }
 
+# ------------------------------------------------------------------------------
 # Functions for managing caches and temporary files
-# TODO: Create these in a command execution specific directory
-# TODO: Add traps for auto clean up temp directory
-function mycmd.get_named_temp_file() {
-	if (($# < 1)); then
-		mycmd.log "Missing required parameter TEMP_FILE_NAME to mycmd.get_named_temp_file."
-		return 1
-	fi
-}
 
-# TODO: Create convenience functions for using and capturing output that needs to be processed multiple times
-
-# mycmd.get_named_cache_file returns the path name of a file to use for
-# caching. These files are used for caching state in between runs of commands.
+# mycmd.get_named_cache_file
+#   Returns the path name of a file to use for caching from a common cache directory.
+#
+#   These files are used for caching state in between runs of commands.
 function mycmd.get_named_cache_file() {
 	if (($# < 1)); then
 		mycmd.log "Missing required parameter CACHE_FILE_NAME to mycmd.get_named_cache_file."
@@ -223,3 +498,11 @@ function mycmd.get_named_cache_file() {
 
 	echo "${named_cache_file}"
 }
+
+# Source the local overrides library if it exists
+_mycmd.source_local_override
+
+# Run any deferred commands
+_mycmd.run_startup_deferreds
+
+mycmd.trace "$0 sourcing complete."

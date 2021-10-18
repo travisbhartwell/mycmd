@@ -13,9 +13,9 @@
 # https://stackoverflow.com/a/64534652
 [ -n "${_MYCMD_REQUESTS_LIB:-}" ] && return; export readonly _MYCMD_REQUESTS_LIB=1;
 
-echo "The requests library has been sourced."
+mycmd.trace "The requests library has been sourced."
 
 function make_service_request()
 {
-    echo "make_service_request called with arguments: $*"
+    mycmd.output "make_service_request called with arguments: $*"
 }
