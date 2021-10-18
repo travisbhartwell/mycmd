@@ -107,7 +107,7 @@ function mycmd.defer_at_startup() {
 
 function _mycmd.run_startup_deferreds() {
 	for command in "${_MYCMD_DEFERRED_STARTUP[@]}"; do
-		mycmd.trace >&2 "Executing '${command}'."
+		mycmd.trace "Executing '${command}'."
 		${command}
 	done
 }
