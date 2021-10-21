@@ -26,6 +26,11 @@ For example, should the execution wrapper set common environment variables?
 *** MYCMD_BIN
 Can I have the values be function names instead of paths?
 
+*** Runtime analysis
+
+Can I enable something to validate that I am not leaking environment variables
+in my implementation at all?
+
 ** Enhancements
 *** TODO Use xdg environment variables and commands when on Linux
 *** TODO Set up trap, tracing, and clean up functions
@@ -40,6 +45,16 @@ Can I have the values be function names instead of paths?
 *** TODO Add optional parameter to =mycmd.log_function= for file to log to instead of stderr
 *** TODO Add optional parameter to =mycmd.log_function= for the name to use in logging the function
 *** TODO Create convenience functions for using and capturing output that needs to be processed multiple times
+*** TODO Check for terminal capabilities before adding to associative arrays
+*** TODO Handle commands with dashes in the name in MYCMD_BIN
+*** DONE Have _MYCMD_DEFERRED_STARTUP be library specific
+     I would have to generate a variable name. I think the best thing to do
+     would be =_MYCMD_DEFERRED_STARTUP_<HASH>= with that Hash being the sha1 of
+     full path of the library.
+
+     Using indirect variables proved to be too complicated, so I went with a
+     simpler route.
+*** TODO =mycmd.log= and related functions should handle multi-line input better
 
 ** Implementation
 *** =mycmd.get_named_temp_file=

@@ -8,6 +8,8 @@ set -o nounset -o errexit -o errtrace -o pipefail
     exit 1
 }
 
+# shellcheck source=../../mycmd-lib
+source "${MYCMD_BASE_DIR}/mycmd-lib"
 mycmd.auto_source_mycmd_libs
 
 function main() {

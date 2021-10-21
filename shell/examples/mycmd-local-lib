@@ -21,7 +21,8 @@ fi
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
 [ -n "${_MYCMD_LOCAL_LIB:-}" ] && return
-export readonly _MYCMD_LOCAL_LIB=1
+readonly _MYCMD_LOCAL_LIB=1
+export _MYCMD_LOCAL_LIB
 
 # Local definitions for MCYMD_BIN
 function mycmd_local.init_bin() {

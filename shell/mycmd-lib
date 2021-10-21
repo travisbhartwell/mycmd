@@ -22,8 +22,11 @@ set -o nounset -o errexit -o errtrace -o pipefail
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
 [ -n "${_MYCMD_LIB-}" ] && return
-export readonly _MYCMD_LIB=1
+readonly _MYCMD_LIB=1
+export _MYCMD_LIB
 
+readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+export _MYCMD_LIB_SELF_FILE
 # ------------------------------------------------------------------------------
 # Basic Logging and Output Functions
 #
@@ -96,20 +99,74 @@ fi
 #   Commands to run after all libraries are sourced
 declare -ax _MYCMD_DEFERRED_STARTUP=()
 
+# mycmd._dispatch_with_calling_file
+#   Higher order function that passes the full pathname of the shell file that called the
+#   function that called  mycmd._dispatch_with_calling_file as the first parameter of the
+#   function.
+function _mycmd._dispatch_with_calling_file() {
+	local -r fn=$1
+	shift
+
+	local calling_file
+	# stack frame 0 - who called me
+	# stack frame 1 - who called that
+	read -r _ _ calling_file <<<"$(caller 1)"
+	# TODO: Do I need to get an abspath?
+	readonly calling_file
+	mycmd.trace "Dispatching with calling file '${calling_file}'"
+
+	"${fn}" "${calling_file}" "${@}"
+}
+
+function mycmd._defer_at_startup() {
+	local -r calling_file=$1
+	shift
+
+	_MYCMD_DEFERRED_STARTUP+=("${calling_file} $*")
+}
+
 # mycmd.defer_at_startup
 #  Called with a command to call at the end of evaluating the library.
 #
 #  These commands are explicitly called by the explicit call to
 #  _mycmd.run_startup_deferreds at the end of this file.
 function mycmd.defer_at_startup() {
-	_MYCMD_DEFERRED_STARTUP+=("$*")
+	_mycmd._dispatch_with_calling_file mycmd._defer_at_startup "${@}"
 }
 
+# _mycmd.run_startup_deferreds
+#   Supports two calling mechanism: one by the library explicitly, like from
+#   this file. Or another on behalf of another file.
+#
+#   A quirk of how mycmd._dispatch_with_calling_file works allows us to be
+#   recursive here
+# shellcheck disable=SC2120
 function _mycmd.run_startup_deferreds() {
-	for command in "${_MYCMD_DEFERRED_STARTUP[@]}"; do
-		mycmd.trace "Executing '${command}'."
-		${command}
+	if (($# < 1)); then
+		_mycmd._dispatch_with_calling_file "${FUNCNAME[0]}"
+		return $?
+	fi
+
+	local -r calling_file=$1
+
+	local -ri deferred_startup_count="${#_MYCMD_DEFERRED_STARTUP[@]}"
+	local -i i
+	for ((i = 0; i < deferred_startup_count; i++)); do
+		local calling_file_and_command
+		calling_file_and_command="${_MYCMD_DEFERRED_STARTUP[i]}"
+
+		if [[ "${calling_file_and_command}" =~ ^"${calling_file}".* ]]; then
+			local command="${calling_file_and_command##$calling_file }"
+			mycmd.trace "Executing '${command}' from '${calling_file_and_command}'."
+			${command}
+			mycmd.trace "Removing executed '${command}' from '${calling_file_and_command}'."
+			unset -v '_MYCMD_DEFERRED_STARTUP[$i]'
+		else
+			mycmd.trace "Skipping '${calling_file_and_command}'."
+		fi
 	done
+
+	return 0
 }
 
 # -------------------------------------------------------------------------------
@@ -207,10 +264,21 @@ function mycmd.init_bin() {
 
 	case "${command}+${_MYCMD_OS}" in
 		"sed+Darwin")
+			local sed_path
 			if sed_path=$(_mycmd._locate_bin gsed); then
 				MYCMD_BIN[$command]="${sed_path}"
 			else
 				mycmd.err_exit 1 "Unable to locate GNU sed, please install from Homebrew with 'brew install gnu-sed'"
+			fi
+			;;
+		"sha1sum+Darwin")
+			local shasum_path
+			# shasum is the implementation that ships with mac OS. SHA1 is the default algorithm so it is
+			# a drop in for most cases
+			if shasum_path=$(_mycmd._locate_bin shasum); then
+				MYCMD_BIN[$command]="${shasum_path}"
+			else
+				mycmd.err_exit 1 "Unable to locate shasum"
 			fi
 			;;
 		*)
@@ -246,7 +314,7 @@ function mycmd.source_mycmd_lib() {
 
 	# Start at the base directory
 	local lib_dir="${MYCMD_BASE_DIR}"
-
+	local dir
 	for dir in "${dir_parts[@]}"; do
 		lib_dir="${lib_dir}/${dir}"
 
@@ -256,6 +324,9 @@ function mycmd.source_mycmd_lib() {
 		if [[ -e "${lib_script}" ]]; then
 			# shellcheck source=/dev/null
 			source "${lib_script}"
+
+			# Run any remaining deferreds for the startup
+			_mycmd.run_startup_deferreds "${lib_script}"
 		fi
 	done
 }
@@ -284,7 +355,7 @@ function mycmd.auto_source_mycmd_libs() {
 
 	# TODO Properly error on things outside of MYCMD_BASE_DIR
 	if [[ "${relative_path}" == "." ]]; then
-		mycmd.log "No additional libraries to automatically source, command is in ${MYCMD_BASE_DIR}."
+		mycmd.trace "No additional libraries to automatically source, command is in ${MYCMD_BASE_DIR}."
 		return
 	fi
 
@@ -488,7 +559,7 @@ function mycmd.get_named_cache_file() {
 	cmd_base_cache_dir="$(realpath -m "${cmd_base_cache_dir}")"
 	readonly cmd_base_cache_dir
 
-	# TODO: Do we want to change the permissions on the cache directrory?
+	# TODO: Do we want to change the permissions on the cache directory?
 	mkdir -p "${cmd_base_cache_dir}"
 
 	local named_cache_file
