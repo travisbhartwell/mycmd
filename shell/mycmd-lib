@@ -27,6 +27,11 @@ export _MYCMD_LIB
 
 readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 export _MYCMD_LIB_SELF_FILE
+
+[ -n "${MYCMD_SHELL_TRACE-}" ] && set -o xtrace
+
+[ -n "${MYCMD_SHELL_VERBOSE-}" ] && set -o verbose
+
 # ------------------------------------------------------------------------------
 # Basic Logging and Output Functions
 #
