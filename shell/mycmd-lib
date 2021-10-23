@@ -123,7 +123,7 @@ function _mycmd._dispatch_with_calling_file() {
 	"${fn}" "${calling_file}" "${@}"
 }
 
-function mycmd._defer_at_startup() {
+function _mycmd._defer_at_startup() {
 	local -r calling_file=$1
 	shift
 
@@ -136,7 +136,7 @@ function mycmd._defer_at_startup() {
 #  These commands are explicitly called by the explicit call to
 #  _mycmd.run_startup_deferreds at the end of this file.
 function mycmd.defer_at_startup() {
-	_mycmd._dispatch_with_calling_file mycmd._defer_at_startup "${@}"
+	_mycmd._dispatch_with_calling_file _mycmd._defer_at_startup "${@}"
 }
 
 # _mycmd.run_startup_deferreds
@@ -173,6 +173,66 @@ function _mycmd.run_startup_deferreds() {
 
 	return 0
 }
+
+# -------------------------------------------------------------------------------
+# Library clean commands support
+#   Basic clean up and error handling commands
+
+# _MYCMD_DEFERRED_AT_EXIT
+#   A list treated as a stack. Functions are provided below for adding commands to this
+#   to be run at script exit.
+declare -ax _MYCMD_DEFERRED_AT_EXIT=()
+
+function mycmd.defer_at_exit() {
+	_MYCMD_DEFERRED_AT_EXIT+=("$@")
+}
+
+function _mycmd._print_stack_trace() {
+	# Method borrowed from https://raimonster.com/scripting-field-guide/#org3417a0c
+	local return_code=$?
+
+	[[ "$return_code" -ne 0 ]] && return 0
+
+	mycmd.log "\nThe command ${BASH_COMMAND} triggered a stack trace."
+
+	local -i i
+	local -i j
+
+	# Start at 2 because position 1 is _mycmd._run_at_exit_deferreds
+	for i in $(seq 2 $((${#FUNCNAME[@]} - 2))); do
+		j=$((i + 1))
+		mycmd.log "\t ${BASH_SOURCE[$i]}: ${FUNCNAME[$i]}() called in ${BASH_SOURCE[$j]}:${BASH_LINENO[$i]}"
+	done
+}
+
+function _mycmd._run_at_exit_deferreds() {
+	# Disable the trap handler
+	trap - SIGINT SIGTERM ERR EXIT
+
+	# First, print a stack trace if exiting with non-0
+	_mycmd._print_stack_trace
+
+	# Defensive programming in the unlikely state our variable isn't set
+	if [[ ! -v _MYCMD_DEFERRED_AT_EXIT ]]; then
+		mycmd.debug "_MYCMD_DEFERRED_AT_EXIT is empty or doesn't exist, skipping clean up."
+		return
+	fi
+
+	# Then, run all of the exit deferreds in reverse order
+	local -ri deferred_at_exit_count="${#_MYCMD_DEFERRED_AT_EXIT[@]}"
+	local -i i
+	for ((i = deferred_at_exit_count - 1; i >= 0; i--)); do
+		local command="${_MYCMD_DEFERRED_AT_EXIT[i]}"
+		mycmd.trace "Executing deferred at exit '${command}'."
+		${command}
+	done
+
+	unset -v _MYCMD_DEFERRED_AT_EXIT
+
+	mycmd.trace "All at exit deferreds execution completed."
+}
+
+trap _mycmd._run_at_exit_deferreds SIGINT SIGTERM ERR EXIT
 
 # -------------------------------------------------------------------------------
 # MyCmd Operation System Support
