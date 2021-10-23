@@ -309,6 +309,20 @@ function _mycmd._locate_bin() {
 	fi
 }
 
+function mycmd.init_bin_homebrew() {
+	local -r command=$1
+	local -r exe_name=$2
+	local -r long_name=$3
+	local -r homebrew_package=$4
+
+	local exe_path
+	if exe_path=$(_mycmd._locate_bin "${exe_name}"); then
+		MYCMD_BIN[$command]="${exe_path}"
+	else
+		mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
+	fi
+}
+
 # mycmd.init_bin
 #  If not already set, attempt to set MYCMD_BIN for the given command name. Will
 #  first call mycmd_local.init_bin, if the user has defined mycmd-local-lib, and
@@ -333,12 +347,10 @@ function mycmd.init_bin() {
 
 	case "${command}+${_MYCMD_OS}" in
 		"sed+Darwin")
-			local sed_path
-			if sed_path=$(_mycmd._locate_bin gsed); then
-				MYCMD_BIN[$command]="${sed_path}"
-			else
-				mycmd.err_exit 1 "Unable to locate GNU sed, please install from Homebrew with 'brew install gnu-sed'"
-			fi
+			mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
+			;;
+		"realpath+Darwin")
+			mycmd.init_bin_homebrew realpath realpath "GNU realpath" coreutils
 			;;
 		"sha1sum+Darwin")
 			local shasum_path
@@ -406,12 +418,10 @@ function _mycmd.running_cmd_name() {
 	basename "${running_cmd}"
 }
 
+mycmd.defer_at_startup mycmd.init_bin realpath
 function _mycmd.running_cmd_relative_path() {
 	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
-
-	# TODO: Dependency on `realpath` from GNU coreutils
-	local -r relative_path="$(realpath --relative-to="${MYCMD_BASE_DIR}" "${running_cmd_dir}")"
-
+	local -r relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${MYCMD_BASE_DIR}" "${running_cmd_dir}")"
 	echo "${relative_path}"
 }
 
@@ -613,6 +623,7 @@ function mycmd.log_function() {
 #   Returns the path name of a file to use for caching from a common cache directory.
 #
 #   These files are used for caching state in between runs of commands.
+mycmd.defer_at_startup mycmd.init_bin realpath
 function mycmd.get_named_cache_file() {
 	if (($# < 1)); then
 		mycmd.log "Missing required parameter CACHE_FILE_NAME to mycmd.get_named_cache_file."
@@ -625,7 +636,7 @@ function mycmd.get_named_cache_file() {
 
 	local cmd_base_cache_dir
 	cmd_base_cache_dir="${MYCMD_CACHE_DIR}/${running_cmd_relative_path}/${running_cmd_name}"
-	cmd_base_cache_dir="$(realpath -m "${cmd_base_cache_dir}")"
+	cmd_base_cache_dir="$("${MYCMD_BIN[realpath]}" -m "${cmd_base_cache_dir}")"
 	readonly cmd_base_cache_dir
 
 	# TODO: Do we want to change the permissions on the cache directory?
@@ -633,7 +644,7 @@ function mycmd.get_named_cache_file() {
 
 	local named_cache_file
 	named_cache_file="${cmd_base_cache_dir}/${cache_file_name}"
-	named_cache_file="$(realpath -m "${named_cache_file}")"
+	named_cache_file="$("${MYCMD_BIN[realpath]}" -m "${named_cache_file}")"
 	readonly named_cache_file
 
 	echo "${named_cache_file}"
