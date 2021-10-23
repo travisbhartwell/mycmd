@@ -188,29 +188,32 @@ function mycmd.defer_at_exit() {
 }
 
 function _mycmd._print_stack_trace() {
-	# Method borrowed from https://raimonster.com/scripting-field-guide/#org3417a0c
-	local return_code=$?
+	mycmd.trace "Running ${FUNCNAME[0]}, with args '$*'"
 
-	[[ "$return_code" -ne 0 ]] && return 0
+	# Disable the trap
+	trap - ERR
+
+	# Method borrowed from https://raimonster.com/scripting-field-guide/#org3417a0c
+	local return_code=$1
+
+	((return_code == 0)) && return 0
 
 	mycmd.log "\nThe command ${BASH_COMMAND} triggered a stack trace."
 
 	local -i i
 	local -i j
 
-	# Start at 2 because position 1 is _mycmd._run_at_exit_deferreds
-	for i in $(seq 2 $((${#FUNCNAME[@]} - 2))); do
+	for i in $(seq 1 $((${#FUNCNAME[@]} - 2))); do
 		j=$((i + 1))
 		mycmd.log "\t ${BASH_SOURCE[$i]}: ${FUNCNAME[$i]}() called in ${BASH_SOURCE[$j]}:${BASH_LINENO[$i]}"
 	done
 }
 
 function _mycmd._run_at_exit_deferreds() {
-	# Disable the trap handler
-	trap - SIGINT SIGTERM ERR EXIT
+	mycmd.trace "Running ${FUNCNAME[0]}."
 
-	# First, print a stack trace if exiting with non-0
-	_mycmd._print_stack_trace
+	# Disable the trap handler, including ERR here just in case, as this should be run last
+	trap - SIGINT SIGTERM ERR EXIT
 
 	# Defensive programming in the unlikely state our variable isn't set
 	if [[ ! -v _MYCMD_DEFERRED_AT_EXIT ]]; then
@@ -232,7 +235,8 @@ function _mycmd._run_at_exit_deferreds() {
 	mycmd.trace "All at exit deferreds execution completed."
 }
 
-trap _mycmd._run_at_exit_deferreds SIGINT SIGTERM ERR EXIT
+trap '_mycmd._print_stack_trace $?' ERR
+trap _mycmd._run_at_exit_deferreds SIGINT SIGTERM EXIT
 
 # -------------------------------------------------------------------------------
 # MyCmd Operation System Support

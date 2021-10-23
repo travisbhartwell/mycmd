@@ -6,10 +6,12 @@ Notes and Plans
 ** Enhancements
 *** TODO Add =--debug= flag that sets =MYCMD_DEBUG= environment variable before calling script
 *** TODO Add =--trace= flag that sets =MYCMD_TRACE= environment variable before calling script
+*** TODO Add configuration
+*** TODO Add configuration item for full path of bash command line to execute commands with
 
 * MyCmd Shell Library
 ** Design Questions
-*** Need to think through startup deferreds
+*** DONE Need to think through startup deferreds
 In my current implementation, I am using it for use within the evaluation of =mycmd-lib=.
 
 What about using it from user-written MyCmd libraries? Do I need to add special
@@ -27,12 +29,24 @@ For example, should the execution wrapper set common environment variables?
 Can I have the values be function names instead of paths?
 
 *** Runtime analysis
-
 Can I enable something to validate that I am not leaking environment variables
 in my implementation at all?
 
+*** Bash Required Versions
+Can I figure out which minimum version of Bash is needed to use MyCmd and then
+test for that?
+
+https://stackoverflow.com/a/30757358/10873
+
+Looks like I need at least 4.3 for =declare -v= for arrays.
+
+*** Pretty / Emoji Output
+I remember seeing a script somewhere that defined constants for emojis from the
+Powerline fonts or similar. I wonder if I could use that. Is there any
+reasonable way to detect programmatically that the glyphs work?
+
 ** Enhancements
-*** TODO Use xdg environment variables and commands when on Linux
+*** TODO Use =xdg= environment variables and commands when on Linux
 *** TODO Set up trap, tracing, and clean up functions
 *** TODO Add convenience methods for logging to files
 *** TODO Add support for specifying colors by number
@@ -55,6 +69,9 @@ in my implementation at all?
      Using indirect variables proved to be too complicated, so I went with a
      simpler route.
 *** TODO =mycmd.log= and related functions should handle multi-line input better
+*** TODO =mycmd.source_mycmd_lib= should have some error handling
+*** TODO Add color and formatting in =_mycmd._print_stack_trace=
+*** TODO Add convenience methods for tracking files to be cleaned up
 
 ** Implementation
 *** =mycmd.get_named_temp_file=
