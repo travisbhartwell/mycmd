@@ -261,7 +261,9 @@ esac
 
 readonly MYCMD_CACHE_DIR
 mycmd.trace "Creating cache directory ${MYCMD_CACHE_DIR} if needed."
-mkdir -p "${MYCMD_CACHE_DIR}"
+mkdir -p "${MYCMD_CACHE_DIR}" || {
+	mycmd.err_exit 1 "Error creating MyCmd cache directory '${MYCMD_CACHE_DIR}'."
+}
 
 # ------------------------------------------------------------------------------
 # Convenience methods for calling functions
@@ -346,11 +348,11 @@ function mycmd.init_bin() {
 	local command_path
 
 	case "${command}+${_MYCMD_OS}" in
-		"sed+Darwin")
-			mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
-			;;
 		"realpath+Darwin")
 			mycmd.init_bin_homebrew realpath realpath "GNU realpath" coreutils
+			;;
+		"sed+Darwin")
+			mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
 			;;
 		"sha1sum+Darwin")
 			local shasum_path
