@@ -348,6 +348,12 @@ function mycmd.init_bin() {
 	local command_path
 
 	case "${command}+${_MYCMD_OS}" in
+		"awk+Darwin")
+			mycmd.init_bin_homebrew awk gawk "GNU awk" gawk
+			;;
+		"find+Darwin")
+			mycmd.init_bin_homebrew find gfind "GNU find" findutils
+			;;
 		"realpath+Darwin")
 			mycmd.init_bin_homebrew realpath realpath "GNU realpath" coreutils
 			;;
@@ -452,6 +458,16 @@ function _mycmd.source_local_override() {
 }
 
 # ------------------------------------------------------------------------------
+# Convenience functions for calling other MyCmd commands
+mycmd.defer_at_startup mycmd.init_bin sed
+function mycmd.nested_mycmd_command_line() {
+	local unset_vars
+	unset_vars="$(declare -p | grep -E "^declare [-][^ ]+x .*" | "${MYCMD_BIN[sed]}" -r -n 's/declare \-[^ ]+ ([^=]+)=.*/-u \1/p' | tr '\n' ' ')"
+
+	echo "/usr/bin/env ${unset_vars} mycmd" | tr -s '[:space:]'
+}
+
+# ------------------------------------------------------------------------------
 # Convenience methods and variables for terminal output
 #
 #   Users set the environment variabled MYCMD_FORCE_COLOR to force MyCmd to
@@ -483,7 +499,7 @@ fi
 #   if we aren't running from a terminal.
 function tput() {
 	if [[ -n "${_MYCMD_IS_TTY-}" ]]; then
-		"${MYCMD_BIN[tput]}" "$@"
+		"${MYCMD_BIN[tput]}" "$@" || true
 	else
 		# Do Nothing
 		return 0
