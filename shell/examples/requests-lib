@@ -11,11 +11,10 @@
 
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
-[ -n "${_MYCMD_REQUESTS_LIB:-}" ] && return; readonly _MYCMD_REQUESTS_LIB=1; export _MYCMD_REQUESTS_LIB
+[ -n "${_MYCMD_REQUESTS_LIB:-}" ] && return; readonly _MYCMD_REQUESTS_LIB=1
 
 mycmd.trace "The requests library has been sourced."
 
-function make_service_request()
-{
+function make_service_request() {
     mycmd.output "make_service_request called with arguments: $*"
 }

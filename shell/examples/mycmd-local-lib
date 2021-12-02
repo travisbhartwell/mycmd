@@ -22,7 +22,6 @@ fi
 # https://stackoverflow.com/a/64534652
 [ -n "${_MYCMD_LOCAL_LIB:-}" ] && return
 readonly _MYCMD_LOCAL_LIB=1
-export _MYCMD_LOCAL_LIB
 
 # Local definitions for MCYMD_BIN
 function mycmd_local.init_bin() {

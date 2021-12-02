@@ -23,10 +23,8 @@ set -o nounset -o errexit -o errtrace -o pipefail
 # https://stackoverflow.com/a/64534652
 [ -n "${_MYCMD_LIB-}" ] && return
 readonly _MYCMD_LIB=1
-export _MYCMD_LIB
 
 readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
-export _MYCMD_LIB_SELF_FILE
 
 [ -n "${MYCMD_SHELL_TRACE-}" ] && set -o xtrace
 
@@ -93,7 +91,6 @@ function mycmd.err_exit() {
 if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
 	MYCMD_BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 	readonly MYCMD_BASE_DIR
-	export MYCMD_BASE_DIR
 
 	mycmd.trace "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
 fi
@@ -290,7 +287,7 @@ function mycmd.call_if_function_exists() {
 # Convenience methods for locating common utilities cross platform
 
 # MYCMD_BIN
-#   An exported associative array used for dependencies that are in different
+#   An associative array used for dependencies that are in different
 #   locations and/or names depending on the platform or host a script is
 #   being run on.
 #
@@ -507,7 +504,7 @@ function tput() {
 }
 
 # MYCMD_FG_COLOR
-#   An exported associative array with common foreground color definitions.
+#   An associative array with common foreground color definitions.
 #
 #   Provided colors:
 #   - black
@@ -533,7 +530,7 @@ function _mycmd.define_fg_colors() {
 mycmd.defer_at_startup _mycmd.define_fg_colors
 
 # MYCMD_FG_COLOR
-#   An exported associative array with common foreground color definitions.
+#   An associative array with common foreground color definitions.
 #
 #   Provided colors:
 #   - black
@@ -559,7 +556,7 @@ function _mycmd.define_bg_colors() {
 mycmd.defer_at_startup _mycmd.define_bg_colors
 
 # MYCMD_FG_COLOR
-#   An exported associative array with common text attributes.
+#   An associative array with common text attributes.
 #
 #   Provided attributes include:
 #   - reset -- resets all attributes (including colors) to the defaults
