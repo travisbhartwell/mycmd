@@ -45,13 +45,22 @@ readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 #   Convenience for runtime output to stdout. Provided for symmetry in output
 #   functions.
 function mycmd.output() {
-	echo -e "$*"
+	printf '%s\n' "$*"
+}
+
+# mycmd.output_with_timestamp
+#   Convenience for runtime output to stdout, with each line prefixed by the
+#   current timestamp.
+function mycmd.output_with_timestamp() {
+	local -r timestamp="$(date)"
+
+	printf '[%s] %s\n' "${timestamp}" "$*"
 }
 
 # mycmd.log
 #   Convenience for runtime logging to stderr.
 function mycmd.log() {
-	echo >&2 -e "$*"
+	mycmd.output_with_timestamp "$*" 1>&2
 }
 
 # mycmd.debug
@@ -158,7 +167,7 @@ function _mycmd.run_startup_deferreds() {
 		calling_file_and_command="${_MYCMD_DEFERRED_STARTUP[i]}"
 
 		if [[ "${calling_file_and_command}" =~ ^"${calling_file}".* ]]; then
-			local command="${calling_file_and_command##$calling_file }"
+			local command="${calling_file_and_command##"$calling_file" }"
 			mycmd.trace "Executing '${command}' from '${calling_file_and_command}'."
 			${command}
 			mycmd.trace "Removing executed '${command}' from '${calling_file_and_command}'."
@@ -514,7 +523,17 @@ function tput() {
 #   - blue
 #   - magenta
 #   - cyan
+#   - light gray
+#   - dark gray
+#   - light red
+#   - light green
+#   - light yellow
+#   - light blue
+#   - light magenta
+#   - light cyan
 #   - white
+#   An alias for light gray, my current default:
+#   - default
 declare -Ax MYCMD_FG_COLOR
 function _mycmd.define_fg_colors() {
 	MYCMD_FG_COLOR[black]=$(tput setaf 0)
@@ -524,8 +543,18 @@ function _mycmd.define_fg_colors() {
 	MYCMD_FG_COLOR[blue]=$(tput setaf 4)
 	MYCMD_FG_COLOR[magenta]=$(tput setaf 5)
 	MYCMD_FG_COLOR[cyan]=$(tput setaf 6)
-	MYCMD_FG_COLOR[white]=$(tput setaf 7)
-	# MYCMD_FG_COLOR[default]=$(tput setaf 9)
+	MYCMD_FG_COLOR[light_gray]=$(tput setaf 7)
+	MYCMD_FG_COLOR[dark_gray]=$(tput setaf 8)
+	MYCMD_FG_COLOR[light_red]=$(tput setaf 9)
+	MYCMD_FG_COLOR[light_green]=$(tput setaf 10)
+	MYCMD_FG_COLOR[light_yellow]=$(tput setaf 11)
+	MYCMD_FG_COLOR[light_blue]=$(tput setaf 12)
+	MYCMD_FG_COLOR[light_magenta]=$(tput setaf 13)
+	MYCMD_FG_COLOR[light_cyan]=$(tput setaf 14)
+	MYCMD_FG_COLOR[white]=$(tput setaf 15)
+
+	# Hack for now
+	MYCMD_FG_COLOR[default]=$(tput setaf 7)
 }
 mycmd.defer_at_startup _mycmd.define_fg_colors
 
@@ -541,6 +570,8 @@ mycmd.defer_at_startup _mycmd.define_fg_colors
 #   - magenta
 #   - cyan
 #   - white
+#   An alias for the black, my current default:
+#   - default
 declare -Ax MYCMD_BG_COLOR
 function _mycmd.define_bg_colors() {
 	MYCMD_BG_COLOR[black]=$(tput setab 0)
@@ -551,7 +582,8 @@ function _mycmd.define_bg_colors() {
 	MYCMD_BG_COLOR[magenta]=$(tput setab 5)
 	MYCMD_BG_COLOR[cyan]=$(tput setab 6)
 	MYCMD_BG_COLOR[white]=$(tput setab 7)
-	# MYCMD_BG_COLOR[default]=$(tput setab 9)
+	# Hack for now
+	MYCMD_BG_COLOR[default]=$(tput setab 0)
 }
 mycmd.defer_at_startup _mycmd.define_bg_colors
 
