@@ -45,7 +45,7 @@ readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 #   Convenience for runtime output to stdout. Provided for symmetry in output
 #   functions.
 function mycmd.output() {
-	printf '%s\n' "$*"
+	printf '%b\n' "$*"
 }
 
 # mycmd.output_with_timestamp
@@ -54,7 +54,7 @@ function mycmd.output() {
 function mycmd.output_with_timestamp() {
 	local -r timestamp="$(date)"
 
-	printf '[%s] %s\n' "${timestamp}" "$*"
+	printf '[%s] %b\n' "${timestamp}" "$*"
 }
 
 # mycmd.log
