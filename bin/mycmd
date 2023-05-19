@@ -63,12 +63,13 @@ function display_command_or_group_parts() {
     mycmd.output "${output_prefix} ${parts[*]}"
 }
 
+
 mycmd.defer_at_startup mycmd.init_bin sed
 function command_or_group_help_from_comment() {
     local -r command_path="${1}"
     local help_text
 
-    if help_text=$("${MYCMD_BIN[sed]}" -rn '/HELP START/,/HELP END/{//! s/^#(.*)$/\1/p}' "${command_path}"); then
+    if help_text=$("${MYCMD_BIN[sed]}" -rn '/^# HELP START/,/^# HELP END/{//! s/^#(.*)$/\1/p}' "${command_path}"); then
         if [[ -n "${help_text-}" ]]; then
             mycmd.output "\n${help_text}"
         fi
