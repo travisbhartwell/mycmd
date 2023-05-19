@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# ------------------------------------------------------------------------------
+# MyCmd Launcher
+
+# VERSION: 0.1
+
+# HELP START
+# MyCmd: Hierarchal command dispatch and library support.
+#
+# MyCmd includes:
+# - a convenient tool for launching hierarchical commands
+# - a library of convenient base functions for writing such commands
+# - a hierarchal library framework for implementing shared functionality
+# HELP END
+
+# ------------------------------------------------------------------------------
+# Basic Housekeeping
+#
+# Set options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+readonly _MYCMD_SELF_FILE="${BASH_SOURCE[0]}"
+
+# ------------------------------------------------------------------------------
+# Set MYCMD_BASE_DIR
+#
+#   Defaults to ~/mycmd; have MYCMD_BASE_DIR set before launching to override
+#   this.
+if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
+    readonly MYCMD_BASE_DIR="${HOME}/mycmd"
+
+    if [[ ! -d "${MYCMD_BASE_DIR}" ]]; then
+        echo >&2 "Default MyCmd base directory '$HOME/mycmd' not found."
+        exit 1
+    fi
+
+    export MYCMD_BASE_DIR
+fi
+
+# shellcheck source=../shell/mycmd-lib
+source "${MYCMD_BASE_DIR}/mycmd-lib"
+
+# ------------------------------------------------------------------------------
+# Common Command and Group Parsing Support
+function display_command_or_group_parts() {
+    local -r command_or_group_path="${1}"
+    local -r output_prefix="${2}"
+
+    if [[ "${command_or_group_path}" = "${MYCMD_BASE_DIR}" ]]; then
+        mycmd.output "MyCmd"
+    fi
+
+    local -r relative_path="$(mycmd.path_relative_to_mycmd_base "${command_or_group_path}")"
+
+    local parts
+    # shellcheck disable=SC2162
+    IFS="/" read -a parts <<<"${relative_path}"
+    readonly parts
+
+    mycmd.output "${output_prefix} ${parts[*]}"
+}
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function command_or_group_help_from_comment() {
+    local -r command_path="${1}"
+    local help_text
+
+    if help_text=$("${MYCMD_BIN[sed]}" -rn '/HELP START/,/HELP END/{//! s/^#(.*)$/\1/p}' "${command_path}"); then
+        if [[ -n "${help_text-}" ]]; then
+            mycmd.output "\n${help_text}"
+        fi
+    fi
+}
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function command_or_group_version_from_comment() {
+    local -r command_path="${1}"
+    local version_text
+
+    if [[ -f "${command_path}" ]]; then
+        version_text=$("${MYCMD_BIN[sed]}" -rn 's/^# VERSION: (.*)/\1/p' "${command_path}")
+    fi
+
+    if [[ -n "${version_text-}" ]]; then
+        mycmd.output "${version_text}"
+    else
+        mycmd_version
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# Command Handling Support
+function command_help() {
+    local -r command_path="${1}"
+    display_command_or_group_parts "${command_path}" "MyCmd Command"
+    command_or_group_help_from_comment "${command_path}"
+}
+
+function command_version() {
+    local -r command_path="${1}"
+    command_or_group_version_from_comment "${command_path}"
+}
+
+# ------------------------------------------------------------------------------
+# Command Group Handling Support
+function command_group_library_file_path() {
+    local -r command_group_path="${1}"
+    local -r command_group_name="$(basename "${command_group_path}")"
+    echo "${command_group_path}/${command_group_name}-lib"
+}
+
+function command_group_help() {
+    local -r command_group_path="${1}"
+    local -r group_library_file="$(command_group_library_file_path ${command_group_path})"
+
+    display_command_or_group_parts "${command_group_path}" "MyCmd Command Group"
+    command_or_group_help_from_comment "${group_library_file}"
+}
+
+function command_group_version() {
+    local -r command_group_path="${1}"
+    local -r group_library_file="$(command_group_library_file_path ${command_group_path})"
+
+    command_or_group_version_from_comment "${group_library_file}"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Launcher Handling Support
+function mycmd_usage() {
+    local -r mycmd_name=$(basename "${0}")
+
+    mycmd.output "\nUsage:"
+    mycmd.output "\n${mycmd_name} [-h | --help] [-v | --version]"
+    mycmd.output "\n${mycmd_name} <command_group>... [-h | --help] [-v | --version] [arguments]"
+    mycmd.output "\n  See the help for the individual command groups for further details."
+    mycmd.output "\n${mycmd_name} <command_group>... <command> [-h | --help] [-v | --version] [arguments]"
+    mycmd.output "\n  See the help for the individual sub commands for further details."
+}
+
+function mycmd_help() {
+    command_or_group_help_from_comment "${_MYCMD_SELF_FILE}"
+    mycmd_usage
+}
+
+function mycmd_version() {
+    command_version "${_MYCMD_SELF_FILE}"
+}
+
+# ------------------------------------------------------------------------------
+# General Dispatch Support
+function help() {
+    local -r found_non_flags="${1}"
+    local -r full_path="${2}"
+
+    if [[ "${found_non_flags}" = "true" ]]; then
+        mycmd.trace "Skipping printing help because an invalid command was found."
+        return 0
+    elif [[ "${full_path}" = "${MYCMD_BASE_DIR}" ]]; then
+        mycmd_help
+    elif [[ -d "${full_path}" ]]; then
+        command_group_help "${full_path}"
+    else
+        command_help "${full_path}"
+    fi
+
+    exit 0
+}
+
+function version() {
+    local -r found_non_flags="${1}"
+    local -r full_path="${2}"
+
+    if [[ "${found_non_flags}" = "true" ]]; then
+        mycmd.trace "Skipping printing version because an invalid command was found."
+        return 0
+    elif [[ "${full_path}" = "${MYCMD_BASE_DIR}" ]]; then
+        mycmd_version
+    elif [[ -d "${full_path}" ]]; then
+        command_group_version "${full_path}"
+    else
+        command_version "${full_path}"
+    fi
+
+    exit 0
+}
+
+# ------------------------------------------------------------------------------
+# Main
+function main() {
+    # TODO: Handle no arguments
+    local full_path="${MYCMD_BASE_DIR}"
+    local element
+
+    while (($# > 0)); do
+        element="${1}"
+        mycmd.trace "Examining path component '${element}' at full path '${full_path}/${element}'."
+
+        if [[ -d "${full_path}/${element}" ]]; then
+            full_path="${full_path}/${element}"
+            mycmd.trace "Found command group at full path '${full_path}'."
+
+            shift
+        elif [[ -f "${full_path}/${element}" ]]; then
+            full_path="${full_path}/${element}"
+            mycmd.trace "Found potential command at full path '${full_path}'."
+
+            shift
+            break
+        else
+            break
+        fi
+    done
+
+    local found_help=false
+    local found_version=false
+    local found_zsh_complete=false
+    local found_non_flags=false
+
+    for arg in "${@}"; do
+        case "${arg}" in
+            --help | -h) found_help=true ;;
+            --version | -v) found_version=true ;;
+            --zsh-complete) found_zsh_complete=true ;;
+            *) found_non_flags=true ;;
+        esac
+    done
+
+    if [[ "${found_help}" = "true" ]]; then
+        help "${found_non_flags}" "${full_path}"
+    elif [[ "${found_version}" = "true" ]]; then
+        version "${found_non_flags}" "${full_path}"
+    elif [[ "${found_zsh_complete}" = "true" ]]; then
+        echo "ZSH COMPLETE"
+        exit 0
+    fi
+
+    if [[ -d "${full_path}" ]]; then
+        # If there are still arguments left at this stage,
+        # it means we didn't find a command within the command
+        # group
+        if (($# > 0)); then
+            mycmd.err_exit 1 "MyCmd command '${1}' in ${full_path} does not exist."
+        elif [[ "${full_path}" = "${MYCMD_BASE_DIR}" ]]; then
+            mycmd_help
+        else
+            command_group_help "${full_path}"
+        fi
+    elif [[ -x "${full_path}" ]]; then
+        exec "${full_path}" "${@}"
+    else
+        mycmd.err_exit 1 "MyCmd Command at ${full_path} is not executable or is not a command."
+    fi
+
+    exit 0
+}
+
+main "$@"

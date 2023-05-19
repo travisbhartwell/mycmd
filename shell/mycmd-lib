@@ -361,7 +361,7 @@ function mycmd.init_bin() {
 			mycmd.init_bin_homebrew find gfind "GNU find" findutils
 			;;
 		"realpath+Darwin")
-			mycmd.init_bin_homebrew realpath realpath "GNU realpath" coreutils
+			mycmd.init_bin_homebrew realpath grealpath "GNU realpath" coreutils
 			;;
 		"sed+Darwin")
 			mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
@@ -390,7 +390,7 @@ function mycmd.init_bin() {
 # ------------------------------------------------------------------------------
 # MyCmd Sourcing Support
 
-# _mycmd.source_mycmd_lib
+# mycmd.source_mycmd_lib
 #   Explicitly source a MyCmd library and its dependencies by providing the
 #   directory name of the MyCmd library relative to the MYCMD_BASE_DIR.
 #
@@ -401,6 +401,7 @@ function mycmd.init_bin() {
 function mycmd.source_mycmd_lib() {
 	# TODO: Validation of parmaeters
 	local -r library_path="$1"
+	shift
 
 	local dir_parts
 	# shellcheck disable=SC2162
@@ -418,7 +419,7 @@ function mycmd.source_mycmd_lib() {
 
 		if [[ -e "${lib_script}" ]]; then
 			# shellcheck source=/dev/null
-			source "${lib_script}"
+			source "${lib_script}" "$@"
 
 			# Run any remaining deferreds for the startup
 			_mycmd.run_startup_deferreds "${lib_script}"
@@ -432,10 +433,15 @@ function _mycmd.running_cmd_name() {
 	basename "${running_cmd}"
 }
 
-mycmd.defer_at_startup mycmd.init_bin realpath
 function _mycmd.running_cmd_relative_path() {
 	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
-	local -r relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${MYCMD_BASE_DIR}" "${running_cmd_dir}")"
+	mycmd.path_relative_to_mycmd_base "${running_cmd_dir}"
+}
+
+mycmd.defer_at_startup mycmd.init_bin realpath
+function mycmd.path_relative_to_mycmd_base() {
+	local -r full_path="${1}"
+	local -r relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${MYCMD_BASE_DIR}" "${full_path}")"
 	echo "${relative_path}"
 }
 
