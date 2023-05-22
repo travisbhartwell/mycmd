@@ -207,40 +207,85 @@ function find_command_group_children() {
     mycmd.trace "Found the following immediate subgroups: '${!direct_child_groups_ref[*]}'"
 }
 
+mycmd.init_bin wc
+function get_column_widths() {
+    local -n assoc_array="${1}"
+    local -ri padding="${2}"
+    local -ri min_key="${3}"
+    local -ri min_value="${4}"
+
+    local max_key_len
+    max_key_len=$(printf "%s\n" "${!assoc_array[@]}" | ${MYCMD_BIN[wc]} -L)
+    if (( max_key_len < min_key )); then
+        max_key_len=${min_key}
+    fi
+    readonly max_key_len
+
+    local max_value_len
+    max_value_len=$(printf "%s\n" "${assoc_array[@]}" | ${MYCMD_BIN[wc]} -L)
+    if (( max_value_len < min_value )); then
+        max_value_len=${min_value}
+    fi
+    readonly max_value_len
+
+    printf "%d %d\n" $(( max_key_len + padding )) $(( max_value_len + padding ))
+}
+
+function print_section() {
+    local -n data_ref="${1}"
+    local -r heading="${2}"
+    local -r key_heading="${3}"
+    local -r value_heading="${4}"
+
+    local key_width
+    local value_width
+    local total
+    local rule
+    local output_line
+    local key
+
+    if (( "${#data_ref[@]}" > 0 )); then
+        read -r key_width value_width <<< "$(get_column_widths data_ref 5 ${#key_heading} ${#value_heading})"
+
+        mycmd.trace "Key: ${key_width} Value: ${value_width}"
+
+        total=$(( key_width + value_width + 1 ))
+        printf -v rule '=%.0s' $(seq 1 $total)
+
+        mycmd.output "\n${heading}\n"
+
+        printf -v output_line "%-${key_width}s %-${value_width}s" "${key_heading}" "${value_heading}"
+        mycmd.output "${output_line}\n${rule}"
+
+        for key in "${!data_ref[@]}"; do
+            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[$key]}"
+            mycmd.output "${output_line}"
+        done
+    fi
+}
+
 function summarize_command_group_children() {
     local -r command_group_path="${1}"
     local -A direct_child_groups=()
     local -A direct_child_commands=()
+    local key_width
+    local value_width
+    local total
     local rule
-    printf -v rule '=%.0s' {1..105}
     local output_line
     local key
 
     find_command_group_children "${command_group_path}" direct_child_groups direct_child_commands
 
-    if (( "${#direct_child_groups[@]}" > 0 )); then
-        mycmd.output "\nThe following command groups are defined:"
+    print_section direct_child_groups \
+        "The following command groups are defined:" \
+        "Group Name" \
+        "Description"
 
-        printf -v output_line "%-25s %-80s" "Group Name" "Description"
-        mycmd.output "${output_line}\n${rule}"
-
-        for key in "${!direct_child_groups[@]}"; do
-            printf -v output_line "%-25s %-80s" "${key}" "${direct_child_groups[$key]}"
-            mycmd.output "${output_line}"
-        done
-    fi
-
-    if (( "${#direct_child_commands[@]}" > 0 )); then
-        mycmd.output "\nThe following commands are defined:"
-
-        printf -v output_line "%-25s %-80s" "Command" "Description"
-        mycmd.output "${output_line}\n${rule}"
-
-        for key in "${!direct_child_commands[@]}"; do
-            printf -v output_line "%-25s %-80s" "${key}" "${direct_child_commands[$key]}"
-            mycmd.output "${output_line}"
-        done
-    fi
+    print_section direct_child_commands \
+        "The following commands are defined:" \
+        "Command" \
+        "Description"
 }
 
 function command_group_help() {

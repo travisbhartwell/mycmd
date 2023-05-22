@@ -366,6 +366,9 @@ function mycmd.init_bin() {
 		"sed+Darwin")
 			mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
 			;;
+		"wc+Darwin")
+			mycmd.init_bin_homebrew wc gwc "GNU wc" coreutils
+			;;
 		"sha1sum+Darwin")
 			local shasum_path
 			# shasum is the implementation that ships with mac OS. SHA1 is the default algorithm so it is
