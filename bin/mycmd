@@ -331,6 +331,54 @@ function mycmd_version() {
 }
 
 # ------------------------------------------------------------------------------
+# ZSH Completion Support
+function output_zsh_completions_from_assoc() {
+    local -r prefix="${1}"
+    local -n data_ref=${2};
+    local -a sorted_keys
+    local output
+    local key
+
+    if (( "${#data_ref[@]}" == 0 )); then
+        return 0
+    fi
+
+    readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort)
+
+    for key in "${sorted_keys[@]}"; do
+        printf -v output '%q:%q:%q' "${prefix}" "${key}" "${data_ref[$key]}"
+        mycmd.output "${output}"
+    done
+}
+
+function output_zsh_completion_for_command_group() {
+    local -r command_group_path="${1}"
+    local -A direct_child_groups=()
+    local -A direct_child_commands=()
+    local output
+
+    find_command_group_children "${command_group_path}" direct_child_groups direct_child_commands
+
+    output_zsh_completions_from_assoc "G" direct_child_groups
+    output_zsh_completions_from_assoc "C" direct_child_commands
+}
+
+function output_zsh_completion() {
+    local -r full_path="${1}"
+
+    if [[ "${full_path}" = "${MYCMD_BASE_DIR}" ]]; then
+        output_zsh_completion_for_command_group "${MYCMD_BASE_DIR}"
+    elif [[ -d "${full_path}" ]]; then
+        output_zsh_completion_for_command_group "${full_path}"
+    else
+        # TODO: Commands
+        echo > /dev/null
+    fi
+
+    exit 0
+}
+
+# ------------------------------------------------------------------------------
 # General Dispatch Support
 function help() {
     local -r found_non_flags="${1}"
@@ -413,8 +461,7 @@ function main() {
     elif [[ "${found_version}" = "true" ]]; then
         version "${found_non_flags}" "${full_path}"
     elif [[ "${found_zsh_complete}" = "true" ]]; then
-        echo "ZSH COMPLETE"
-        exit 0
+        output_zsh_completion "${full_path}"
     fi
 
     if [[ -d "${full_path}" ]]; then
