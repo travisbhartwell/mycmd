@@ -93,15 +93,9 @@ function mycmd.err_exit() {
 }
 
 # ------------------------------------------------------------------------------
-# Set MYCMD_BASE_DIR
-#
-#   If not set, or set to a non-existent directory, fall back and set
-#   MYCMD_BASE_DIR to the directory this file is in.
-if [[ -z "${MYCMD_BASE_DIR-}" || ! -d "${MYCMD_BASE_DIR}" ]]; then
-	MYCMD_BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
-	readonly MYCMD_BASE_DIR
-
-	mycmd.trace "Setting MYCMD_BASE_DIR to: ${MYCMD_BASE_DIR}"
+# Validate system environment
+if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" ]]; then
+	mycmd.err_exit 1 "Required environment variable MYCMD_SYSTEM_BASE_DIR is not set."
 fi
 
 # -------------------------------------------------------------------------------
@@ -393,9 +387,28 @@ function mycmd.init_bin() {
 # ------------------------------------------------------------------------------
 # MyCmd Sourcing Support
 
+# mycmd._source_lib_by_path
+#   Source the library if it exists.
+function mycmd._source_lib_by_path_if_found() {
+	local -r library_full_path="${1}"; shift
+
+	if [[ -e "${library_full_path}" ]]; then
+		# shellcheck source=/dev/null
+		source "${library_full_path}" "$@"
+
+		# Run any remaining deferreds for the startup for the library
+		_mycmd.run_startup_deferreds "${library_full_path}"
+
+		return 0
+	else
+		return 1
+	fi
+}
+
 # mycmd.source_mycmd_lib
 #   Explicitly source a MyCmd library and its dependencies by providing the
-#   directory name of the MyCmd library relative to the MYCMD_BASE_DIR.
+#   directory name of the MyCmd library relative to either first
+#   MYCMD_SYSTEM_BASE_DIR or, secondly, MYCMD_USER_BASE_DIR.
 #
 #   For example, to source the library in ~/mycmd/requests/service1, call this
 #   like this:
@@ -411,21 +424,35 @@ function mycmd.source_mycmd_lib() {
 	IFS="/" read -a dir_parts <<<"${library_path}"
 	readonly dir_parts
 
-	# Start at the base directory
-	local lib_dir="${MYCMD_BASE_DIR}"
+	# Start at the system base directory
+	local lib_dir="${MYCMD_SYSTEM_BASE_DIR}"
+
+	# And the user base directory, if it exists
+	if [[ -n "${MYCMD_USER_BASE_DIR-}" ]]; then
+		local local_lib_dir="${MYCMD_USER_BASE_DIR}"
+	fi
+
 	local dir
 	for dir in "${dir_parts[@]}"; do
 		lib_dir="${lib_dir}/${dir}"
+		if [[ -v local_lib_dir ]]; then
+			local_lib_dir="${local_lib_dir}/${dir}"
+		fi
 
-		# Look for a script named <dirname>-lib in <dirname>
+		# Look for a command group library named <dirname>-lib in <dirname>
 		local lib_script="${lib_dir}/${dir}-lib"
 
-		if [[ -e "${lib_script}" ]]; then
-			# shellcheck source=/dev/null
-			source "${lib_script}" "$@"
-
-			# Run any remaining deferreds for the startup
-			_mycmd.run_startup_deferreds "${lib_script}"
+		# First check in MYCMD_SYSTEM_BASE_DIR
+		if mycmd._source_lib_by_path_if_found "${lib_script}" "${@}"; then
+			if [[ -v local_lib_dir ]]; then
+				# If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
+				local local_lib_override="${local_lib_dir}/${dir}-local-lib"
+				mycmd._source_lib_by_path_if_found "${local_lib_override}" "${@}" || true
+			fi
+		elif [[ -v local_lib_dir ]]; then
+			# Otherwise, check in MYCMD_USER_BASE_DIR
+			local local_lib_script="${local_lib_dir}/${dir}-lib"
+			mycmd._source_lib_by_path_if_found "${local_lib_script}" "${@}" || true
 		fi
 	done
 }
@@ -436,50 +463,103 @@ function _mycmd.running_cmd_name() {
 	basename "${running_cmd}"
 }
 
-function _mycmd.running_cmd_relative_path() {
-	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
-	mycmd.path_relative_to_mycmd_base "${running_cmd_dir}"
+# mycmd._path_relative_to_directory
+#   Given an absolute path to a command or command group, output the relative path to
+#   the base directory specified.
+#
+#   Returns 1 if the specified path is not a descendant of the base directory.
+mycmd.defer_at_startup mycmd.init_bin realpath
+function mycmd._path_relative_to_directory() {
+	local -r full_path="${1}"
+	local -r base_path="${2}"
+
+	local -r relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${base_path}" "${full_path}")"
+
+	# If the relative path starts with .., it is not a descendant
+	if [[ "${relative_path}" = ..* ]]; then
+		return 1
+	else
+		echo "${relative_path}"
+		return 0
+	fi
 }
 
+# mycmd.path_relative_to_mycmd_base
+#   Given an absolute path to a command or command group, return the relative path
+#   in comparison to either MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR.
 mycmd.defer_at_startup mycmd.init_bin realpath
-function mycmd.path_relative_to_mycmd_base() {
+function mycmd.path_relative_to_mycmd_base_with_command_group() {
+	# We assume that full_path is going to be a canonicalized absolute path
 	local -r full_path="${1}"
-	local -r relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${MYCMD_BASE_DIR}" "${full_path}")"
+	local -r command_group="${2-}"
+
+	local relative_path
+
+	if ! relative_path=$(mycmd._path_relative_to_directory "${full_path}" "${MYCMD_SYSTEM_BASE_DIR}${command_group:+/}${command_group-}"); then
+		if [[ -v MYCMD_USER_BASE_DIR ]]; then
+			if ! relative_path=$(mycmd._path_relative_to_directory "${full_path}" "${MYCMD_USER_BASE_DIR}${command_group:+/}${command_group-}"); then
+				return 1
+			fi
+		else
+			return 1
+		fi
+	fi
+
 	echo "${relative_path}"
 }
 
-# mycmd.auto_source_mycmd_libs
-#   Walks the MyCmd directory hierarchy starting from the direct child of MYCMD_BASE_DIR
-#   down to the directory the calling command script is in and sources the library file
-#   <directory_name>-lib if it exists
-function mycmd.auto_source_mycmd_libs() {
-	local -r relative_path=$(_mycmd.running_cmd_relative_path)
+# mycmd.path_relative_to_mycmd_base
+#   Given an absolute path to a command or command group, return the relative path
+#   in comparison to either MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR.
+mycmd.defer_at_startup mycmd.init_bin realpath
+function mycmd.path_relative_to_mycmd_base() {
+	# We assume that full_path is going to be a canonicalized absolute path
+	local -r full_path="${1}"
 
-	# TODO Properly error on things outside of MYCMD_BASE_DIR
+	mycmd.path_relative_to_mycmd_base_with_command_group "${full_path}"
+}
+
+function _mycmd.running_cmd_relative_path() {
+	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
+	local relative_path
+
+	if relative_path="$(mycmd.path_relative_to_mycmd_base "${running_cmd_dir}")"; then
+		echo "${relative_path}"
+		return 0
+	else
+		mycmd.log "Error getting running command relative path."
+		return 1
+	fi
+}
+
+# mycmd.auto_source_mycmd_libs
+#   Walks the MyCmd directory hierarchy starting from the direct child of either
+#   MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR down to the directory the calling
+#   command script is in and sources the library file <directory_name>-lib if it
+#   exists.
+function mycmd.auto_source_mycmd_libs() {
+	local relative_path
+	if ! relative_path=$(_mycmd.running_cmd_relative_path); then
+		mycmd.err_exit 1 "Error auto sourcing libraries."
+	fi
+
 	if [[ "${relative_path}" == "." ]]; then
-		mycmd.trace "No additional libraries to automatically source, command is in ${MYCMD_BASE_DIR}."
+		mycmd.trace "No additional libraries to automatically source, command is in system or user base directory."
 		return
 	fi
 
-	# TODO: Validate that running_cmd_dir is a child path of MYCMD_BASE_DIR
 	mycmd.source_mycmd_lib "${relative_path}"
 }
 
+# _mycmd.source_local_override
+#    The local override file, if it exists, is found in MYCMD_USER_BASE_DIR.
 function _mycmd.source_local_override() {
-	local -r local_lib="${MYCMD_BASE_DIR}/mycmd-local-lib"
+	[[ -z "${MYCMD_USER_BASE_DIR-}" ]] && return 0
+
+	local -r local_lib="${MYCMD_USER_BASE_DIR}/mycmd-local-lib"
 
 	# shellcheck source=/dev/null
 	[[ -e "${local_lib}" ]] && source "${local_lib}"
-}
-
-# ------------------------------------------------------------------------------
-# Convenience functions for calling other MyCmd commands
-mycmd.defer_at_startup mycmd.init_bin sed
-function mycmd.nested_mycmd_command_line() {
-	local unset_vars
-	unset_vars="$(declare -p | grep -E "^declare [-][^ ]+x .*" | "${MYCMD_BIN[sed]}" -r -n 's/declare \-[^ ]+ ([^=]+)=.*/-u \1/p' | tr '\n' ' ')"
-
-	echo "/usr/bin/env ${unset_vars} mycmd" | tr -s '[:space:]'
 }
 
 # ------------------------------------------------------------------------------
@@ -712,4 +792,4 @@ _mycmd.source_local_override
 # Run any deferred commands
 _mycmd.run_startup_deferreds
 
-mycmd.trace "$0 sourcing complete."
+mycmd.trace "${_MYCMD_LIB_SELF_FILE} sourcing complete."
