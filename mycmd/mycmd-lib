@@ -21,14 +21,14 @@ set -o nounset -o errexit -o errtrace -o pipefail
 
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
-[ -n "${_MYCMD_LIB-}" ] && return
+[[ -n "${_MYCMD_LIB-}" ]] && return
 readonly _MYCMD_LIB=1
 
 readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 
-[ -n "${MYCMD_SHELL_TRACE-}" ] && set -o xtrace
+[[ -n "${MYCMD_SHELL_TRACE-}" ]] && set -o xtrace
 
-[ -n "${MYCMD_SHELL_VERBOSE-}" ] && set -o verbose
+[[ -n "${MYCMD_SHELL_VERBOSE-}" ]] && set -o verbose
 
 # ------------------------------------------------------------------------------
 # Basic Logging and Output Functions
@@ -52,7 +52,7 @@ function mycmd.output() {
 #   Convenience for runtime output to stdout, with each line prefixed by the
 #   current timestamp.
 function mycmd.output_with_timestamp() {
-	local -r timestamp="$(date)"
+	local -r timestamp="$(date)" || true
 
 	printf '[%s] %b\n' "${timestamp}" "$*"
 }
@@ -66,7 +66,7 @@ function mycmd.log() {
 # mycmd.debug
 #   Optionally log when MYCMD_DEBUG is set. Useful for debugging output.
 function mycmd.debug() {
-	if [ -n "${MYCMD_DEBUG-}" ]; then
+	if [[ -n "${MYCMD_DEBUG-}" ]]; then
 		mycmd.log "[DEBUG] $*"
 	fi
 }
@@ -74,7 +74,7 @@ function mycmd.debug() {
 # mycmd.trace
 #   Optionally log when MYCMD_TRACE is set. Useful for tracing script execution.
 function mycmd.trace() {
-	if [ -n "${MYCMD_TRACE-}" ]; then
+	if [[ -n "${MYCMD_TRACE-}" ]]; then
 		mycmd.log "[TRACE] $*"
 	fi
 }
@@ -115,7 +115,7 @@ function _mycmd._dispatch_with_calling_file() {
 	local calling_file
 	# stack frame 0 - who called me
 	# stack frame 1 - who called that
-	read -r _ _ calling_file <<<"$(caller 1)"
+	read -r _ _ calling_file <<<"$(caller 1 || true)"
 	# TODO: Do I need to get an abspath?
 	readonly calling_file
 	mycmd.trace "Dispatching with calling file '${calling_file}'"
@@ -161,7 +161,7 @@ function _mycmd.run_startup_deferreds() {
 		calling_file_and_command="${_MYCMD_DEFERRED_STARTUP[i]}"
 
 		if [[ "${calling_file_and_command}" =~ ^"${calling_file}".* ]]; then
-			local command="${calling_file_and_command##"$calling_file" }"
+			local command="${calling_file_and_command##"${calling_file}" }"
 			mycmd.trace "Executing '${command}' from '${calling_file_and_command}'."
 			${command}
 			mycmd.trace "Removing executed '${command}' from '${calling_file_and_command}'."
@@ -205,7 +205,7 @@ function _mycmd._print_stack_trace() {
 
 	for i in $(seq 1 $((${#FUNCNAME[@]} - 2))); do
 		j=$((i + 1))
-		mycmd.log "\t ${BASH_SOURCE[$i]}: ${FUNCNAME[$i]}() called in ${BASH_SOURCE[$j]}:${BASH_LINENO[$i]}"
+		mycmd.log "\t ${BASH_SOURCE[${i}]}: ${FUNCNAME[${i}]}() called in ${BASH_SOURCE[${j}]}:${BASH_LINENO[${i}]}"
 	done
 }
 
@@ -247,11 +247,11 @@ readonly _MYCMD_OS
 case ${_MYCMD_OS} in
 	Darwin)
 		# https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html#//apple_ref/doc/uid/TP40010672-CH10-SW1
-		MYCMD_CACHE_DIR=$HOME/Library/Caches/mycmd
+		MYCMD_CACHE_DIR=${HOME}/Library/Caches/mycmd
 		;;
 
 	Linux)
-		MYCMD_CACHE_DIR=$HOME/.cache/mycmd
+		MYCMD_CACHE_DIR=${HOME}/.cache/mycmd
 		;;
 
 	*)
@@ -304,7 +304,7 @@ function _mycmd._locate_bin() {
 	local -r command=$1
 	local command_path
 
-	if command_path=$(which "${command}" 2>/dev/null); then
+	if command_path=$(command -v "${command}" 2>/dev/null); then
 		echo "${command_path}"
 	else
 		return 1
@@ -319,7 +319,7 @@ function mycmd.init_bin_homebrew() {
 
 	local exe_path
 	if exe_path=$(_mycmd._locate_bin "${exe_name}"); then
-		MYCMD_BIN[$command]="${exe_path}"
+		MYCMD_BIN[${command}]="${exe_path}"
 	else
 		mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
 	fi
@@ -340,8 +340,8 @@ function mycmd.init_bin() {
 
 	mycmd.call_if_function_exists mycmd_local.init_bin "$@"
 
-	[[ -v MYCMD_BIN["$command"] ]] && {
-		mycmd.debug "'${command}' already defined at '${MYCMD_BIN[$command]}'"
+	[[ -v MYCMD_BIN["${command}"] ]] && {
+		mycmd.debug "'${command}' already defined at '${MYCMD_BIN[${command}]}'"
 		return 0
 	}
 
@@ -368,14 +368,14 @@ function mycmd.init_bin() {
 			# shasum is the implementation that ships with mac OS. SHA1 is the default algorithm so it is
 			# a drop in for most cases
 			if shasum_path=$(_mycmd._locate_bin shasum); then
-				MYCMD_BIN[$command]="${shasum_path}"
+				MYCMD_BIN[${command}]="${shasum_path}"
 			else
 				mycmd.err_exit 1 "Unable to locate shasum"
 			fi
 			;;
 		*)
 			if command_path=$(_mycmd._locate_bin "${command}"); then
-				MYCMD_BIN[$command]="${command_path}"
+				MYCMD_BIN[${command}]="${command_path}"
 			else
 				mycmd.err_exit 1 "Unable to locate path for '${command}'."
 			fi
@@ -473,7 +473,12 @@ function mycmd._path_relative_to_directory() {
 	local -r full_path="${1}"
 	local -r base_path="${2}"
 
-	local -r relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${base_path}" "${full_path}")"
+	local relative_path
+	if ! relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${base_path}" "${full_path}")"; then
+		mycmd.log "Error getting relative path."
+		return 1
+	fi
+	readonly relative_path
 
 	# If the relative path starts with .., it is not a descendant
 	if [[ "${relative_path}" = ..* ]]; then
@@ -734,7 +739,7 @@ function mycmd.log_function() {
 	local -r fn=$1
 	shift
 
-	if [ -n "${MYCMD_DEBUG-}" ]; then
+	if [[ -n "${MYCMD_DEBUG-}" ]]; then
 		mycmd.log "${MYCMD_TEXT_ATTR[bold]}Calling function '${fn}':${MYCMD_TEXT_ATTR[reset]}"
 
 		if (($# > 0)); then
@@ -744,11 +749,11 @@ function mycmd.log_function() {
 		fi
 
 		cat - |
-			tee >(mycmd._log_input "${fn}") |
-			$fn "$@" |
-			tee >(mycmd._log_output "${fn}")
+			tee >(mycmd._log_input "${fn}" || true) |
+			${fn} "$@" |
+			tee >(mycmd._log_output "${fn}" || true)
 	else
-		$fn "$@"
+		${fn} "$@"
 	fi
 }
 
@@ -767,8 +772,19 @@ function mycmd.get_named_cache_file() {
 	fi
 
 	local -r cache_file_name=$1
-	local -r running_cmd_relative_path=$(_mycmd.running_cmd_relative_path)
-	local -r running_cmd_name=$(_mycmd.running_cmd_name)
+	local running_cmd_relative_path
+	if ! running_cmd_relative_path="$(_mycmd.running_cmd_relative_path)"; then
+		mycmd.log "Error getting cmd relative path"
+		return 1
+	fi
+	readonly running_cmd_relative_path
+
+	local running_cmd_name
+	if ! running_cmd_name="$(_mycmd.running_cmd_name)"; then
+		mycmd.log "Error getting running cmd name"
+		return 1
+	fi
+	readonly running_cmd_name
 
 	local cmd_base_cache_dir
 	cmd_base_cache_dir="${MYCMD_CACHE_DIR}/${running_cmd_relative_path}/${running_cmd_name}"

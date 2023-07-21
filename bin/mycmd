@@ -69,7 +69,7 @@ if [[ ! -e "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
     exit 1
 fi
 
-# shellcheck source=../mycmd/mycmd-lib
+# shellcheck source=./mycmd/mycmd-lib
 source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib"
 
 # ------------------------------------------------------------------------------
@@ -87,7 +87,12 @@ function display_command_or_group_parts() {
     fi
 
     mycmd.trace "Calling with '${command_or_group_path}'."
-    local -r relative_path="$(mycmd.path_relative_to_mycmd_base "${command_or_group_path}")"
+    local relative_path
+    if ! relative_path="$(mycmd.path_relative_to_mycmd_base "${command_or_group_path}")"; then
+        mycmd.log "Error fetching relative_path for ${command_or_group_path}."
+        return 1
+    fi
+    readonly relative_path
 
     local parts
     # shellcheck disable=SC2162
@@ -199,7 +204,12 @@ function should_hide_command() {
 
 function command_group_short_help() {
     local -r command_group_path="${1}"
-    local -r group_library_file="$(command_group_library_file_path "${command_group_path}")"
+    local group_library_file
+    if ! group_library_file="$(command_group_library_file_path "${command_group_path}")"; then
+        mycmd.log "Error fetching command group library file path for ${command_group_path}."
+        return 1
+    fi
+    readonly group_library_file
 
     local short_help
     short_help="$(command_or_group_short_help_from_comment "${group_library_file}")"
@@ -305,7 +315,7 @@ function print_section() {
         mycmd.trace "Key: ${key_width} Value: ${value_width}"
 
         total=$(( key_width + value_width + 1 ))
-        printf -v rule '=%.0s' $(seq 1 $total)
+        printf -v rule '=%.0s' $(seq 1 ${total})
 
         mycmd.output "\n${heading}\n"
 
@@ -315,7 +325,7 @@ function print_section() {
         readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort)
 
         for key in "${sorted_keys[@]}"; do
-            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[$key]}"
+            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[${key}]}"
             mycmd.output "${output_line}"
         done
     fi
@@ -381,7 +391,7 @@ function mycmd_usage() {
     mycmd.output "\n  See the help for the individual sub commands for further details."
     mycmd.output "\nThe following environment variables are recognized, if set:\n"
     mycmd.output "MYCMD_SYSTEM_BASE_DIR    - the base directory for system defined MyCmd Command Groups."
-    mycmd.output "MYCMD_USER_BASE_DIR      - the base directory for user defined MyCmd Command Groups. Defaults to $HOME/mycmd if not set, if the directory exists."
+    mycmd.output "MYCMD_USER_BASE_DIR      - the base directory for user defined MyCmd Command Groups. Defaults to ${HOME}/mycmd if not set, if the directory exists."
     mycmd.output "MYCMD_SHELL_TRACE        - enables Bash's xtrace (set -x) for the executing command."
     mycmd.output "MYCMD_SHELL_VERBOSE      - enables Bash's verbose mode (set -v) for the executing command."
     mycmd.output "MYCMD_DEBUG              - enables output of debug logging in the executing command."
@@ -414,7 +424,7 @@ function output_zsh_completions_from_assoc() {
     readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort)
 
     for key in "${sorted_keys[@]}"; do
-        printf -v output '%q:%q:%q' "${prefix}" "${key}" "${data_ref[$key]}"
+        printf -v output '%q:%q:%q' "${prefix}" "${key}" "${data_ref[${key}]}"
         mycmd.output "${output}"
     done
 }
@@ -580,6 +590,7 @@ function main() {
         # it means we didn't find a command within the command
         # group
         if (($# > 0)); then
+            # TODO: Update error message
             mycmd.err_exit 1 "MyCmd command '${1}' in ${full_path} does not exist."
         elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
             mycmd_help
