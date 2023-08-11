@@ -15,8 +15,8 @@ set -o nounset -o errexit -o errtrace -o pipefail
 # with execution is attempted. Technique borrowed from
 # https://stackoverflow.com/a/28776166
 (return 0 >/dev/null 2>&1) || {
-	echo >&2 "$0 is a library only meant to be sourced."
-	exit 1
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
 }
 
 # This library should only be sourced once. Technique borrowed from
@@ -26,9 +26,13 @@ readonly _MYCMD_LIB=1
 
 readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 
-[[ -n "${MYCMD_SHELL_TRACE-}" ]] && set -o xtrace
+# _MYCMD_EARLY_SHELL_TRACE and _MYCMD_EARLY_SHELL_VERBOSE are mainly for the ease of debugging
+# MyCmd itself; since the MyCmd launcher is also in shell and sources mycmd-lib, if we check
+# the user facing variables MYCMD_SHELL_TRACE and MYCMD_SHELL_VERBOSE and set the options here
+# the output will have too much of the mechanics of MyCmd itself and not the user's command.
+[[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]] && set -o xtrace
 
-[[ -n "${MYCMD_SHELL_VERBOSE-}" ]] && set -o verbose
+[[ -n "${_MYCMD_EARLY_SHELL_VERBOSE-}" ]] && set -o verbose
 
 # ------------------------------------------------------------------------------
 # Basic Logging and Output Functions
@@ -41,42 +45,66 @@ readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 #   echo for interal implementation use for functions that are meant to be called
 #   in sub-shells to capture output.
 
+# These file descriptors are set up to make output easier
+exec {_MYCMD_OUTPUT_FD}>&1
+readonly _MYCMD_OUTPUT_FD
+export _MYCMD_OUTPUT_FD
+
+# mycmd.output
+#   Convenience for runtime output to stdout. Provided for symmetry in output
+#   functions.
+function mycmd._output() {
+    local -r output_fd="${1}"
+    shift
+
+    printf '%b\n' "$*" >&"${output_fd}"
+}
+
 # mycmd.output
 #   Convenience for runtime output to stdout. Provided for symmetry in output
 #   functions.
 function mycmd.output() {
-	printf '%b\n' "$*"
+    mycmd._output "${_MYCMD_OUTPUT_FD}" "$*"
+}
+
+function mycmd._output_with_timestamp() {
+    local -r output_fd="${1}"
+    shift
+
+    printf '[%(%F %T)T] %b\n' -1 "$*" 1>&"${output_fd}"
 }
 
 # mycmd.output_with_timestamp
 #   Convenience for runtime output to stdout, with each line prefixed by the
 #   current timestamp.
 function mycmd.output_with_timestamp() {
-	local -r timestamp="$(date)" || true
-
-	printf '[%s] %b\n' "${timestamp}" "$*"
+    mycmd._output_with_timestamp "${_MYCMD_OUTPUT_FD}" "$*"
 }
+
+exec {_MYCMD_LOG_FD}>&2
+readonly _MYCMD_LOG_FD
+export _MYCMD_LOG_FD
 
 # mycmd.log
 #   Convenience for runtime logging to stderr.
 function mycmd.log() {
-	mycmd.output_with_timestamp "$*" 1>&2
+    mycmd._output_with_timestamp "${_MYCMD_LOG_FD}" "$*" 1>&2
 }
 
 # mycmd.debug
 #   Optionally log when MYCMD_DEBUG is set. Useful for debugging output.
 function mycmd.debug() {
-	if [[ -n "${MYCMD_DEBUG-}" ]]; then
-		mycmd.log "[DEBUG] $*"
-	fi
+    if [[ -n "${MYCMD_DEBUG-}" ]]; then
+        mycmd.log "[DEBUG] $*"
+    fi
 }
 
 # mycmd.trace
 #   Optionally log when MYCMD_TRACE is set. Useful for tracing script execution.
 function mycmd.trace() {
-	if [[ -n "${MYCMD_TRACE-}" ]]; then
-		mycmd.log "[TRACE] $*"
-	fi
+    if [[ -n "${MYCMD_TRACE-}" ]]; then
+        mycmd.log "[TRACE] $*"
+    fi
 }
 
 # mycmd.err_exit
@@ -85,185 +113,201 @@ function mycmd.trace() {
 #   $1 - Exit code to use
 #   Remainder - Error message
 function mycmd.err_exit() {
-	local -r exit_code=$1
-	shift
+    local -r exit_code=$1
+    shift
 
-	mycmd.log "$*"
-	exit "${exit_code}"
+    mycmd.log "$*"
+    exit "${exit_code}"
 }
 
 # ------------------------------------------------------------------------------
-# Validate system environment
-if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" ]]; then
-	mycmd.err_exit 1 "Required environment variable MYCMD_SYSTEM_BASE_DIR is not set."
+# Validate environment
+function mycmd._validate_environment() {
+    local mycmd_var
+
+    for mycmd_var in "MYCMD_SYSTEM_BASE_DIR" "MYCMD_USER_BASE_DIR" "MYCMD_VENDOR_DIR"; do
+        if [[ -z "${!mycmd_var-}" ]]; then
+            mycmd.err_exit 1 "Required environment variable ${mycmd_var} is not set."
+        fi
+    done
+}
+
+mycmd._validate_environment
+
+# ------------------------------------------------------------------------------
+# Vendor Library Support
+function mycmd.load_vendor_library() {
+    local -r vendor_library="${1}"
+    # shellcheck disable=SC2154
+    local -r vendor_library_path="${MYCMD_VENDOR_DIR}/${vendor_library}"
+
+    if [[ -e "${vendor_library_path}" ]]; then
+        mycmd.trace "Loading vendored library '${vendor_library}'."
+        # shellcheck source=/dev/null
+        source "${vendor_library_path}"
+    else
+        mycmd.log "Vendored library '${vendor_library}' not found."
+        return 1
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# Event Handling Support
+if ! mycmd.load_vendor_library "bashup.events"; then
+    mycmd.err_exit 1 "Required library missing."
 fi
+
+# mycmd.event
+#   Simple wrapper around bashup.event to present a consistent
+#   interface to MyCmd command implementors.
+function mycmd.event() {
+    event "${@}"
+}
 
 # -------------------------------------------------------------------------------
 # Library Deferred Commands Support
 #
 #   Commands to run after all libraries are sourced
-declare -ax _MYCMD_DEFERRED_STARTUP=()
 
 # mycmd._dispatch_with_calling_file
 #   Higher order function that passes the full pathname of the shell file that called the
 #   function that called  mycmd._dispatch_with_calling_file as the first parameter of the
 #   function.
-function _mycmd._dispatch_with_calling_file() {
-	local -r fn=$1
-	shift
+function mycmd._dispatch_with_calling_file() {
+    local -r fn=$1
+    shift
 
-	local calling_file
-	# stack frame 0 - who called me
-	# stack frame 1 - who called that
-	read -r _ _ calling_file <<<"$(caller 1 || true)"
-	# TODO: Do I need to get an abspath?
-	readonly calling_file
-	mycmd.trace "Dispatching with calling file '${calling_file}'"
+    local calling_file
+    # stack frame 0 - who called me
+    # stack frame 1 - who called that
+    read -r _ _ calling_file <<<"$(caller 1 || true)"
+    # TODO: Do I need to get an abspath?
+    readonly calling_file
+    mycmd.trace "Dispatching with calling file '${calling_file}'"
 
-	"${fn}" "${calling_file}" "${@}"
+    "${fn}" "${calling_file}" "${@}"
 }
 
-function _mycmd._defer_at_startup() {
-	local -r calling_file=$1
-	shift
+function mycmd._get_file_startup_event_name() {
+    local -r calling_file=${1}
+    local -r event_name="${1}:mycmd_startup"
 
-	_MYCMD_DEFERRED_STARTUP+=("${calling_file} $*")
+    echo "${event_name}"
+}
+
+function mycmd._defer_at_startup() {
+    local -r calling_file="${1}"
+    shift
+
+    local event_name
+    if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
+        mycmd.log "Error getting file startup event name"
+        return 1
+    fi
+    readonly event_name
+
+    mycmd.event on "${event_name}" "${@}"
 }
 
 # mycmd.defer_at_startup
 #  Called with a command to call at the end of evaluating the library.
 #
 #  These commands are explicitly called by the explicit call to
-#  _mycmd.run_startup_deferreds at the end of this file.
+#  mycmd.run_startup_deferreds at the end of this file.
 function mycmd.defer_at_startup() {
-	_mycmd._dispatch_with_calling_file _mycmd._defer_at_startup "${@}"
+    mycmd._dispatch_with_calling_file mycmd._defer_at_startup "${@}"
 }
 
-# _mycmd.run_startup_deferreds
+# mycmd.run_startup_deferreds
 #   Supports two calling mechanism: one by the library explicitly, like from
 #   this file. Or another on behalf of another file.
 #
 #   A quirk of how mycmd._dispatch_with_calling_file works allows us to be
 #   recursive here
 # shellcheck disable=SC2120
-function _mycmd.run_startup_deferreds() {
-	if (($# < 1)); then
-		_mycmd._dispatch_with_calling_file "${FUNCNAME[0]}"
-		return $?
-	fi
+function mycmd.run_startup_deferreds() {
+    if (($# < 1)); then
+        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}"
+        return $?
+    fi
 
-	local -r calling_file=$1
+    local -r calling_file="${1}"
+    mycmd.trace "Calling deferred startup events for ${calling_file}."
 
-	local -ri deferred_startup_count="${#_MYCMD_DEFERRED_STARTUP[@]}"
-	local -i i
-	for ((i = 0; i < deferred_startup_count; i++)); do
-		local calling_file_and_command
-		calling_file_and_command="${_MYCMD_DEFERRED_STARTUP[i]}"
+    local event_name
+    if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
+        mycmd.log "Error getting file startup event name"
+        return 1
+    fi
+    readonly event_name
 
-		if [[ "${calling_file_and_command}" =~ ^"${calling_file}".* ]]; then
-			local command="${calling_file_and_command##"${calling_file}" }"
-			mycmd.trace "Executing '${command}' from '${calling_file_and_command}'."
-			${command}
-			mycmd.trace "Removing executed '${command}' from '${calling_file_and_command}'."
-			unset -v '_MYCMD_DEFERRED_STARTUP[$i]'
-		else
-			mycmd.trace "Skipping '${calling_file_and_command}'."
-		fi
-	done
-
-	return 0
+    if mycmd.event has "${event_name}"; then
+        mycmd.trace "Calling deferred startup events for ${calling_file}."
+        mycmd.event fire "${event_name}"
+    fi
 }
 
 # -------------------------------------------------------------------------------
-# Library clean commands support
+# Library clean up commands support
 #   Basic clean up and error handling commands
-
-# _MYCMD_DEFERRED_AT_EXIT
-#   A list treated as a stack. Functions are provided below for adding commands to this
-#   to be run at script exit.
-declare -ax _MYCMD_DEFERRED_AT_EXIT=()
+readonly _MYCMD_EXIT_EVENT="mycmd_exit"
 
 function mycmd.defer_at_exit() {
-	_MYCMD_DEFERRED_AT_EXIT+=("$@")
+    mycmd.event on "${_MYCMD_EXIT_EVENT}" "${@}"
 }
 
-function _mycmd._print_stack_trace() {
-	mycmd.trace "Running ${FUNCNAME[0]}, with args '$*'"
+function mycmd._print_stack_trace() {
+    mycmd.trace "Running ${FUNCNAME[0]}, with args '$*'"
 
-	# Disable the trap
-	trap - ERR
+    # Disable the trap
+    trap - ERR
 
-	# Method borrowed from https://raimonster.com/scripting-field-guide/#org3417a0c
-	local return_code=$1
+    # Method borrowed from https://raimonster.com/scripting-field-guide/#org3417a0c
+    local return_code=$1
 
-	((return_code == 0)) && return 0
+    ((return_code == 0)) && return 0
 
-	mycmd.log "\nThe command ${BASH_COMMAND} triggered a stack trace."
+    mycmd.log "\nThe command ${BASH_COMMAND} triggered a stack trace."
 
-	local -i i
-	local -i j
+    local -i i
+    local -i j
 
-	for i in $(seq 1 $((${#FUNCNAME[@]} - 2))); do
-		j=$((i + 1))
-		mycmd.log "\t ${BASH_SOURCE[${i}]}: ${FUNCNAME[${i}]}() called in ${BASH_SOURCE[${j}]}:${BASH_LINENO[${i}]}"
-	done
+    for i in $(seq 1 $((${#FUNCNAME[@]} - 2))); do
+        j=$((i + 1))
+        mycmd.log "\t ${BASH_SOURCE[${i}]}: ${FUNCNAME[${i}]}() called in ${BASH_SOURCE[${j}]}:${BASH_LINENO[${i}]}"
+    done
 }
 
-function _mycmd._run_at_exit_deferreds() {
-	mycmd.trace "Running ${FUNCNAME[0]}."
+function mycmd._run_at_exit_deferreds() {
+    # Disable the trap handler, including ERR here just in case, as this should be run last
+    trap - SIGINT SIGTERM ERR EXIT
 
-	# Disable the trap handler, including ERR here just in case, as this should be run last
-	trap - SIGINT SIGTERM ERR EXIT
+    if mycmd.event has "${_MYCMD_EXIT_EVENT}"; then
+        mycmd.trace "Calling deferred at exit events."
+        mycmd.event fire "${_MYCMD_EXIT_EVENT}"
+    fi
 
-	# Defensive programming in the unlikely state our variable isn't set
-	if [[ ! -v _MYCMD_DEFERRED_AT_EXIT ]]; then
-		mycmd.debug "_MYCMD_DEFERRED_AT_EXIT is empty or doesn't exist, skipping clean up."
-		return
-	fi
-
-	# Then, run all of the exit deferreds in reverse order
-	local -ri deferred_at_exit_count="${#_MYCMD_DEFERRED_AT_EXIT[@]}"
-	local -i i
-	for ((i = deferred_at_exit_count - 1; i >= 0; i--)); do
-		local command="${_MYCMD_DEFERRED_AT_EXIT[i]}"
-		mycmd.trace "Executing deferred at exit '${command}'."
-		${command}
-	done
-
-	unset -v _MYCMD_DEFERRED_AT_EXIT
-
-	mycmd.trace "All at exit deferreds execution completed."
+    mycmd.trace "All at exit deferreds execution completed."
 }
 
-trap '_mycmd._print_stack_trace $?' ERR
-trap _mycmd._run_at_exit_deferreds SIGINT SIGTERM EXIT
+trap 'mycmd._print_stack_trace $?' ERR
+trap mycmd._run_at_exit_deferreds SIGINT SIGTERM EXIT
 
-# -------------------------------------------------------------------------------
-# MyCmd Operation System Support
-#   Common variables set according to OS being run on.
-_MYCMD_OS="$(uname -s)"
-readonly _MYCMD_OS
+# ------------------------------------------------------------------------------
+# Library Protection
+function mycmd.protect_library_functions() {
+    local -a library_functions
+    # shellcheck disable=SC2312
+    readarray -t library_functions < <(compgen -A function | grep "^mycmd\.")
 
-case ${_MYCMD_OS} in
-	Darwin)
-		# https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html#//apple_ref/doc/uid/TP40010672-CH10-SW1
-		MYCMD_CACHE_DIR=${HOME}/Library/Caches/mycmd
-		;;
-
-	Linux)
-		MYCMD_CACHE_DIR=${HOME}/.cache/mycmd
-		;;
-
-	*)
-		mycmd.err_exit 1 "OS ${_MYCMD_OS} is not currently supported."
-		;;
-esac
-
-readonly MYCMD_CACHE_DIR
-mycmd.trace "Creating cache directory ${MYCMD_CACHE_DIR} if needed."
-mkdir -p "${MYCMD_CACHE_DIR}" || {
-	mycmd.err_exit 1 "Error creating MyCmd cache directory '${MYCMD_CACHE_DIR}'."
+    local f
+    for f in "${library_functions[@]}"; do
+        mycmd.log "Marking function '${f}' read-only."
+        readonly -f "${f}"
+    done
 }
+
+mycmd.defer_at_startup mycmd.protect_library_functions
 
 # ------------------------------------------------------------------------------
 # Convenience methods for calling functions
@@ -271,19 +315,19 @@ mkdir -p "${MYCMD_CACHE_DIR}" || {
 # mycmd.function_exists
 #   Test whether the specified shell function has been defined
 function mycmd.function_exists() {
-	declare -F "$1" >/dev/null
+    declare -F "$1" >/dev/null
 }
 
 # mycmd.call_if_function_exists
 #  	If the named function exists, call with the subsequent arguments. Otherwise,
 #  	do nothing.
 function mycmd.call_if_function_exists() {
-	local -r fn=$1
-	shift
+    local -r fn=$1
+    shift
 
-	if mycmd.function_exists "${fn}"; then
-		"${fn}" "$@"
-	fi
+    if mycmd.function_exists "${fn}"; then
+        "${fn}" "$@"
+    fi
 }
 
 # ------------------------------------------------------------------------------
@@ -298,31 +342,31 @@ function mycmd.call_if_function_exists() {
 #     Value: the path of the given command
 declare -Ax MYCMD_BIN
 
-# _mycmd._locate_bin
+# mycmd._locate_bin
 #   Attempt to find the given command on the PATH. If found, return the full path.
-function _mycmd._locate_bin() {
-	local -r command=$1
-	local command_path
+function mycmd._locate_bin() {
+    local -r command=$1
+    local command_path
 
-	if command_path=$(command -v "${command}" 2>/dev/null); then
-		echo "${command_path}"
-	else
-		return 1
-	fi
+    if command_path=$(command -v "${command}" 2>/dev/null); then
+        echo "${command_path}"
+    else
+        return 1
+    fi
 }
 
 function mycmd.init_bin_homebrew() {
-	local -r command=$1
-	local -r exe_name=$2
-	local -r long_name=$3
-	local -r homebrew_package=$4
+    local -r command=$1
+    local -r exe_name=$2
+    local -r long_name=$3
+    local -r homebrew_package=$4
 
-	local exe_path
-	if exe_path=$(_mycmd._locate_bin "${exe_name}"); then
-		MYCMD_BIN[${command}]="${exe_path}"
-	else
-		mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
-	fi
+    local exe_path
+    if exe_path=$(mycmd._locate_bin "${exe_name}"); then
+        MYCMD_BIN[${command}]="${exe_path}"
+    else
+        mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
+    fi
 }
 
 # mycmd.init_bin
@@ -336,429 +380,90 @@ function mycmd.init_bin_homebrew() {
 #  It is intended that when this function is callled, the command is a required
 #  dependency and thus this will exit with an error if the command cannot be found.
 function mycmd.init_bin() {
-	local -r command=$1
+    local -r command=$1
 
-	mycmd.call_if_function_exists mycmd_local.init_bin "$@"
+    mycmd.call_if_function_exists mycmd_local.init_bin "$@"
 
-	[[ -v MYCMD_BIN["${command}"] ]] && {
-		mycmd.debug "'${command}' already defined at '${MYCMD_BIN[${command}]}'"
-		return 0
-	}
+    [[ -v MYCMD_BIN["${command}"] ]] && {
+        mycmd.debug "'${command}' already defined at '${MYCMD_BIN[${command}]}'"
+        return 0
+    }
 
-	local command_path
+    local command_path
 
-	case "${command}+${_MYCMD_OS}" in
-		"awk+Darwin")
-			mycmd.init_bin_homebrew awk gawk "GNU awk" gawk
-			;;
-		"find+Darwin")
-			mycmd.init_bin_homebrew find gfind "GNU find" findutils
-			;;
-		"realpath+Darwin")
-			mycmd.init_bin_homebrew realpath grealpath "GNU realpath" coreutils
-			;;
-		"sed+Darwin")
-			mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
-			;;
-		"wc+Darwin")
-			mycmd.init_bin_homebrew wc gwc "GNU wc" coreutils
-			;;
-		"sha1sum+Darwin")
-			local shasum_path
-			# shasum is the implementation that ships with mac OS. SHA1 is the default algorithm so it is
-			# a drop in for most cases
-			if shasum_path=$(_mycmd._locate_bin shasum); then
-				MYCMD_BIN[${command}]="${shasum_path}"
-			else
-				mycmd.err_exit 1 "Unable to locate shasum"
-			fi
-			;;
-		*)
-			if command_path=$(_mycmd._locate_bin "${command}"); then
-				MYCMD_BIN[${command}]="${command_path}"
-			else
-				mycmd.err_exit 1 "Unable to locate path for '${command}'."
-			fi
-			;;
+    case "${command}+${_MYCMD_OS}" in
+        "awk+Darwin")
+            mycmd.init_bin_homebrew awk gawk "GNU awk" gawk
+            ;;
+        "find+Darwin")
+            mycmd.init_bin_homebrew find gfind "GNU find" findutils
+            ;;
+        "realpath+Darwin")
+            mycmd.init_bin_homebrew realpath grealpath "GNU realpath" coreutils
+            ;;
+        "sed+Darwin")
+            mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
+            ;;
+        "stat+Darwin")
+            mycmd.init_bin_homebrew sed gstat "GNU Stat" coreutils
+            ;;
+        "wc+Darwin")
+            mycmd.init_bin_homebrew wc gwc "GNU wc" coreutils
+            ;;
+        "sha1sum+Darwin")
+            local shasum_path
+            # shasum is the implementation that ships with mac OS. SHA1 is the default algorithm so it is
+            # a drop in for most cases
+            if shasum_path=$(mycmd._locate_bin shasum); then
+                MYCMD_BIN[${command}]="${shasum_path}"
+            else
+                mycmd.err_exit 1 "Unable to locate shasum"
+            fi
+            ;;
+        *)
+            if command_path=$(mycmd._locate_bin "${command}"); then
+                MYCMD_BIN[${command}]="${command_path}"
+            else
+                mycmd.err_exit 1 "Unable to locate path for '${command}'."
+            fi
+            ;;
 
-	esac
+    esac
 }
 
-# ------------------------------------------------------------------------------
-# MyCmd Sourcing Support
+# -------------------------------------------------------------------------------
+# MyCmd Operating System Support
+#   Common variables set according to OS being run on.
+_MYCMD_OS="$(uname -s)"
+readonly _MYCMD_OS
 
-# mycmd._source_lib_by_path
-#   Source the library if it exists.
-function mycmd._source_lib_by_path_if_found() {
-	local -r library_full_path="${1}"; shift
 
-	if [[ -e "${library_full_path}" ]]; then
-		# shellcheck source=/dev/null
-		source "${library_full_path}" "$@"
-
-		# Run any remaining deferreds for the startup for the library
-		_mycmd.run_startup_deferreds "${library_full_path}"
-
-		return 0
-	else
-		return 1
-	fi
-}
-
-# mycmd.source_mycmd_lib
-#   Explicitly source a MyCmd library and its dependencies by providing the
-#   directory name of the MyCmd library relative to either first
-#   MYCMD_SYSTEM_BASE_DIR or, secondly, MYCMD_USER_BASE_DIR.
-#
-#   For example, to source the library in ~/mycmd/requests/service1, call this
-#   like this:
-#
-# 	mycmd.source_mycmd_lib "requests/service1"
-function mycmd.source_mycmd_lib() {
-	# TODO: Validation of parmaeters
-	local -r library_path="$1"
-	shift
-
-	local dir_parts
-	# shellcheck disable=SC2162
-	IFS="/" read -a dir_parts <<<"${library_path}"
-	readonly dir_parts
-
-	# Start at the system base directory
-	local lib_dir="${MYCMD_SYSTEM_BASE_DIR}"
-
-	# And the user base directory, if it exists
-	if [[ -n "${MYCMD_USER_BASE_DIR-}" ]]; then
-		local local_lib_dir="${MYCMD_USER_BASE_DIR}"
-	fi
-
-	local dir
-	for dir in "${dir_parts[@]}"; do
-		lib_dir="${lib_dir}/${dir}"
-		if [[ -v local_lib_dir ]]; then
-			local_lib_dir="${local_lib_dir}/${dir}"
-		fi
-
-		# Look for a command group library named <dirname>-lib in <dirname>
-		local lib_script="${lib_dir}/${dir}-lib"
-
-		# First check in MYCMD_SYSTEM_BASE_DIR
-		if mycmd._source_lib_by_path_if_found "${lib_script}" "${@}"; then
-			if [[ -v local_lib_dir ]]; then
-				# If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
-				local local_lib_override="${local_lib_dir}/${dir}-local-lib"
-				mycmd._source_lib_by_path_if_found "${local_lib_override}" "${@}" || true
-			fi
-		elif [[ -v local_lib_dir ]]; then
-			# Otherwise, check in MYCMD_USER_BASE_DIR
-			local local_lib_script="${local_lib_dir}/${dir}-lib"
-			mycmd._source_lib_by_path_if_found "${local_lib_script}" "${@}" || true
-		fi
-	done
-}
-
-function _mycmd.running_cmd_name() {
-	local -r running_cmd="${BASH_SOURCE[-1]}"
-
-	basename "${running_cmd}"
-}
-
-# mycmd._path_relative_to_directory
-#   Given an absolute path to a command or command group, output the relative path to
-#   the base directory specified.
-#
-#   Returns 1 if the specified path is not a descendant of the base directory.
-mycmd.defer_at_startup mycmd.init_bin realpath
-function mycmd._path_relative_to_directory() {
-	local -r full_path="${1}"
-	local -r base_path="${2}"
-
-	local relative_path
-	if ! relative_path="$("${MYCMD_BIN[realpath]}" --relative-to="${base_path}" "${full_path}")"; then
-		mycmd.log "Error getting relative path."
-		return 1
-	fi
-	readonly relative_path
-
-	# If the relative path starts with .., it is not a descendant
-	if [[ "${relative_path}" = ..* ]]; then
-		return 1
-	else
-		echo "${relative_path}"
-		return 0
-	fi
-}
-
-# mycmd.path_relative_to_mycmd_base
-#   Given an absolute path to a command or command group, return the relative path
-#   in comparison to either MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR.
-mycmd.defer_at_startup mycmd.init_bin realpath
-function mycmd.path_relative_to_mycmd_base_with_command_group() {
-	# We assume that full_path is going to be a canonicalized absolute path
-	local -r full_path="${1}"
-	local -r command_group="${2-}"
-
-	local relative_path
-
-	if ! relative_path=$(mycmd._path_relative_to_directory "${full_path}" "${MYCMD_SYSTEM_BASE_DIR}${command_group:+/}${command_group-}"); then
-		if [[ -v MYCMD_USER_BASE_DIR ]]; then
-			if ! relative_path=$(mycmd._path_relative_to_directory "${full_path}" "${MYCMD_USER_BASE_DIR}${command_group:+/}${command_group-}"); then
-				return 1
-			fi
-		else
-			return 1
-		fi
-	fi
-
-	echo "${relative_path}"
-}
-
-# mycmd.path_relative_to_mycmd_base
-#   Given an absolute path to a command or command group, return the relative path
-#   in comparison to either MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR.
-mycmd.defer_at_startup mycmd.init_bin realpath
-function mycmd.path_relative_to_mycmd_base() {
-	# We assume that full_path is going to be a canonicalized absolute path
-	local -r full_path="${1}"
-
-	mycmd.path_relative_to_mycmd_base_with_command_group "${full_path}"
-}
-
-function _mycmd.running_cmd_relative_path() {
-	local -r running_cmd_dir="$(dirname "${BASH_SOURCE[-1]}")"
-	local relative_path
-
-	if relative_path="$(mycmd.path_relative_to_mycmd_base "${running_cmd_dir}")"; then
-		echo "${relative_path}"
-		return 0
-	else
-		mycmd.log "Error getting running command relative path."
-		return 1
-	fi
-}
-
-# mycmd.auto_source_mycmd_libs
-#   Walks the MyCmd directory hierarchy starting from the direct child of either
-#   MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR down to the directory the calling
-#   command script is in and sources the library file <directory_name>-lib if it
-#   exists.
-function mycmd.auto_source_mycmd_libs() {
-	local relative_path
-	if ! relative_path=$(_mycmd.running_cmd_relative_path); then
-		mycmd.err_exit 1 "Error auto sourcing libraries."
-	fi
-
-	if [[ "${relative_path}" == "." ]]; then
-		mycmd.trace "No additional libraries to automatically source, command is in system or user base directory."
-		return
-	fi
-
-	mycmd.source_mycmd_lib "${relative_path}"
-}
-
-# _mycmd.source_local_override
-#    The local override file, if it exists, is found in MYCMD_USER_BASE_DIR.
-function _mycmd.source_local_override() {
-	[[ -z "${MYCMD_USER_BASE_DIR-}" ]] && return 0
-
-	local -r local_lib="${MYCMD_USER_BASE_DIR}/mycmd-local-lib"
-
-	# shellcheck source=/dev/null
-	[[ -e "${local_lib}" ]] && source "${local_lib}"
-}
-
-# ------------------------------------------------------------------------------
-# Convenience methods and variables for terminal output
-#
-#   Users set the environment variabled MYCMD_FORCE_COLOR to force MyCmd to
-#   output in color if output is being redirected.
-#
-#   The associative arrays MYCMD_FG_COLOR, MYCMD_BG_COLOR, and MYCMD_TEXT_ATTR
-#   are provided as conveniences for the terminal escape codes for common
-#   terminal foreground colors, background colors, and text attributes,
-#   respectively. In each case, the keys are the names of the colors or
-#   attributes.
-#
-#   Examples:
-#     - Display the given text in bold:
-#       mycmd.output "${MYCMD_TEXT_ATTR[bold]}This is bold${MYCMD_TEXT_ATTR[reset]}"
-#     - Display the given text with a blue background and magenta text:
-#       mycmd.output "${MYCMD_BG_COLOR[blue]}${MYCMD_FG_COLOR[magenta]}This is bold${MYCMD_FG_COLOR[default]}${MYCMD_BG_COLOR[default]}"
-#
-#    Note that you generally need to either set thing back to default for colors or reset for text attributes when you are finished.
-#
-#   Handy reference: https://wiki.bash-hackers.org/scripting/terminalcodes
-# TODO: Check for terminal capabilities?
-if [[ -t 1 || -n "${MYCMD_FORCE_COLOR-}" ]]; then
-	readonly _MYCMD_IS_TTY=1
-	mycmd.init_bin tput
-fi
-
-# tput
-#   Simple function wrapper around the tput command that is a no-op
-#   if we aren't running from a terminal.
-function tput() {
-	if [[ -n "${_MYCMD_IS_TTY-}" ]]; then
-		"${MYCMD_BIN[tput]}" "$@" || true
-	else
-		# Do Nothing
-		return 0
-	fi
-}
-
-# MYCMD_FG_COLOR
-#   An associative array with common foreground color definitions.
-#
-#   Provided colors:
-#   - black
-#   - red
-#   - green
-#   - yellow
-#   - blue
-#   - magenta
-#   - cyan
-#   - light gray
-#   - dark gray
-#   - light red
-#   - light green
-#   - light yellow
-#   - light blue
-#   - light magenta
-#   - light cyan
-#   - white
-#   An alias for light gray, my current default:
-#   - default
-declare -Ax MYCMD_FG_COLOR
-function _mycmd.define_fg_colors() {
-	MYCMD_FG_COLOR[black]=$(tput setaf 0)
-	MYCMD_FG_COLOR[red]=$(tput setaf 1)
-	MYCMD_FG_COLOR[green]=$(tput setaf 2)
-	MYCMD_FG_COLOR[yellow]=$(tput setaf 3)
-	MYCMD_FG_COLOR[blue]=$(tput setaf 4)
-	MYCMD_FG_COLOR[magenta]=$(tput setaf 5)
-	MYCMD_FG_COLOR[cyan]=$(tput setaf 6)
-	MYCMD_FG_COLOR[light_gray]=$(tput setaf 7)
-	MYCMD_FG_COLOR[dark_gray]=$(tput setaf 8)
-	MYCMD_FG_COLOR[light_red]=$(tput setaf 9)
-	MYCMD_FG_COLOR[light_green]=$(tput setaf 10)
-	MYCMD_FG_COLOR[light_yellow]=$(tput setaf 11)
-	MYCMD_FG_COLOR[light_blue]=$(tput setaf 12)
-	MYCMD_FG_COLOR[light_magenta]=$(tput setaf 13)
-	MYCMD_FG_COLOR[light_cyan]=$(tput setaf 14)
-	MYCMD_FG_COLOR[white]=$(tput setaf 15)
-
-	# Hack for now
-	MYCMD_FG_COLOR[default]=$(tput setaf 7)
-}
-mycmd.defer_at_startup _mycmd.define_fg_colors
-
-# MYCMD_FG_COLOR
-#   An associative array with common foreground color definitions.
-#
-#   Provided colors:
-#   - black
-#   - red
-#   - green
-#   - yellow
-#   - blue
-#   - magenta
-#   - cyan
-#   - white
-#   An alias for the black, my current default:
-#   - default
-declare -Ax MYCMD_BG_COLOR
-function _mycmd.define_bg_colors() {
-	MYCMD_BG_COLOR[black]=$(tput setab 0)
-	MYCMD_BG_COLOR[red]=$(tput setab 1)
-	MYCMD_BG_COLOR[green]=$(tput setab 2)
-	MYCMD_BG_COLOR[yellow]=$(tput setab 3)
-	MYCMD_BG_COLOR[blue]=$(tput setab 4)
-	MYCMD_BG_COLOR[magenta]=$(tput setab 5)
-	MYCMD_BG_COLOR[cyan]=$(tput setab 6)
-	MYCMD_BG_COLOR[white]=$(tput setab 7)
-	# Hack for now
-	MYCMD_BG_COLOR[default]=$(tput setab 0)
-}
-mycmd.defer_at_startup _mycmd.define_bg_colors
-
-# MYCMD_FG_COLOR
-#   An associative array with common text attributes.
-#
-#   Provided attributes include:
-#   - reset -- resets all attributes (including colors) to the defaults
-#   - bold
-#   - dim
-#   - start_standout
-#   - end_standout
-#   - start_under - start underline
-#   - end_under - end underline
-declare -A MYCMD_TEXT_ATTR
-function _mycmd.define_text_attrs() {
-	MYCMD_TEXT_ATTR[reset]=$(tput sgr0)
-	MYCMD_TEXT_ATTR[bold]=$(tput bold)
-	MYCMD_TEXT_ATTR[dim]=$(tput dim)
-	MYCMD_TEXT_ATTR[start_standout]=$(tput smso)
-	MYCMD_TEXT_ATTR[end_standout]=$(tput rmso)
-	MYCMD_TEXT_ATTR[start_under]=$(tput smul)
-	MYCMD_TEXT_ATTR[end_under]=$(tput rmul)
-}
-mycmd.defer_at_startup _mycmd.define_text_attrs
-
-# ------------------------------------------------------------------------------
-# Additional Logging Support Functions
-
-mycmd.defer_at_startup mycmd.init_bin sed
-function mycmd._log_input() {
-	local fn=$1
-
-	mycmd.log "${MYCMD_TEXT_ATTR[bold]}Start of input to '${fn}' on STDIN:${MYCMD_TEXT_ATTR[reset]}"
-
-	cat - | "${MYCMD_BIN[sed]}" -e "s/\(.*\)/${MYCMD_TEXT_ATTR[bold]}INPUT:${MYCMD_TEXT_ATTR[reset]}\t \1/" >&2
-
-	mycmd.log "\n${MYCMD_TEXT_ATTR[bold]}End of input to '${fn}' on STDIN.${MYCMD_TEXT_ATTR[reset]}"
-}
-
-mycmd.defer_at_startup mycmd.init_bin sed
-function mycmd._log_output() {
-	local fn=$1
-
-	mycmd.log "${MYCMD_TEXT_ATTR[bold]}Start of output from '${fn}' on STDOUT:${MYCMD_TEXT_ATTR[reset]}"
-
-	cat - | "${MYCMD_BIN[sed]}" -e "s/\(.*\)/${MYCMD_TEXT_ATTR[bold]}OUTPUT:${MYCMD_TEXT_ATTR[reset]}\t \1/" >&2
-
-	mycmd.log "\n${MYCMD_TEXT_ATTR[bold]}End of output from '${fn}' on STDOUT.${MYCMD_TEXT_ATTR[reset]}"
-}
-
-# mycmd.log_function
-#   Used to easily trace execution of a shell script.
-#   Logs - by default to stderr - the following:
-#   - any arguments used to call the function
-#   - any input on stdin to the function
-#   - any output on stderr from the function
-function mycmd.log_function() {
-	local -r fn=$1
-	shift
-
-	if [[ -n "${MYCMD_DEBUG-}" ]]; then
-		mycmd.log "${MYCMD_TEXT_ATTR[bold]}Calling function '${fn}':${MYCMD_TEXT_ATTR[reset]}"
-
-		if (($# > 0)); then
-			for ((i = 1; i <= "$#"; i++)); do
-				mycmd.log "\targument ${i}: ${!i}"
-			done
-		fi
-
-		cat - |
-			tee >(mycmd._log_input "${fn}" || true) |
-			${fn} "$@" |
-			tee >(mycmd._log_output "${fn}" || true)
-	else
-		${fn} "$@"
-	fi
-}
 
 # ------------------------------------------------------------------------------
 # Functions for managing caches and temporary files
+case ${_MYCMD_OS} in
+    Darwin)
+        # https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/MacOSXDirectories/MacOSXDirectories.html#//apple_ref/doc/uid/TP40010672-CH10-SW1
+        MYCMD_CACHE_DIR=${HOME}/Library/Caches/mycmd
+        ;;
+
+    Linux)
+        MYCMD_CACHE_DIR=${HOME}/.cache/mycmd
+        ;;
+
+    *)
+        mycmd.err_exit 1 "OS ${_MYCMD_OS} is not currently supported."
+        ;;
+esac
+readonly MYCMD_CACHE_DIR
+
+function mycmd._create_cache_dir_if_needed() {
+    mycmd.trace "Creating cache directory ${MYCMD_CACHE_DIR} if needed."
+    mkdir -p "${MYCMD_CACHE_DIR}" || {
+        mycmd.err_exit 1 "Error creating MyCmd cache directory '${MYCMD_CACHE_DIR}'."
+    }
+}
+mycmd.defer_at_startup mycmd._create_cache_dir_if_needed
 
 # mycmd.get_named_cache_file
 #   Returns the path name of a file to use for caching from a common cache directory.
@@ -766,46 +471,44 @@ function mycmd.log_function() {
 #   These files are used for caching state in between runs of commands.
 mycmd.defer_at_startup mycmd.init_bin realpath
 function mycmd.get_named_cache_file() {
-	if (($# < 1)); then
-		mycmd.log "Missing required parameter CACHE_FILE_NAME to mycmd.get_named_cache_file."
-		return 1
-	fi
+    if (($# < 1)); then
+        mycmd.log "Missing required parameter CACHE_FILE_NAME to mycmd.get_named_cache_file."
+        return 1
+    fi
 
-	local -r cache_file_name=$1
-	local running_cmd_relative_path
-	if ! running_cmd_relative_path="$(_mycmd.running_cmd_relative_path)"; then
-		mycmd.log "Error getting cmd relative path"
-		return 1
-	fi
-	readonly running_cmd_relative_path
+    local -r cache_file_name=$1
+    local running_cmd_relative_path
+    if ! running_cmd_relative_path="$(mycmd.running_cmd_relative_path)"; then
+        mycmd.log "Error getting cmd relative path"
+        return 1
+    fi
+    readonly running_cmd_relative_path
 
-	local running_cmd_name
-	if ! running_cmd_name="$(_mycmd.running_cmd_name)"; then
-		mycmd.log "Error getting running cmd name"
-		return 1
-	fi
-	readonly running_cmd_name
+    local running_cmd_name
+    if ! running_cmd_name="$(mycmd.running_cmd_name)"; then
+        mycmd.log "Error getting running cmd name"
+        return 1
+    fi
+    readonly running_cmd_name
 
-	local cmd_base_cache_dir
-	cmd_base_cache_dir="${MYCMD_CACHE_DIR}/${running_cmd_relative_path}/${running_cmd_name}"
-	cmd_base_cache_dir="$("${MYCMD_BIN[realpath]}" -m "${cmd_base_cache_dir}")"
-	readonly cmd_base_cache_dir
+    local cmd_base_cache_dir
+    cmd_base_cache_dir="${MYCMD_CACHE_DIR}/${running_cmd_relative_path}/${running_cmd_name}"
+    cmd_base_cache_dir="$("${MYCMD_BIN[realpath]}" -m "${cmd_base_cache_dir}")"
+    readonly cmd_base_cache_dir
 
-	# TODO: Do we want to change the permissions on the cache directory?
-	mkdir -p "${cmd_base_cache_dir}"
+    # TODO: Do we want to change the permissions on the cache directory?
+    mkdir -p "${cmd_base_cache_dir}"
 
-	local named_cache_file
-	named_cache_file="${cmd_base_cache_dir}/${cache_file_name}"
-	named_cache_file="$("${MYCMD_BIN[realpath]}" -m "${named_cache_file}")"
-	readonly named_cache_file
+    local named_cache_file
+    named_cache_file="${cmd_base_cache_dir}/${cache_file_name}"
+    named_cache_file="$("${MYCMD_BIN[realpath]}" -m "${named_cache_file}")"
+    readonly named_cache_file
 
-	echo "${named_cache_file}"
+    echo "${named_cache_file}"
 }
 
-# Source the local overrides library if it exists
-_mycmd.source_local_override
-
-# Run any deferred commands
-_mycmd.run_startup_deferreds
+# ------------------------------------------------------------------------------
+# Finalization and Clean Up
+mycmd.run_startup_deferreds
 
 mycmd.trace "${_MYCMD_LIB_SELF_FILE} sourcing complete."
