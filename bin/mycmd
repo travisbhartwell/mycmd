@@ -2,27 +2,71 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-# ------------------------------------------------------------------------------
-# MyCmd Launcher
-
-# VERSION: 0.1
-
-# HELP START
-# MyCmd: Hierarchal command dispatch and library support.
-#
-# MyCmd includes:
-# - a convenient tool for launching hierarchical commands
-# - a library of convenient base functions for writing such commands
-# - a hierarchal library framework for implementing shared functionality
-# HELP END
-
-# ------------------------------------------------------------------------------
-# Basic Housekeeping
-#
-# Set options for safety
 set -o nounset -o errexit -o errtrace -o pipefail
 
-readonly _MYCMD_SELF_FILE="${BASH_SOURCE[0]}"
+declare -A _MYCMD_LAUNCHER_DISPATCH=()
+
+declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=("_MYCMD_LAUNCHER_SELF_FILE" "_MYCMD_LAUNCHER_VARS_TO_CLEANUP")
+
+function mycmd_launcher.set_mycmd_system_environment() {
+    _MYCMD_LAUNCHER_SELF_FILE="${BASH_SOURCE[0]}"
+    MYCMD_BIN_DIR=$(cd "$(dirname "${_MYCMD_LAUNCHER_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly MYCMD_BIN_DIR
+    export MYCMD_BIN_DIR
+
+    if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" || ! -d "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+        local -r system_base_dir_relative="${MYCMD_BIN_DIR}/../mycmd"
+
+        if [[ ! -d "${system_base_dir_relative}" ]]; then
+            echo >&2 "Cannot find MyCmd system library base directory in the standard location."
+            exit 1
+        fi
+
+        if ! MYCMD_SYSTEM_BASE_DIR=$(cd "${system_base_dir_relative}" &>/dev/null && pwd -P); then
+            echo >&2 "MYCMD_SYSTEM_BASE_DIR cannot be set."
+            exit 1
+        fi
+
+        readonly MYCMD_SYSTEM_BASE_DIR
+        export MYCMD_SYSTEM_BASE_DIR
+    fi
+
+    if [[ ! -e "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" ]]; then
+        echo >&2 "MYCMD_SYSTEM_BASE_DIR setting of ${MYCMD_SYSTEM_BASE_DIR} invalid, as required file mycmd-lib is missing."
+        exit 1
+    fi
+
+    if [[ -z "${MYCMD_VENDOR_DIR-}" || ! -d "${MYCMD_VENDOR_DIR}" ]]; then
+        local -r vendor_dir_relative="${MYCMD_BIN_DIR}/../vendor"
+
+        if [[ ! -d "${vendor_dir_relative}" ]]; then
+            echo >&2 "Cannot find MyCmd vendor library directory in the standard location."
+            exit 1
+        fi
+
+        if ! MYCMD_VENDOR_DIR=$(cd "${vendor_dir_relative}" &>/dev/null && pwd -P); then
+            echo >&2 "MYCMD_VENDOR_DIR cannot be set."
+            exit 1
+        fi
+
+        readonly MYCMD_VENDOR_DIR
+        export MYCMD_VENDOR_DIR
+    fi
+}
+
+function mycmd_launcher.set_mycmd_user_environment() {
+    if [[ -z "${MYCMD_USER_BASE_DIR-}" ]]; then
+        MYCMD_USER_BASE_DIR="${HOME}/mycmd"
+    fi
+
+    if [[ ! -d "${MYCMD_USER_BASE_DIR}" ]]; then
+        echo >&2 "Required MyCmd user library directory, '${MYCMD_USER_BASE_DIR}' not found."
+        exit 1
+    fi
+
+    readonly MYCMD_USER_BASE_DIR
+    export MYCMD_USER_BASE_DIR
+}
 
 # ------------------------------------------------------------------------------
 # Set MYCMD_SYSTEM_BASE_DIR and MYCMD_USER_BASE_DIR
@@ -31,579 +75,43 @@ readonly _MYCMD_SELF_FILE="${BASH_SOURCE[0]}"
 #   the bin directory that this mycmd script is in; have MYCMD_SYSTEM_BASE_DIR
 #   set before launching to override this, however this directory must include
 #   the mycmd-lib file that is included in the MyCmd distribution.
-if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" || ! -d "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-	_MYCMD_BIN_DIR=$(cd "$(dirname "${_MYCMD_SELF_FILE}")" &>/dev/null && pwd -P)
-	readonly _MYCMD_BIN_DIR
-
-    MYCMD_SYSTEM_BASE_DIR=$(cd "${_MYCMD_BIN_DIR}/../mycmd" &> /dev/null && pwd -P)
-    readonly MYCMD_SYSTEM_BASE_DIR
-    export MYCMD_SYSTEM_BASE_DIR
-fi
-
+#
 #   MYCMD_USER_BASE_DIR defaults to ~/mycmd; have MYCMD_USER_BASE_DIR set before
 #   launching to override this.
 #
-#   The directory specified in MYCMD_USER_BASE_DIR is not required to currently
-#   exist, to allow the user to run MyCmd without first having locally defined
-#   command groups and commands.
-if [[ -z "${MYCMD_USER_BASE_DIR-}" ]]; then
-    MYCMD_USER_BASE_DIR="${HOME}/mycmd"
-fi
-
-if [[ -d "${MYCMD_USER_BASE_DIR}" ]]; then
-    readonly MYCMD_USER_BASE_DIR
-    export MYCMD_USER_BASE_DIR
-else
-    unset MYCMD_USER_BASE_DIR
-fi
-
 # ------------------------------------------------------------------------------
 # Validate MYCMD_SYSTEM_BASE_DIR setting and source MyCmd Base Library
-if [[ ! -d "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-    echo >&2 "MYCMD_SYSTEM_BASE_DIR setting of ${MYCMD_SYSTEM_BASE_DIR} invalid, as directory does not exist."
-    exit 1
-fi
 
-if [[ ! -e "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-    echo >&2 "MYCMD_SYSTEM_BASE_DIR setting of ${MYCMD_SYSTEM_BASE_DIR} invalid, as required file mycmd-lib is missing."
-    exit 1
-fi
+mycmd_launcher.set_mycmd_system_environment
+mycmd_launcher.set_mycmd_user_environment
 
 # shellcheck source=./mycmd/mycmd-lib
-source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib"
+source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"
 
-# ------------------------------------------------------------------------------
-# Common Command and Group Parsing Support
-readonly MYCMD_DESC="MyCmd"
-readonly GROUP_DESC="${MYCMD_DESC} Command Group"
-readonly COMMAND_DESC="${MYCMD_DESC} Command"
+mycmd.defer_at_startup mycmd.init_bin sed
+function main() {
+    mycmd.defer_at_startup mycmd.output "Finished setting up the MyCmd launcher."
+    mycmd.defer_at_startup mycmd.log "Testing log output."
+    mycmd.defer_at_exit mycmd.log "Finished with MyCmd launcher."
 
-function display_command_or_group_parts() {
-    local -r command_or_group_path="${1}"
-    local -r output_prefix="${2}"
+    mycmd.output "Doing other stuff here."
 
-    if [[ "${command_or_group_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-        mycmd.output "${MYCMD_DESC}"
-    fi
+    mycmd.run_startup_deferreds
 
-    mycmd.trace "Calling with '${command_or_group_path}'."
-    local relative_path
-    if ! relative_path="$(mycmd.path_relative_to_mycmd_base "${command_or_group_path}")"; then
-        mycmd.log "Error fetching relative_path for ${command_or_group_path}."
-        return 1
-    fi
-    readonly relative_path
+    # shellcheck disable=SC2154
+    "${MYCMD_BIN[sed]}" --version
 
-    local parts
-    # shellcheck disable=SC2162
-    IFS="/" read -a parts <<<"${relative_path}"
-    readonly parts
+    test_failure
 
-    mycmd.output "${output_prefix} ${parts[*]}"
+    mycmd.output "Doing yet more stuff here."
 }
 
-mycmd.init_bin sed
-function command_or_group_help_from_comment() {
-    local -r command_path="${1}"
-    local help_text
-
-    if help_text=$("${MYCMD_BIN[sed]}" -rn '/^# HELP START/,/^# HELP END/{//! s/^#(.*)$/\1/p}' "${command_path}"); then
-        if [[ -n "${help_text-}" ]]; then
-            mycmd.output "\n${help_text}"
-        fi
-    fi
-}
-
-mycmd.init_bin sed
-function command_or_group_short_help_from_comment() {
-    local -r command_path="${1}"
-    local help_text
-
-    "${MYCMD_BIN[sed]}" -n '/^\# HELP START/{n; s/^# \(.*\)/\1/p}' "${command_path}"
-}
-
-mycmd.init_bin sed
-function command_or_group_version_from_comment() {
-    local -r command_path="${1}"
-    local version_text
-
-    if [[ -f "${command_path}" ]]; then
-        version_text=$("${MYCMD_BIN[sed]}" -rn 's/^# VERSION: (.*)/\1/p' "${command_path}")
-    fi
-
-    if [[ -n "${version_text-}" ]]; then
-        mycmd.output "${version_text}"
-    else
-        mycmd_version
-    fi
-}
-
-# ------------------------------------------------------------------------------
-# Command Handling Support
-function command_short_help() {
-    local -r command_path="${1}"
-
-    local short_help
-    short_help="$(command_or_group_short_help_from_comment "${command_path}")"
-    readonly short_help
-
-    if [[ -n "${short_help-}" ]]; then
-        echo "${short_help}"
-    else
-        display_command_or_group_parts "${command_path}" "${COMMAND_DESC}"
-    fi
-}
-
-function command_help() {
-    local -r command_path="${1}"
-    display_command_or_group_parts "${command_path}" "${COMMAND_DESC}"
-    command_or_group_help_from_comment "${command_path}"
-}
-
-function command_version() {
-    local -r command_path="${1}"
-    command_or_group_version_from_comment "${command_path}"
-}
-
-# ------------------------------------------------------------------------------
-# Command Group Handling Support
-function command_group_library_file_path() {
-    local -r command_group_path="${1}"
-    local -r command_group_name="$(basename "${command_group_path}")"
-
-    local library_file="${command_group_path}/${command_group_name}-lib"
-    if [[ ! "${command_group_path}" = /* ]]; then
-        if ! library_file=$(_get_first_matching_relative_path_in_system_or_user_dir "${library_file}"); then
-            mycmd.log "Error getting library file for command group ${command_group_path}"
-            return 1
-        fi
-    fi
-    readonly library_file
-
-    echo "${library_file}"
-}
-
-mycmd.init_bin realpath
-function canonicalize_path() {
-    local -r path_to_resolve="${1}"
-
-    if [[ -v missing_ok ]]; then
-        "${MYCMD_BIN[realpath]}" --canonicalize-missing --quiet --logical "${path_to_resolve}"
-    else
-        "${MYCMD_BIN[realpath]}" --canonicalize-existing --quiet --logical "${path_to_resolve}"
-    fi
-}
-
-# Some commands are only used when called from other scripts and thus shouldn't be
-# shown in help or in completions
-function should_hide_command() {
-    local -r potential_command="${1}"
-
-    grep -Eq "^# META: HIDDEN" "${potential_command}"
-}
-
-function command_group_short_help() {
-    local -r command_group_path="${1}"
-    local group_library_file
-    if ! group_library_file="$(command_group_library_file_path "${command_group_path}")"; then
-        mycmd.log "Error fetching command group library file path for ${command_group_path}."
-        return 1
-    fi
-    readonly group_library_file
-
-    local short_help
-    short_help="$(command_or_group_short_help_from_comment "${group_library_file}")"
-    readonly short_help
-
-    if [[ -n "${short_help-}" ]]; then
-        echo "${short_help}"
-    else
-        display_command_or_group_parts "${group_library_file}" "${GROUP_DESC}"
-    fi
-}
-
-mycmd.init_bin find
-function _find_command_group_children_in_system_or_user_directories() {
-    local -r command_group_relative_path="${1}"
-    local -a paths_to_search
-
-    readarray -t paths_to_search < <(_get_matching_relative_paths_in_system_or_user_dir "${command_group_relative_path}")
-
-    "${MYCMD_BIN[find]}" -L "${paths_to_search[@]}" -type f -executable -print0
-}
-
-function find_command_group_children() {
-    local -r command_group_relative_path="${1}"
-    local -n direct_child_groups_ref="${2}"
-    local -n direct_child_commands_ref="${3}"
-
-    mycmd.trace "Finding children for '${command_group_relative_path}'."
-
-    local potential_descendant_command
-    local relative_path
-    local command_name
-    local subgroup
-
-    while IFS= read -r -d $'\0' potential_descendant_command; do
-        mycmd.trace "Examining '${potential_descendant_command}'."
-
-        if ! should_hide_command "${potential_descendant_command}"; then
-            relative_path="$(mycmd.path_relative_to_mycmd_base_with_command_group "${potential_descendant_command}" "${command_group_relative_path}")"
-            command_name=$(basename "${relative_path}")
-
-            mycmd.trace "Examining '${relative_path}' with command name '${command_name}'."
-
-            # This is a direct child
-            if [[ "${relative_path}" = "${command_name}" ]]; then
-                # This should be the first time we see this
-                direct_child_commands_ref["${command_name}"]="$(command_short_help "${potential_descendant_command}")"
-            else
-                subgroup="${relative_path%%/*}"
-
-                if [[ ! -v direct_child_groups_ref["${subgroup}"] ]]; then
-                    direct_child_groups_ref["${subgroup}"]="$(command_group_short_help "${command_group_relative_path}/${subgroup}")"
-                fi
-            fi
-        fi
-    done < <(_find_command_group_children_in_system_or_user_directories "${command_group_relative_path}")
-
-    mycmd.trace "Found the following commands: '${!direct_child_commands_ref[*]}'"
-    mycmd.trace "Found the following immediate subgroups: '${!direct_child_groups_ref[*]}'"
-}
-
-mycmd.init_bin wc
-function get_column_widths() {
-    local -n assoc_array="${1}"
-    local -ri padding="${2}"
-    local -ri min_key="${3}"
-    local -ri min_value="${4}"
-
-    local max_key_len
-    max_key_len=$(printf "%s\n" "${!assoc_array[@]}" | ${MYCMD_BIN[wc]} -L)
-    if (( max_key_len < min_key )); then
-        max_key_len=${min_key}
-    fi
-    readonly max_key_len
-
-    local max_value_len
-    max_value_len=$(printf "%s\n" "${assoc_array[@]}" | ${MYCMD_BIN[wc]} -L)
-    if (( max_value_len < min_value )); then
-        max_value_len=${min_value}
-    fi
-    readonly max_value_len
-
-    printf "%d %d\n" $(( max_key_len + padding )) $(( max_value_len + padding ))
-}
-
-function print_section() {
-    local -n data_ref="${1}"
-    local -r heading="${2}"
-    local -r key_heading="${3}"
-    local -r value_heading="${4}"
-
-    local key_width
-    local value_width
-    local total
-    local rule
-    local output_line
-    local key
-    local -a sorted_keys
-
-    if (( "${#data_ref[@]}" > 0 )); then
-        read -r key_width value_width <<< "$(get_column_widths data_ref 5 ${#key_heading} ${#value_heading})"
-
-        mycmd.trace "Key: ${key_width} Value: ${value_width}"
-
-        total=$(( key_width + value_width + 1 ))
-        printf -v rule '=%.0s' $(seq 1 ${total})
-
-        mycmd.output "\n${heading}\n"
-
-        printf -v output_line "%-${key_width}s %-${value_width}s" "${key_heading}" "${value_heading}"
-        mycmd.output "${output_line}\n${rule}"
-
-        readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort)
-
-        for key in "${sorted_keys[@]}"; do
-            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[${key}]}"
-            mycmd.output "${output_line}"
-        done
-    fi
-}
-
-function summarize_command_group_children() {
-    local -r command_group_path="${1}"
-    local -A direct_child_groups=()
-    local -A direct_child_commands=()
-    local key_width
-    local value_width
-    local total
-    local rule
-    local output_line
-    local key
-
-    local command_group_relative_path
-    if ! command_group_relative_path="$(mycmd.path_relative_to_mycmd_base "${command_group_path}")"; then
-        mycmd.log "Error getting relative path."
-        return 1
-    fi
-    readonly command_group_relative_path
-
-    find_command_group_children "${command_group_relative_path}" direct_child_groups direct_child_commands
-
-    print_section direct_child_groups \
-        "The following command groups are defined:" \
-        "Group Name" \
-        "Description"
-
-    print_section direct_child_commands \
-        "The following commands are defined:" \
-        "Command" \
-        "Description"
-}
-
-function command_group_help() {
-    local -r command_group_path="${1}"
-    local -r group_library_file="$(command_group_library_file_path "${command_group_path}")"
-
-    display_command_or_group_parts "${command_group_path}" "${GROUP_DESC}"
-    command_or_group_help_from_comment "${group_library_file}"
-    summarize_command_group_children "${command_group_path}"
-}
-
-function command_group_version() {
-    local -r command_group_path="${1}"
-    local -r group_library_file="$(command_group_library_file_path "${command_group_path}")"
-
-    command_or_group_version_from_comment "${group_library_file}"
-}
-
-# ------------------------------------------------------------------------------
-# MyCmd Launcher Handling Support
-function mycmd_usage() {
-    local -r mycmd_name=$(basename "${0}")
-
-    mycmd.output "\nUsage:"
-    mycmd.output "\n${mycmd_name} [-h | --help] [-v | --version]"
-    mycmd.output "\n${mycmd_name} <command_group>... [-h | --help] [-v | --version] [arguments]"
-    mycmd.output "\n  See the help for the individual command groups for further details."
-    mycmd.output "\n${mycmd_name} <command_group>... <command> [-h | --help] [-v | --version] [arguments]"
-    mycmd.output "\n  See the help for the individual sub commands for further details."
-    mycmd.output "\nThe following environment variables are recognized, if set:\n"
-    mycmd.output "MYCMD_SYSTEM_BASE_DIR    - the base directory for system defined MyCmd Command Groups."
-    mycmd.output "MYCMD_USER_BASE_DIR      - the base directory for user defined MyCmd Command Groups. Defaults to ${HOME}/mycmd if not set, if the directory exists."
-    mycmd.output "MYCMD_SHELL_TRACE        - enables Bash's xtrace (set -x) for the executing command."
-    mycmd.output "MYCMD_SHELL_VERBOSE      - enables Bash's verbose mode (set -v) for the executing command."
-    mycmd.output "MYCMD_DEBUG              - enables output of debug logging in the executing command."
-    mycmd.output "MYCMD_TRACE              - enables output of trace logging in the executing command."
-}
-
-function mycmd_help() {
-    command_or_group_help_from_comment "${_MYCMD_SELF_FILE}"
-    mycmd_usage
-    summarize_command_group_children "${MYCMD_SYSTEM_BASE_DIR}"
-}
-
-function mycmd_version() {
-    command_version "${_MYCMD_SELF_FILE}"
-}
-
-# ------------------------------------------------------------------------------
-# ZSH Completion Support
-function output_zsh_completions_from_assoc() {
-    local -r prefix="${1}"
-    local -n data_ref=${2};
-    local -a sorted_keys
-    local output
-    local key
-
-    if (( "${#data_ref[@]}" == 0 )); then
-        return 0
-    fi
-
-    readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort)
-
-    for key in "${sorted_keys[@]}"; do
-        printf -v output '%q:%q:%q' "${prefix}" "${key}" "${data_ref[${key}]}"
-        mycmd.output "${output}"
-    done
-}
-
-function output_zsh_completion_for_command_group() {
-    local -r command_group_path="${1}"
-    local -A direct_child_groups=()
-    local -A direct_child_commands=()
-    local output
-
-    find_command_group_children "${command_group_path}" direct_child_groups direct_child_commands
-
-    output_zsh_completions_from_assoc "G" direct_child_groups
-    output_zsh_completions_from_assoc "C" direct_child_commands
-}
-
-function output_zsh_completion() {
-    local -r full_path="${1}"
-
-    if [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-        output_zsh_completion_for_command_group "${MYCMD_SYSTEM_BASE_DIR}"
-    elif [[ -d "${full_path}" ]]; then
-        output_zsh_completion_for_command_group "${full_path}"
-    else
-        # TODO: Commands
-        echo > /dev/null
-    fi
-
-    exit 0
-}
-
-# ------------------------------------------------------------------------------
-# General Dispatch Support
-function help() {
-    local -r found_non_flags="${1}"
-    local -r full_path="${2}"
-
-    if [[ "${found_non_flags}" = "true" ]]; then
-        mycmd.trace "Skipping printing help because an invalid command was found."
-        return 0
-    elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-        mycmd_help
-    elif [[ -d "${full_path}" ]]; then
-        command_group_help "${full_path}"
-    else
-        command_help "${full_path}"
-    fi
-
-    exit 0
-}
-
-function version() {
-    local -r found_non_flags="${1}"
-    local -r full_path="${2}"
-
-    if [[ "${found_non_flags}" = "true" ]]; then
-        mycmd.trace "Skipping printing version because an invalid command was found."
-        return 0
-    elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-        mycmd_version
-    elif [[ -d "${full_path}" ]]; then
-        command_group_version "${full_path}"
-    else
-        command_version "${full_path}"
-    fi
-
-    exit 0
-}
-
-function _get_matching_relative_paths_in_system_or_user_dir() {
-    local -r relative_path="${1}"
-    local -r first_only="${2-:false}"
-
-    local system_relative_path
-    if ! system_relative_path="$(missing_ok=1 canonicalize_path "${MYCMD_SYSTEM_BASE_DIR}/${relative_path}")"; then
-        mycmd.log "Error resolving possible system path for relative path '${relative_path}'"
-        return 1
-    fi
-    readonly system_relative_path
-
-    mycmd.trace "Examining full system path of '${system_relative_path}'."
-
-    if [[ -e "${system_relative_path}" ]]; then
-        echo "${system_relative_path}"
-
-        if [[ "${first_only}" = "true" ]]; then
-            return 0
-        fi
-    fi
-
-    if [[ -v MYCMD_USER_BASE_DIR ]]; then
-        local user_relative_path
-        if ! user_relative_path="$(missing_ok=1 canonicalize_path "${MYCMD_USER_BASE_DIR}/${relative_path}")"; then
-            mycmd.log "Error resolving possible user path for relative path '${relative_path}'"
-            return 1
-        fi
-
-        mycmd.trace "Examining full user path of '${user_relative_path}'."
-
-        if [[ -e "${user_relative_path}" ]]; then
-            echo "${user_relative_path}"
-            return 0
-        fi
-    fi
-
+function test_failure() {
     return 1
 }
 
-function _get_first_matching_relative_path_in_system_or_user_dir() {
-    local -r relative_path="${1}"
+# function mycmd.protect_library_functions() {
+#     echo "Overriding"
+# }
 
-    _get_matching_relative_paths_in_system_or_user_dir "${relative_path}" "true" ; return $?
-}
-
-# ------------------------------------------------------------------------------
-# Main
-function main() {
-    local full_path="${MYCMD_SYSTEM_BASE_DIR}"
-    local relative_path
-    local possible_full_path
-    local element
-
-    while (($# > 0)); do
-        element="${1}"
-        relative_path="${relative_path-}${relative_path:+/}${element}"
-
-        mycmd.trace "Examining path component '${element}'; with relative path of '${relative_path}'"
-
-        if possible_full_path="$(_get_first_matching_relative_path_in_system_or_user_dir "${relative_path}")"; then
-            full_path="${possible_full_path}"
-            shift
-
-            [[ -f "${full_path}" ]] && break
-        else
-            break
-        fi
-    done
-
-    local found_help=false
-    local found_version=false
-    local found_zsh_complete=false
-    local found_non_flags=false
-
-    for arg in "${@}"; do
-        case "${arg}" in
-            --help | -h) found_help=true ;;
-            --version | -v) found_version=true ;;
-            --zsh-complete) found_zsh_complete=true ;;
-            *) found_non_flags=true ;;
-        esac
-    done
-
-    if [[ "${found_help}" = "true" ]]; then
-        help "${found_non_flags}" "${full_path}"
-    elif [[ "${found_version}" = "true" ]]; then
-        version "${found_non_flags}" "${full_path}"
-    elif [[ "${found_zsh_complete}" = "true" ]]; then
-        output_zsh_completion "${full_path}"
-    fi
-
-    if [[ -d "${full_path}" ]]; then
-        # If there are still arguments left at this stage,
-        # it means we didn't find a command within the command
-        # group
-        if (($# > 0)); then
-            # TODO: Update error message
-            mycmd.err_exit 1 "MyCmd command '${1}' in ${full_path} does not exist."
-        elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-            mycmd_help
-        else
-            command_group_help "${full_path}"
-        fi
-    elif [[ -x "${full_path}" ]]; then
-        exec "${full_path}" "${@}"
-    else
-        mycmd.err_exit 1 "${COMMAND_DESC} at ${full_path} is not executable or is not a command."
-    fi
-
-    exit 0
-}
-
-main "$@"
+main "${@}"
