@@ -11,4 +11,4 @@ Tool for writing and running commands from a command directory
 MyCmd is licensed under the MIT license.
 
 Other libraries included in the `vendor` subdirectory have their own licenses, acknowledged here:
-* `bashup.events`: Licensed under the [CC0 License](https://creativecommons.org/publicdomain/zero/1.0/). Project repository can be found at [[https://github.com/bashup/events/tree/bash44]].
+* `bashup.events`: Licensed under the [CC0 License](https://creativecommons.org/publicdomain/zero/1.0/). The project repository is at <https://github.com/bashup/events/tree/bash44>.

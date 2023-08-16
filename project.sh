@@ -18,7 +18,7 @@ readonly TEST_USER_BASE="${TEST_BASE}/user-base"
 readonly SYSTEM_BASE="${PROJECT_DIR}/mycmd"
 readonly VENDOR_DIR="${PROJECT_DIR}/vendor"
 
-declare -ax ALL_FILES=("./project.sh" "./bin/mycmd" "./mycmd/mycmd-lib")
+declare -ax ALL_FILES=("./project.sh" "./bin/mycmd" "./mycmd/mycmd-lib" "./mycmd/logging/logging-lib" "./mycmd/logging/log-both")
 
 function format() {
     if (("${#ALL_FILES[@]}" == 0)); then
@@ -43,7 +43,8 @@ function lint() {
     echo "${ALL_FILES[*]}"
 
     cd "${PROJECT_DIR}"
-    shellcheck --check-sourced "${ALL_FILES[@]}"
+    echo "Running ShellCheck:"
+    shellcheck --check-sourced "${ALL_FILES[@]}" && echo "Success"
 }
 
 function update-bashup-events() {
@@ -52,9 +53,19 @@ function update-bashup-events() {
     curl -sSL https://raw.githubusercontent.com/bashup/events/bash44/bashup.events -o "${VENDOR_DIR}/bashup.events"
 }
 
+function mycmd-minimal-env() {
+    local return_code=$?
+    /usr/bin/env -i MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        PATH="${PATH}" \
+        HOME="${HOME}" \
+        "${BIN_DIR}"/mycmd "${@}" || return_code=$?
+    exit "${return_code}"
+}
+
 function mycmd() {
     local return_code=$?
-    MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         "${BIN_DIR}"/mycmd "${@}" || return_code=$?
     exit "${return_code}"
@@ -62,8 +73,26 @@ function mycmd() {
 
 function mycmd-no-env() {
     local return_code=$?
-    /usr/bin/env -u MYCMD_SYSTEM_BASE_DIR -u MYCMD_USER_BASE_DIR "${BIN_DIR}"/mycmd "${@}" || return_code=$?
+    /usr/bin/env -i \
+        PATH="${PATH}" \
+        HOME="${HOME}" \
+        "${BIN_DIR}"/mycmd "${@}" || return_code=$?
     exit "${return_code}"
+}
+
+function function_exists() {
+    declare -F "$1" >/dev/null
+}
+
+function call_if_function_exists() {
+    local -r fn=$1
+    shift
+
+    if function_exists "${fn}"; then
+        "${fn}" "$@"
+    else
+        echo >&2 "Unknown task: '${fn}'."
+    fi
 }
 
 if (($# == 0)); then
@@ -72,4 +101,4 @@ if (($# == 0)); then
     exit 1
 fi
 
-"${@}"
+call_if_function_exists "${@}"
