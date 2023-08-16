@@ -302,7 +302,7 @@ function mycmd.protect_library_functions() {
 
     local f
     for f in "${library_functions[@]}"; do
-        mycmd.log "Marking function '${f}' read-only."
+        mycmd.trace "Marking function '${f}' read-only."
         readonly -f "${f}"
     done
 }
@@ -330,7 +330,21 @@ function mycmd.call_if_function_exists() {
     fi
 }
 
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+# MyCmd Operating System Support
+#   Common variables set according to OS being run on.
+_MYCMD_OS="$(uname -s)"
+readonly _MYCMD_OS
+
+function mycmd.is_mac_os() {
+    [[ "${_MYCMD_OS}" == "Darwin" ]]
+}
+
+function mycmd.is_linux() {
+    [[ "${_MYCMD_OS}" == "Linux" ]]
+}
+
+# ------------------------------------------------------------------------------k
 # Convenience methods for locating common utilities cross platform
 
 # MYCMD_BIN
@@ -343,16 +357,19 @@ function mycmd.call_if_function_exists() {
 declare -Ax MYCMD_BIN
 
 # mycmd._locate_bin
-#   Attempt to find the given command on the PATH. If found, return the full path.
+#   If already defined in MYCMD_BIN, return that. Otherwise, attempt to find the given command on the PATH.
+#   If found, return the full path.
 function mycmd._locate_bin() {
     local -r command=$1
     local command_path
 
-    if command_path=$(command -v "${command}" 2>/dev/null); then
-        echo "${command_path}"
-    else
+    if [[ -v MYCMD_BIN["${command}"] ]]; then
+        command_path="${MYCMD_BIN[${command}]}"
+    elif ! command_path=$(command -v "${command}" 2>/dev/null); then
         return 1
     fi
+
+    echo "${command_path}"
 }
 
 function mycmd.init_bin_homebrew() {
@@ -431,13 +448,196 @@ function mycmd.init_bin() {
     esac
 }
 
-# -------------------------------------------------------------------------------
-# MyCmd Operating System Support
-#   Common variables set according to OS being run on.
-_MYCMD_OS="$(uname -s)"
-readonly _MYCMD_OS
+function mycmd.bin_execute {
+    local -r command="${1}"
+    shift
 
+    local command_path
+    if ! command_path=$(mycmd._locate_bin "${command}"); then
+        mycmd.log "Could not find command '${command}'."
+        return 1
+    fi
+    readonly command_path
 
+    "${command_path}" "${@}"
+}
+
+# -------------------------------------------------------------------------------k
+# MyCmd Command and Command Group Execution and Loading Support
+
+# mycmd._source_lib_by_path
+#   Source the library if it exists.
+function mycmd._source_lib_by_path_if_found() {
+    local -r library_full_path="${1}"
+    shift
+
+    if [[ -e "${library_full_path}" ]]; then
+        # shellcheck source=/dev/null
+        source "${library_full_path}" "${@}"
+
+        # Run any remaining deferreds for the startup for the library
+        mycmd.run_startup_deferreds "${library_full_path}"
+
+        return 0
+    else
+        return 1
+    fi
+}
+
+# mycmd.execute_kommand
+#  Execute a MyCmd command, given the full path to the command.
+function mycmd.execute_command() {
+    declare -rx MYCMD_COMMAND_ABSPATH="${1}"
+    shift
+
+    if ! mycmd._source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}"; then
+        mycmd.err_exit 1 "MyCmd command '${MYCMD_COMMAND_ABSPATH}' not found."
+    fi
+
+    if ! mycmd.load_command_group_for_command; then
+        mycmd.err_exit 1 "Error loading command group libraries for command '${MYCMD_COMMAND_ABSPATH}'."
+    fi
+
+    if ! mycmd.function_exists mycmd.main; then
+        mycmd.err_exit 1 "'mycmd.main' not defined in MyCmd command '${MYCMD_COMMAND_ABSPATH}'."
+    fi
+
+    mycmd.main "${@}"
+}
+
+# mycmd._path_relative_to_directory
+#   Given an absolute path to a command or command group, output the relative path to
+#   the base directory specified.
+#
+#   Returns 1 if the specified path is not a descendant of the base directory.
+mycmd.defer_at_startup mycmd.init_bin realpath
+function mycmd._path_relative_to_directory() {
+    local -r full_path="${1}"
+    local -r base_path="${2}"
+
+    local relative_path
+    if ! relative_path="$(mycmd.bin_execute realpath --relative-to="${base_path}" "${full_path}")"; then
+        mycmd.log "Error getting relative path for '${full_path}' relative to '${base_path}'."
+        return 1
+    fi
+    readonly relative_path
+
+    # If the relative path starts with .., it is not a descendant
+    if [[ "${relative_path}" = ..* ]]; then
+        return 1
+    else
+        echo "${relative_path}"
+        return 0
+    fi
+}
+
+# mycmd.path_relative_to_mycmd_base_with_command_group
+#   Given an absolute path to a command or command group, return the relative path
+#   in comparison to either MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR.
+function mycmd.path_relative_to_mycmd_base_with_command_group() {
+    # Assume that full_path is going to be a canonicalized absolute path
+    local -r full_path="${1}"
+    local -r command_group="${2-}"
+
+    local base
+    # shellcheck disable=SC2154
+    for base in "${MYCMD_SYSTEM_BASE_DIR}" "${MYCMD_USER_BASE_DIR}"; do
+        local relative_path
+        if relative_path=$(mycmd._path_relative_to_directory "${full_path}" "${base}${command_group:+/}${command_group-}"); then
+            echo "${relative_path}"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# mycmd.path_relative_to_mycmd_base
+#   Given an absolute path to a command or command group, return the relative path
+#   in comparison to either MYCMD_SYSTEM_BASE_DIR or MYCMD_USER_BASE_DIR.
+function mycmd.path_relative_to_mycmd_base() {
+    # We assume that full_path is going to be a canonicalized absolute path
+    local -r full_path="${1}"
+
+    mycmd.path_relative_to_mycmd_base_with_command_group "${full_path}"
+}
+
+# mycmd.running_command_relative_path
+function mycmd.running_command_relative_path() {
+    if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
+        mycmd.err_exit 1 "MYCMD_COMMAND_ABSPATH must be set before calling mycmd.running_command_relative_path."
+    fi
+    local -r running_command_directory="$(dirname "${MYCMD_COMMAND_ABSPATH}")"
+    local relative_path
+
+    if relative_path="$(mycmd.path_relative_to_mycmd_base "${running_command_directory}")"; then
+        echo "${relative_path}"
+        return 0
+    else
+        mycmd.log "Error getting running command relative path."
+        return 1
+    fi
+}
+
+# mycmd.source_mycmd_lib
+#   Explicitly source a MyCmd library and its dependencies by providing the
+#   directory name of the MyCmd library relative to either first
+#   MYCMD_SYSTEM_BASE_DIR or, secondly, MYCMD_USER_BASE_DIR.
+#
+#   For example, to source the library in ~/mycmd/requests/service1, call this
+#   like this:
+#
+#   mycmd.source_mycmd_lib "requests/service1"
+function mycmd.source_mycmd_lib() {
+    local -r library_path="$1"
+    shift
+
+    local dir_parts
+    # shellcheck disable=SC2162
+    IFS="/" read -a dir_parts <<<"${library_path}"
+    readonly dir_parts
+
+    # Start at the system base directory
+    local lib_dir="${MYCMD_SYSTEM_BASE_DIR}"
+    local local_lib_dir="${MYCMD_USER_BASE_DIR}"
+
+    local dir
+    for dir in "${dir_parts[@]}"; do
+        lib_dir="${lib_dir}/${dir}"
+        local_lib_dir="${local_lib_dir}/${dir}"
+
+        # Look for a command group library named <dirname>-lib in <dirname>
+        local lib_script="${lib_dir}/${dir}-lib"
+
+        # First check in MYCMD_SYSTEM_BASE_DIR
+        if mycmd._source_lib_by_path_if_found "${lib_script}" "${@}"; then
+            # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
+            local local_lib_override="${local_lib_dir}/${dir}-local-lib"
+            mycmd._source_lib_by_path_if_found "${local_lib_override}" "${@}" || true
+        else
+            # Otherwise, check in MYCMD_USER_BASE_DIR
+            local local_lib_script="${local_lib_dir}/${dir}-lib"
+            mycmd._source_lib_by_path_if_found "${local_lib_script}" "${@}" || true
+        fi
+    done
+}
+
+# mycmd.load_command_group_for_command
+#  Source the libraries for the command group that the to be executed MyCmd command
+#  belongs to.
+function mycmd.load_command_group_for_command() {
+    local relative_path
+    if ! relative_path=$(mycmd.running_command_relative_path); then
+        mycmd.err_exit 1 "Error getting running command relative path."
+    fi
+
+    if [[ "${relative_path}" == "." ]]; then
+        mycmd.trace "No additional libraries to automatically source, command is in system or user base directory."
+        return
+    fi
+
+    mycmd.source_mycmd_lib "${relative_path}"
+}
 
 # ------------------------------------------------------------------------------
 # Functions for managing caches and temporary files
@@ -469,42 +669,8 @@ mycmd.defer_at_startup mycmd._create_cache_dir_if_needed
 #   Returns the path name of a file to use for caching from a common cache directory.
 #
 #   These files are used for caching state in between runs of commands.
-mycmd.defer_at_startup mycmd.init_bin realpath
 function mycmd.get_named_cache_file() {
-    if (($# < 1)); then
-        mycmd.log "Missing required parameter CACHE_FILE_NAME to mycmd.get_named_cache_file."
-        return 1
-    fi
-
-    local -r cache_file_name=$1
-    local running_cmd_relative_path
-    if ! running_cmd_relative_path="$(mycmd.running_cmd_relative_path)"; then
-        mycmd.log "Error getting cmd relative path"
-        return 1
-    fi
-    readonly running_cmd_relative_path
-
-    local running_cmd_name
-    if ! running_cmd_name="$(mycmd.running_cmd_name)"; then
-        mycmd.log "Error getting running cmd name"
-        return 1
-    fi
-    readonly running_cmd_name
-
-    local cmd_base_cache_dir
-    cmd_base_cache_dir="${MYCMD_CACHE_DIR}/${running_cmd_relative_path}/${running_cmd_name}"
-    cmd_base_cache_dir="$("${MYCMD_BIN[realpath]}" -m "${cmd_base_cache_dir}")"
-    readonly cmd_base_cache_dir
-
-    # TODO: Do we want to change the permissions on the cache directory?
-    mkdir -p "${cmd_base_cache_dir}"
-
-    local named_cache_file
-    named_cache_file="${cmd_base_cache_dir}/${cache_file_name}"
-    named_cache_file="$("${MYCMD_BIN[realpath]}" -m "${named_cache_file}")"
-    readonly named_cache_file
-
-    echo "${named_cache_file}"
+    mycmd.err_exit 1 "TODO: Not Implemented"
 }
 
 # ------------------------------------------------------------------------------

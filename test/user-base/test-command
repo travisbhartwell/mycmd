@@ -1,0 +1,20 @@
+#!/usr/bin/env -S mycmd
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+mycmd.defer_at_startup mycmd.output "Finished starting of test-command."
+mycmd.defer_at_exit mycmd.output "Finished execution of test-command."
+function mycmd.main() {
+    mycmd.output "This is the output from test-command."
+    mycmd.output "This is what is executing: $0."
+    mycmd.output "This is the MyCmd Command Absolute Path: ${MYCMD_COMMAND_ABSPATH}"
+    mycmd.output "This is the source: ${BASH_SOURCE[0]}."
+
+    mycmd.output "Functions defined:"
+    declare -F | awk '{ print $3 }'
+
+    mycmd.output "Variables defined:"
+    printenv | cut -d= -f1 | sort -u
+}

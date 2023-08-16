@@ -81,37 +81,42 @@ function mycmd_launcher.set_mycmd_user_environment() {
 #
 # ------------------------------------------------------------------------------
 # Validate MYCMD_SYSTEM_BASE_DIR setting and source MyCmd Base Library
-
 mycmd_launcher.set_mycmd_system_environment
 mycmd_launcher.set_mycmd_user_environment
 
 # shellcheck source=./mycmd/mycmd-lib
 source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"
 
-mycmd.defer_at_startup mycmd.init_bin sed
-function main() {
-    mycmd.defer_at_startup mycmd.output "Finished setting up the MyCmd launcher."
-    mycmd.defer_at_startup mycmd.log "Testing log output."
-    mycmd.defer_at_exit mycmd.log "Finished with MyCmd launcher."
+function mycmd_launcher.clean_environment() {
+    # First, unset any launcher local functions
+    local -a launcher_functions
+    # shellcheck disable=SC2312
+    readarray -t launcher_functions < <(compgen -A function | grep "^mycmd_launcher\.")
 
-    mycmd.output "Doing other stuff here."
+    local f
+    for f in "${launcher_functions[@]}"; do
+        mycmd.trace "Unsetting function '${f}'."
+        unset -f "${f}"
+    done
 
+    # Then, unset any variables not meant to be inherited
+    local v
+    for v in "${_MYCMD_LAUNCHER_VARS_TO_CLEANUP[@]}"; do
+        mycmd.trace "Unsetting launcher variable '${v}'"
+        unset -v "${v}"
+    done
+}
+
+function mycmd_launcher.main() {
+    # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
 
-    # shellcheck disable=SC2154
-    "${MYCMD_BIN[sed]}" --version
+    mycmd.defer_at_exit mycmd.output "Finished with MyCmd launcher."
+    mycmd.output "Starting MyCmd"
 
-    test_failure
-
-    mycmd.output "Doing yet more stuff here."
+    mycmd_launcher.clean_environment
+    # mycmd.execute_command "${MYCMD_USER_BASE_DIR}/test-command" "${@}"
+    mycmd.execute_command "${MYCMD_SYSTEM_BASE_DIR}/logging/log-both" "${@}"
 }
 
-function test_failure() {
-    return 1
-}
-
-# function mycmd.protect_library_functions() {
-#     echo "Overriding"
-# }
-
-main "${@}"
+mycmd_launcher.main "${@}"

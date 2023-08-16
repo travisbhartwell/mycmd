@@ -1,6 +1,0 @@
-#!/usr/bin/env test-interpreter
-# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
-# shellcheck shell=bash
-
-echo "This is the output from test-command."
-echo "This is what is executing: $0."

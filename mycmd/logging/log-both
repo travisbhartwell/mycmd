@@ -1,0 +1,12 @@
+#!/usr/bin/env -S mycmd
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+mycmd.main() {
+    local exit_code=0
+
+    logging.capture_and_display "${@}" || exit_code=$?
+
+    exit "${exit_code}"
+}
