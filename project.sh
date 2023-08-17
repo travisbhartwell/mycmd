@@ -17,6 +17,7 @@ readonly TEST_BASE="${PROJECT_DIR}/test"
 readonly TEST_USER_BASE="${TEST_BASE}/user-base"
 readonly SYSTEM_BASE="${PROJECT_DIR}/mycmd"
 readonly VENDOR_DIR="${PROJECT_DIR}/vendor"
+readonly VENDOR_WORKING_DIR="${PROJECT_DIR}/vendor/.working"
 
 declare -ax ALL_FILES=("./project.sh" "./bin/mycmd" "./mycmd/mycmd-lib" "./mycmd/logging/logging-lib" "./mycmd/logging/log-both")
 
@@ -47,10 +48,56 @@ function lint() {
     shellcheck --check-sourced "${ALL_FILES[@]}" && echo "Success"
 }
 
+function _update_vendored_file() {
+    local -r source_path="${VENDOR_WORKING_DIR}/${1}"
+    local -r dest_path="${VENDOR_DIR}/${2}"
+
+    if [[ ! -e "${source_path}" ]]; then
+        echo >&2 "Source file '${source_path}' not found."
+        return 1
+    fi
+
+    if [[ -e "${dest_path}" ]]; then
+        if diff -q "${source_path}" "${dest_path}"; then
+            echo "Vendored file '${dest_path}' is up to date."
+            return 0
+        fi
+    fi
+
+    echo "Updating vendor destination '${dest_path}'."
+    cp -a "${source_path}" "${dest_path}"
+}
+
+function update-ansi() {
+    # https://github.com/fidian/ansi
+    if [[ ! -e "${VENDOR_WORKING_DIR}/ansi" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        echo "Cloning ansi git repository."
+        git clone --quiet git@github.com:fidian/ansi.git
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/ansi"
+    echo "Pulling latest ansi changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_file "ansi/ansi" "ansi"
+}
+
 function update-bashup-events() {
-    # Full Repo URL: https://github.com/bashup/events/tree/bash44
-    # Clone URL: git@github.com:bashup/events.git
-    curl -sSL https://raw.githubusercontent.com/bashup/events/bash44/bashup.events -o "${VENDOR_DIR}/bashup.events"
+    # https://github.com/bashup/events/tree/bash44
+    if [[ ! -e "${VENDOR_WORKING_DIR}/bashup.events" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        echo "Cloning bashup.events git repository."
+        git clone --quiet -b bash44 git@github.com:bashup/events.git bashup.events
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/bashup.events"
+    echo "Pulling latest bashup.events changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_file "bashup.events/bashup.events" "bashup.events"
 }
 
 function mycmd-minimal-env() {
