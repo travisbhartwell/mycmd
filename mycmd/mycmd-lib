@@ -36,13 +36,14 @@ readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 
 # ------------------------------------------------------------------------------
 # Library Protection
-function mycmd.capture_defined_functions() {
+function mycmd.capture_unprotected_functions() {
     local -n array_ref="${1}"
-    readarray -t array_ref < <(compgen -A function | sort || true)
+    # shellcheck disable=SC2034
+    readarray -t array_ref < <(declare -F | grep -v "^declare \-fr" | cut -d' ' -f3 | sort || true)
 }
 
 declare -a _mycmd_lib_functions_before=()
-mycmd.capture_defined_functions _mycmd_lib_functions_before
+mycmd.capture_unprotected_functions _mycmd_lib_functions_before
 
 function mycmd.protect_library_functions() {
     local -n before_functions="${1}"
@@ -59,6 +60,8 @@ function mycmd.protect_library_functions() {
         if [[ ! -v seen_functions["${f}"] ]]; then
             mycmd.trace "Marking function '${f}' read-only."
             readonly -f "${f}"
+        else
+            mycmd.trace "Skipping marking pre-existing function '${f}' read-only."
         fi
     done
 }
@@ -66,7 +69,11 @@ function mycmd.protect_library_functions() {
 function mycmd._protect_mycmd_lib() {
     # shellcheck disable=SC2034
     local -a mycmd_lib_functions_after
-    mycmd.capture_defined_functions mycmd_lib_functions_after
+    mycmd.capture_unprotected_functions mycmd_lib_functions_after
+
+    mycmd.trace "Manually marking 'mycmd.capture_unprotected_functions' as read-only."
+    readonly -f mycmd.capture_unprotected_functions
+
     mycmd.protect_library_functions _mycmd_lib_functions_before mycmd_lib_functions_after
 
     unset -f _mycmd_lib_functions_before
@@ -174,16 +181,41 @@ mycmd._validate_environment
 
 # ------------------------------------------------------------------------------
 # Vendor Library Support
+
+# mycmd._source_lib_by_path_if_found
+#  Loads the specified library by full path, if it exists. This is not the full version
+#  to enable loading libraries that are required for the full version.
+function mycmd._source_lib_by_path_if_found() {
+    local -r library_full_path="${1}"
+    shift
+
+    if [[ -e "${library_full_path}" ]]; then
+        # shellcheck disable=2034
+        local -a existing_functions=()
+        mycmd.capture_unprotected_functions existing_functions
+
+        # shellcheck source=/dev/null
+        source "${library_full_path}" "${@}"
+
+        # shellcheck disable=2034
+        local -a current_functions=()
+        mycmd.capture_unprotected_functions current_functions
+        mycmd.protect_library_functions existing_functions current_functions
+
+        return 0
+    else
+        return 1
+    fi
+}
+
 function mycmd.load_vendor_library() {
     local -r vendor_library="${1}"
     # shellcheck disable=SC2154
     local -r vendor_library_path="${MYCMD_VENDOR_DIR}/${vendor_library}"
 
-    if [[ -e "${vendor_library_path}" ]]; then
-        mycmd.trace "Loading vendored library '${vendor_library}'."
-        # shellcheck source=/dev/null
-        source "${vendor_library_path}"
-    else
+    mycmd.trace "Attempting to load vendored library '${vendor_library}'."
+
+    if ! mycmd._source_lib_by_path_if_found "${vendor_library_path}"; then
         mycmd.log "Vendored library '${vendor_library}' not found."
         return 1
     fi
@@ -487,32 +519,13 @@ function mycmd.bin_execute {
 # -------------------------------------------------------------------------------k
 # MyCmd Command and Command Group Execution and Loading Support
 
-# mycmd._source_lib_by_path
-#   Source the library if it exists.
-function mycmd._source_lib_by_path_if_found() {
-    local -r library_full_path="${1}"
-    shift
-
-    if [[ -e "${library_full_path}" ]]; then
-        # shellcheck source=/dev/null
-        source "${library_full_path}" "${@}"
-
-        # Run any remaining deferreds for the startup for the library
-        mycmd.run_startup_deferreds "${library_full_path}"
-
-        return 0
-    else
-        return 1
-    fi
-}
-
-# mycmd.execute_kommand
+# mycmd.execute_command
 #  Execute a MyCmd command, given the full path to the command.
 function mycmd.execute_command() {
     declare -rx MYCMD_COMMAND_ABSPATH="${1}"
     shift
 
-    if ! mycmd._source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}"; then
+    if ! mycmd.source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}"; then
         mycmd.err_exit 1 "MyCmd command '${MYCMD_COMMAND_ABSPATH}' not found."
     fi
 
@@ -525,6 +538,22 @@ function mycmd.execute_command() {
     fi
 
     mycmd.main "${@}"
+}
+
+# mycmd.source_lib_by_path_if_found
+#   Source the library if it exists.
+function mycmd.source_lib_by_path_if_found() {
+    local -r library_full_path="${1}"
+    shift
+
+    if mycmd._source_lib_by_path_if_found "${library_full_path}" "${@}"; then
+        # Run any remaining deferreds for the startup for the library
+        mycmd.run_startup_deferreds "${library_full_path}"
+
+        return 0
+    else
+        return 1
+    fi
 }
 
 # mycmd._path_relative_to_directory
@@ -631,24 +660,15 @@ function mycmd.source_mycmd_lib() {
         # Look for a command group library named <dirname>-lib in <dirname>
         local lib_script="${lib_dir}/${dir}-lib"
 
-        # shellcheck disable=2034
-        local -a existing_functions=()
-        mycmd.capture_defined_functions existing_functions
-
         # First check in MYCMD_SYSTEM_BASE_DIR
-        if mycmd._source_lib_by_path_if_found "${lib_script}" "${@}"; then
-            # shellcheck disable=2034
-            local -a current_functions=()
-            mycmd.capture_defined_functions current_functions
-            mycmd.protect_library_functions existing_functions current_functions
-
+        if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
             # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
             local local_lib_override="${local_lib_dir}/${dir}-local-lib"
-            mycmd._source_lib_by_path_if_found "${local_lib_override}" "${@}" || true
+            mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}" || true
         else
             # Otherwise, check in MYCMD_USER_BASE_DIR
             local local_lib_script="${local_lib_dir}/${dir}-lib"
-            mycmd._source_lib_by_path_if_found "${local_lib_script}" "${@}" || true
+            mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}" || true
         fi
     done
 }
