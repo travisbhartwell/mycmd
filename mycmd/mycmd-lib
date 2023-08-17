@@ -133,7 +133,7 @@ export _MYCMD_LOG_FD
 # mycmd.log
 #   Convenience for runtime logging to stderr.
 function mycmd.log() {
-    mycmd._output_with_timestamp "${_MYCMD_LOG_FD}" "$*" 1>&2
+    mycmd._output_with_timestamp "${_MYCMD_LOG_FD}" "$*"
 }
 
 # mycmd.debug
@@ -688,6 +688,83 @@ function mycmd.load_command_group_for_command() {
     fi
 
     mycmd.source_mycmd_lib "${relative_path}"
+}
+
+# ------------------------------------------------------------------------------
+# Convenience methods and variables for terminal output
+if ! mycmd.load_vendor_library ansi; then
+    mycmd.log "Cannot load vendored library, ansi, providing no op pass through."
+
+    function mycmd.ansi() {
+        return 0
+    }
+else
+    function mycmd.ansi() {
+        local -r fn="ansi::${1}"
+        shift
+
+        mycmd.call_if_function_exists "${fn}" "${@}"
+    }
+fi
+
+# ------------------------------------------------------------------------------
+# Additional Logging Support Functions
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function mycmd._log_input() {
+    local fn=$1
+
+    # shellcheck disable=SC2312
+    mycmd.log "$(mycmd.ansi bold)Start of input to '${fn}' on STDIN:$(mycmd.ansi normal)"
+
+    # shellcheck disable=SC2312
+    cat - | mycmd.bin_execute sed -e "s/\(.*\)/$$(mycmd.ansi bold)INPUT:$(mycmd.ansi normal)\t \1/" >&"${_MYCMD_LOG_FD}"
+
+    # shellcheck disable=SC2312
+    mycmd.log "\n$(mycmd.ansi bold)End of input to '${fn}' on STDIN.$(mycmd.ansi normal)"
+}
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function mycmd._log_output() {
+    local fn=$1
+
+    # shellcheck disable=SC2312
+    mycmd.log "$(mycmd.ansi bold)Start of output from '${fn}' on STDOUT:$(mycmd.ansi normal)"
+
+    # shellcheck disable=SC2312
+    cat - | mycmd.bin_execute sed -e "s/\(.*\)/$(mycmd.ansi bold)OUTPUT:$(mycmd.ansi normal)\t \1/" >&"${_MYCMD_LOG_FD}"
+
+    # shellcheck disable=SC2312
+    mycmd.log "\n$(mycmd.ansi bold)End of output from '${fn}' on STDOUT.$(mycmd.ansi normal)"
+}
+
+# mycmd.log_function
+#   Used to easily trace execution of a shell script.
+#   Logs - by default to stderr - the following:
+#   - any arguments used to call the function
+#   - any input on stdin to the function
+#   - any output on stderr from the function
+function mycmd.log_function() {
+    local -r fn=$1
+    shift
+
+    if [[ -n "${MYCMD_DEBUG-}" ]]; then
+        # shellcheck disable=SC2312
+        mycmd.log "$(mycmd.ansi bold)Calling function '${fn}':$(mycmd.ansi normal)"
+
+        if (($# > 0)); then
+            for ((i = 1; i <= "$#"; i++)); do
+                mycmd.log "\targument ${i}: ${!i}"
+            done
+        fi
+
+        cat - \
+            | tee >(mycmd._log_input "${fn}" || true) \
+            | ${fn} "$@" \
+            | tee >(mycmd._log_output "${fn}" || true)
+    else
+        ${fn} "$@"
+    fi
 }
 
 # ------------------------------------------------------------------------------
