@@ -102,6 +102,7 @@ function update-bashup-events() {
 
 function mycmd-minimal-env() {
     local return_code=$?
+
     /usr/bin/env -i MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${PATH}" \
@@ -111,15 +112,44 @@ function mycmd-minimal-env() {
 }
 
 function mycmd() {
-    local return_code=$?
+    local return_code=0
+
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         "${BIN_DIR}"/mycmd "${@}" || return_code=$?
     exit "${return_code}"
 }
 
+function test-command-directly() {
+    local return_code=0
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${TEST_USER_BASE}/test-command" "${@}" || return_code=$?
+    exit "${return_code}"
+}
+
+function test-command-outside-dir() {
+    local return_code=0
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${TEST_BASE}/test-command-outside-dir" "${@}" || return_code=$?
+    exit "${return_code}"
+}
+
+function mycmd-debugger() {
+    local return_code=0
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        bashdb "${BIN_DIR}"/mycmd "${@}" || return_code=$?
+    exit "${return_code}"
+}
+
 function mycmd-no-env() {
-    local return_code=$?
+    local return_code=0
     /usr/bin/env -i \
         PATH="${PATH}" \
         HOME="${HOME}" \

@@ -174,6 +174,10 @@ function mycmd._validate_environment() {
         if [[ -z "${!mycmd_var-}" ]]; then
             mycmd.err_exit 1 "Required environment variable ${mycmd_var} is not set."
         fi
+
+        if [[ ! -d "${!mycmd_var-}" ]]; then
+            mycmd.err_exit 1 "Directory in environment variable ${mycmd_var}, '${!mycmd_var-}' does not exist."
+        fi
     done
 }
 
@@ -195,7 +199,12 @@ function mycmd._source_lib_by_path_if_found() {
         mycmd.capture_unprotected_functions existing_functions
 
         # shellcheck source=/dev/null
-        source "${library_full_path}" "${@}"
+        if ! source "${library_full_path}" "${@}" 2>/dev/null; then
+            mycmd.log "Error while sourcing '${library_full_path}'."
+            return 1
+        else
+            mycmd.log "Finished sourcing '${library_full_path}'."
+        fi
 
         # shellcheck disable=2034
         local -a current_functions=()
@@ -204,6 +213,7 @@ function mycmd._source_lib_by_path_if_found() {
 
         return 0
     else
+        mycmd.trace "Library '${library_full_path}' not found."
         return 1
     fi
 }
@@ -302,7 +312,6 @@ function mycmd.run_startup_deferreds() {
     fi
 
     local -r calling_file="${1}"
-    mycmd.trace "Calling deferred startup events for ${calling_file}."
 
     local event_name
     if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
@@ -525,17 +534,22 @@ function mycmd.execute_command() {
     declare -rx MYCMD_COMMAND_ABSPATH="${1}"
     shift
 
-    if ! mycmd.source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}"; then
+    if ! mycmd.source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}" "${@}"; then
         mycmd.err_exit 1 "MyCmd command '${MYCMD_COMMAND_ABSPATH}' not found."
     fi
 
-    if ! mycmd.load_command_group_for_command; then
+    if ! mycmd.load_command_group_for_command "${@}"; then
         mycmd.err_exit 1 "Error loading command group libraries for command '${MYCMD_COMMAND_ABSPATH}'."
     fi
 
     if ! mycmd.function_exists mycmd.main; then
         mycmd.err_exit 1 "'mycmd.main' not defined in MyCmd command '${MYCMD_COMMAND_ABSPATH}'."
     fi
+
+    # Turn on tracing and verbose mode before executing script, if set
+    [[ -n "${_MYCMD_SHELL_TRACE-}" ]] && set -o xtrace
+
+    [[ -n "${_MYCMD_SHELL_VERBOSE-}" ]] && set -o verbose
 
     mycmd.main "${@}"
 }
@@ -547,11 +561,13 @@ function mycmd.source_lib_by_path_if_found() {
     shift
 
     if mycmd._source_lib_by_path_if_found "${library_full_path}" "${@}"; then
+        mycmd.trace "Library '${library_full_path}' successfully loaded, running startup deferreds."
         # Run any remaining deferreds for the startup for the library
         mycmd.run_startup_deferreds "${library_full_path}"
 
         return 0
     else
+        mycmd.trace "Library '${library_full_path}' not found."
         return 1
     fi
 }
@@ -618,6 +634,7 @@ function mycmd.running_command_relative_path() {
     if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
         mycmd.err_exit 1 "MYCMD_COMMAND_ABSPATH must be set before calling mycmd.running_command_relative_path."
     fi
+
     local -r running_command_directory="$(dirname "${MYCMD_COMMAND_ABSPATH}")"
     local relative_path
 
@@ -625,7 +642,7 @@ function mycmd.running_command_relative_path() {
         echo "${relative_path}"
         return 0
     else
-        mycmd.log "Error getting running command relative path."
+        mycmd.debug "Error getting running command relative path for ${MYCMD_COMMAND_ABSPATH}."
         return 1
     fi
 }
@@ -664,13 +681,18 @@ function mycmd.source_mycmd_lib() {
         if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
             # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
             local local_lib_override="${local_lib_dir}/${dir}-local-lib"
-            mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}" || true
+            mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}"
         else
             # Otherwise, check in MYCMD_USER_BASE_DIR
             local local_lib_script="${local_lib_dir}/${dir}-lib"
-            mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}" || true
+            if ! mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}"; then
+                mycmd.log "Cannot find library '${dir}' in system or user directory."
+                return 1
+            fi
         fi
     done
+
+    return 0
 }
 
 # mycmd.load_command_group_for_command
@@ -679,7 +701,8 @@ function mycmd.source_mycmd_lib() {
 function mycmd.load_command_group_for_command() {
     local relative_path
     if ! relative_path=$(mycmd.running_command_relative_path); then
-        mycmd.err_exit 1 "Error getting running command relative path."
+        mycmd.debug "${MYCMD_COMMAND_ABSPATH-} is not in any command group."
+        return
     fi
 
     if [[ "${relative_path}" == "." ]]; then
@@ -687,7 +710,7 @@ function mycmd.load_command_group_for_command() {
         return
     fi
 
-    mycmd.source_mycmd_lib "${relative_path}"
+    mycmd.source_mycmd_lib "${relative_path}" "${@}"
 }
 
 # ------------------------------------------------------------------------------
