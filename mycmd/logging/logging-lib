@@ -20,9 +20,6 @@ set -o nounset -o errexit -o errtrace -o pipefail
 [[ -n "${_MYCMD_LOGGING_LIB:-}" ]] && return
 readonly _MYCMD_LOGGING_LIB=1
 
-mycmd.output "While sourcing:"
-mycmd.log "This is logging output"
-
 # This is needed to preserve the colors in any build output
 mycmd.defer_at_startup mycmd.init_bin script
 function logging._faketty() {

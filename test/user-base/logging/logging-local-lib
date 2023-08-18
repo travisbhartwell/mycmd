@@ -1,0 +1,32 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Logging Command Group Local Overrides Library
+#   Library for common routines for logging command output
+
+# Set Bash options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+# This library should only be sourced once. Technique borrowed from
+# https://stackoverflow.com/a/64534652
+[[ -n "${_MYCMD_LOGGING_LOCAL_LIB:-}" ]] && return
+readonly _MYCMD_LOGGING_LOCAL_LIB=1
+
+# Captures both stderr and stdout, saving to the specified log file
+function logging.capture_and_display() {
+    mycmd.output "Overriding this function"
+}
+
+function logging.local_override() {
+    mycmd.output "Creating this function"
+}
+
+mycmd.trace "The MyCmd Logging command group local overrides library has been sourced."

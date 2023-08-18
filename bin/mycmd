@@ -4,6 +4,8 @@
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
+shopt -s inherit_errexit
+
 declare -A _MYCMD_LAUNCHER_DISPATCH=()
 
 declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=("_MYCMD_LAUNCHER_SELF_FILE" "_MYCMD_LAUNCHER_VARS_TO_CLEANUP")
@@ -107,16 +109,43 @@ function mycmd_launcher.clean_environment() {
     done
 }
 
+function mycmd_launcher.usage() {
+    local -r mycmd_name=$(basename "${_MYCMD_LAUNCHER_SELF_FILE}")
+
+    mycmd.output "\nUsage:"
+    mycmd.output "\n${mycmd_name} [-h | --help] [-v | --version]"
+    mycmd.output "\n${mycmd_name} <command_group>... [-h | --help] [-v | --version] [arguments]"
+    mycmd.output "\n  See the help for the individual command groups for further details."
+    mycmd.output "\n${mycmd_name} <command_group>... <command> [-h | --help] [-v | --version] [arguments]"
+    mycmd.output "\n  See the help for the individual sub commands for further details."
+    mycmd.output "\nThe following environment variables are recognized, if set:\n"
+    mycmd.output "MYCMD_SYSTEM_BASE_DIR    - the base directory for system defined MyCmd Command Groups."
+    mycmd.output "MYCMD_USER_BASE_DIR      - the base directory for user defined MyCmd Command Groups. Defaults to ${HOME}/mycmd if not set. Required to exist."
+    mycmd.output "MYCMD_SHELL_TRACE        - enables Bash's xtrace (set -x) for the executing command."
+    mycmd.output "MYCMD_SHELL_VERBOSE      - enables Bash's verbose mode (set -v) for the executing command."
+    mycmd.output "MYCMD_DEBUG              - enables output of debug logging in the executing command."
+    mycmd.output "MYCMD_TRACE              - enables output of trace logging in the executing command."
+}
+
 function mycmd_launcher.main() {
     # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
 
-    mycmd.defer_at_exit mycmd.output "Finished with MyCmd launcher."
-    mycmd.output "Starting MyCmd"
+    if (($# == 0)); then
+        mycmd_launcher.usage
+        exit 0
+    fi
 
     mycmd_launcher.clean_environment
-    # mycmd.execute_command "${MYCMD_USER_BASE_DIR}/test-command" "${@}"
-    mycmd.execute_command "${MYCMD_SYSTEM_BASE_DIR}/logging/log-both" "${@}"
+
+    if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
+        mycmd.log "First argument was absolute path: ${1}"
+        mycmd.execute_command "${@}"
+    else
+        mycmd.log "Falling back to log-both"
+        mycmd.execute_command "${MYCMD_SYSTEM_BASE_DIR}/logging/log-both" "${@}"
+    fi
+
 }
 
 mycmd_launcher.main "${@}"
