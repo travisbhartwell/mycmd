@@ -1,0 +1,49 @@
+#!/usr/bin/env -S mycmd
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+function mycmd.usage() {
+    local name
+    if ! name=$(mycmd.running_command_abspath); then
+        name="$(basename "${BASH_SOURCE[0]}")"
+    fi
+    readonly name
+
+    mycmd.output "\nUsage:"
+    mycmd.output "\n${name} <command file>"
+}
+
+readonly _COMMAND_FILE="command-file"
+
+function mycmd.parse_arguments() {
+    local -n arguments_ref="${1}"
+    shift
+
+    arguments_ref["${_COMMAND_FILE}"]="${1}"
+
+    mycmd.debug "${_COMMAND_FILE}: ${arguments_ref["${_COMMAND_FILE}"]}"
+}
+
+function mycmd.main() {
+    local -A parsed_arguments
+
+    if (($# == 0)); then
+        mycmd.usage
+        return 0
+    fi
+
+    mycmd.parse_arguments parsed_arguments "${@}"
+    local -r command_file="${parsed_arguments["${_COMMAND_FILE}"]}"
+
+    # shellcheck disable=SC2312
+    mycmd.output "Migrating $(mycmd.ansi bold)${command_file}$(mycmd.ansi normal)."
+
+    migrate.enforce-command-shebang-and-mode-line "${command_file}"
+    migrate.remove-source-mycmd-lib "${command_file}"
+    migrate.remove-auto-source-mycmd-libs "${command_file}"
+    migrate.remove-explicit-call-to-main "${command_file}"
+    migrate.rename-main-to-mycmd-main "${command_file}"
+    migrate.mycmd-bin-to-mycmd-bin-execute "${command_file}"
+}

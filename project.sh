@@ -8,7 +8,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 if ! PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
-    echo >&"Error fetching project directory."
+    echo >&2 "Error fetching project directory."
     exit 1
 fi
 
@@ -19,7 +19,21 @@ readonly SYSTEM_BASE="${PROJECT_DIR}/mycmd"
 readonly VENDOR_DIR="${PROJECT_DIR}/vendor"
 readonly VENDOR_WORKING_DIR="${PROJECT_DIR}/vendor/.working"
 
-declare -ax ALL_FILES=("./project.sh" "./bin/mycmd" "./mycmd/mycmd-lib" "./mycmd/logging/logging-lib" "./mycmd/logging/log-both")
+function all-files-breadth-first() {
+    # shellcheck disable=SC2312
+    readarray -t ALL_FILES < <((
+        echo -e "0\t${PROJECT_DIR}/project.sh"
+        gfind "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_BASE}" -type f -printf '%d\t%p\n'
+    ) | sort -nk1 | cut -f2- | xargs grealpath --relative-to="${PROJECT_DIR}")
+}
+
+declare -ax ALL_FILES
+all-files-breadth-first
+readonly ALL_FILES
+
+function list-all-files() {
+    echo "${ALL_FILES[*]}" | tr ' ' '\n'
+}
 
 function format() {
     if (("${#ALL_FILES[@]}" == 0)); then
@@ -28,7 +42,7 @@ function format() {
     fi
 
     echo "Formatting the following files:"
-    echo "${ALL_FILES[*]}"
+    list-all-files
 
     cd "${PROJECT_DIR}"
     shfmt --language-dialect bash --indent=4 --binary-next-line --case-indent --write "${ALL_FILES[@]}"
@@ -41,7 +55,7 @@ function lint() {
     fi
 
     echo "Linting the following files:"
-    echo "${ALL_FILES[*]}"
+    list-all-files
 
     cd "${PROJECT_DIR}"
     echo "Running ShellCheck:"
@@ -137,6 +151,26 @@ function test-command-outside-dir() {
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${BIN_DIR}:${PATH}" \
         "${TEST_BASE}/test-command-outside-dir" "${@}" || return_code=$?
+    exit "${return_code}"
+}
+
+function migrate-command-group() {
+    local return_code=0
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${SYSTEM_BASE}/migrate/command-group" "${@}" || return_code=$?
+    exit "${return_code}"
+}
+
+function migrate-command() {
+    local return_code=0
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${SYSTEM_BASE}/migrate/command" "${@}" || return_code=$?
     exit "${return_code}"
 }
 

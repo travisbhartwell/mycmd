@@ -3,7 +3,7 @@
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
-mycmd.main() {
+function mycmd.main() {
     local exit_code=0
 
     mycmd.output "$(mycmd.ansi bold || true)Logging output to file: $(mycmd.ansi blue || true)${1}$(mycmd.ansi resetForeground || true)$(mycmd.ansi normal || true)"
