@@ -203,7 +203,7 @@ function mycmd._source_lib_by_path_if_found() {
             mycmd.log "Error while sourcing '${library_full_path}'."
             return 1
         else
-            mycmd.log "Finished sourcing '${library_full_path}'."
+            mycmd.trace "Finished sourcing '${library_full_path}'."
         fi
 
         # shellcheck disable=2034
@@ -552,6 +552,28 @@ function mycmd.execute_command() {
     [[ -n "${_MYCMD_SHELL_VERBOSE-}" ]] && set -o verbose
 
     mycmd.main "${@}"
+
+    exit $?
+}
+
+function mycmd.running_command_abspath() {
+    if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
+        mycmd.log "MYCMD_COMMAND_ABSPATH not yet set; perhaps not yet executing a MyCmd Command"
+        return 1
+    fi
+
+    echo "${MYCMD_COMMAND_ABSPATH}"
+    return 0
+}
+
+function mycmd.running_command_name() {
+    if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
+        mycmd.log "MYCMD_COMMAND_ABSPATH not yet set; perhaps not yet executing a MyCmd Command"
+        return 1
+    fi
+
+    basename "${MYCMD_COMMAND_ABSPATH}"
+    return 0
 }
 
 # mycmd.source_lib_by_path_if_found

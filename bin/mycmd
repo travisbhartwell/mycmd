@@ -139,10 +139,8 @@ function mycmd_launcher.main() {
     mycmd_launcher.clean_environment
 
     if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
-        mycmd.log "First argument was absolute path: ${1}"
         mycmd.execute_command "${@}"
     else
-        mycmd.log "Falling back to log-both"
         mycmd.execute_command "${MYCMD_SYSTEM_BASE_DIR}/logging/log-both" "${@}"
     fi
 
