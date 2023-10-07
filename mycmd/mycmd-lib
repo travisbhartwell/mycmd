@@ -199,7 +199,7 @@ function mycmd._source_lib_by_path_if_found() {
         mycmd.capture_unprotected_functions existing_functions
 
         # shellcheck source=/dev/null
-        if ! source "${library_full_path}" "${@}" 2>/dev/null; then
+        if ! source "${library_full_path}" "${@}"; then
             mycmd.log "Error while sourcing '${library_full_path}'."
             return 1
         else
@@ -547,9 +547,9 @@ function mycmd.execute_command() {
     fi
 
     # Turn on tracing and verbose mode before executing script, if set
-    [[ -n "${_MYCMD_SHELL_TRACE-}" ]] && set -o xtrace
+    [[ -n "${MYCMD_SHELL_TRACE-}" ]] && set -o xtrace
 
-    [[ -n "${_MYCMD_SHELL_VERBOSE-}" ]] && set -o verbose
+    [[ -n "${MYCMD_SHELL_VERBOSE-}" ]] && set -o verbose
 
     mycmd.main "${@}"
 
@@ -717,6 +717,13 @@ function mycmd.source_mycmd_lib() {
     return 0
 }
 
+# mycmd.source_mycmd_local_lib
+function mycmd.source_mycmd_local_lib() {
+    local -r local_lib="${MYCMD_USER_BASE_DIR}/mycmd-local-lib"
+
+    mycmd.source_lib_by_path_if_found "${local_lib}" || true
+}
+
 # mycmd.load_command_group_for_command
 #  Source the libraries for the command group that the to be executed MyCmd command
 #  belongs to.
@@ -849,6 +856,7 @@ function mycmd.get_named_cache_file() {
 # ------------------------------------------------------------------------------
 # Finalization and Clean Up
 mycmd._protect_mycmd_lib
+mycmd.source_mycmd_local_lib
 mycmd.run_startup_deferreds
 
 mycmd.trace "${_MYCMD_LIB_SELF_FILE} sourcing complete."

@@ -41,9 +41,17 @@ function migrate.remove-unnecessary-comments() {
 function migrate.enforce-library-pragma-double-bracket() {
     local -r command_group_file="${1}"
 
-    mycmd.bin_execute gsed -r -i \
+    mycmd.bin_execute sed -r -i \
         's/\[ -n "(.*+)" \] \&\& return/\[\[ -n "\1" \]\] \&\& return/g' \
         "${command_group_file}"
+}
+
+function migrate.enforce-using-function-keyword() {
+    local -r file="${1}"
+
+    mycmd.bin_execute sed -r -i \
+        's/^([^ ]+)\(\) \{/function \1() {/p' \
+        "${file}"
 }
 
 function migrate.enforce-command-shebang-and-mode-line() {
