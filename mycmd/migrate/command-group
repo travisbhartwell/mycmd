@@ -42,6 +42,7 @@ function mycmd.main() {
 
     migrate.enforce-command-group-file-mode-line "${command_group_file}"
     migrate.enforce-library-pragma-double-bracket "${command_group_file}"
+    migrate.enforce-using-function-keyword "${command_group_file}"
     migrate.remove-unnecessary-comments "${command_group_file}"
     migrate.mycmd-bin-to-mycmd-bin-execute "${command_group_file}"
 }

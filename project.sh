@@ -13,8 +13,9 @@ if ! PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); t
 fi
 
 readonly BIN_DIR="${PROJECT_DIR}/bin"
-readonly TEST_BASE="${PROJECT_DIR}/test"
-readonly TEST_USER_BASE="${TEST_BASE}/user-base"
+readonly TESTING_BASE="${PROJECT_DIR}/testing"
+readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
+readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
 readonly SYSTEM_BASE="${PROJECT_DIR}/mycmd"
 readonly VENDOR_DIR="${PROJECT_DIR}/vendor"
 readonly VENDOR_WORKING_DIR="${PROJECT_DIR}/vendor/.working"
@@ -23,16 +24,88 @@ function all-files-breadth-first() {
     # shellcheck disable=SC2312
     readarray -t ALL_FILES < <((
         echo -e "0\t${PROJECT_DIR}/project.sh"
-        gfind "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_BASE}" -type f -printf '%d\t%p\n'
+        gfind "${BIN_DIR}" "${SYSTEM_BASE}" "${TESTING_BASE}" -type f -printf '%d\t%p\n'
     ) | sort -nk1 | cut -f2- | xargs grealpath --relative-to="${PROJECT_DIR}")
 }
 
-declare -ax ALL_FILES
+declare -ax ALL_FILES=()
 all-files-breadth-first
 readonly ALL_FILES
 
+function all-test-files-breadth-first() {
+    # shellcheck disable=SC2312
+    readarray -t ALL_TEST_FILES < <((
+        gfind "${TEST_FILES_BASE}" -type f -name '*-test' -printf '%d\t%p\n'
+    ) | sort -nk1 | cut -f2- | xargs grealpath --relative-to="${PROJECT_DIR}")
+}
+
+declare -ax ALL_TEST_FILES=()
+all-test-files-breadth-first
+readonly ALL_TEST_FILES
+
+function list-files() {
+    echo "${*}" | tr ' ' '\n'
+}
+
+function list-all-test-files() {
+    list-files "${ALL_TEST_FILES[*]}"
+}
+
 function list-all-files() {
-    echo "${ALL_FILES[*]}" | tr ' ' '\n'
+    list-files "${ALL_FILES[*]}"
+}
+
+function summarize_test_results() {
+    local -n results_ref="${1}"
+
+    (
+        echo "Testing Summary:"
+        echo "| Result | Test File |"
+        echo "|--------|-----------|"
+        local test_file
+        local result
+
+        for test_file in "${!results_ref[@]}"; do
+            result="${results_ref["${test_file}"]}"
+            if ((result == 0)); then
+                echo "| ✅︎ | ${test_file} |"
+            else
+                echo "| ❌ | ${test_file} |"
+            fi
+        done
+    ) | gum format --type=markdown
+}
+
+function _execute-test() {
+    local -r test_file="${1}"
+
+    if [[ ! -e "${test_file}" ]]; then
+        echo "Test file not found: ${test_file}"
+        return 1
+    fi
+
+    local result=0
+    echo "Executing test file: ${test_file}"
+    "${test_file}" || result=$?
+
+    echo "Result of ${test_file}: ${result}"
+    return "${result}"
+}
+
+function execute-all-tests() {
+    local test_file
+    local -A results=()
+    local result
+
+    for test_file in "${ALL_TEST_FILES[@]}"; do
+        result=0
+
+        _execute-test "${test_file}" || result=$?
+        # shellcheck disable=SC2034
+        results["${test_file}"]="${result}"
+    done
+
+    summarize_test_results results
 }
 
 function format() {
@@ -115,80 +188,58 @@ function update-bashup-events() {
 }
 
 function mycmd-minimal-env() {
-    local return_code=$?
-
     /usr/bin/env -i MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${PATH}" \
         HOME="${HOME}" \
-        "${BIN_DIR}"/mycmd "${@}" || return_code=$?
-    exit "${return_code}"
+        "${BIN_DIR}"/mycmd "${@}"
 }
 
 function mycmd() {
-    local return_code=0
-
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
-        "${BIN_DIR}"/mycmd "${@}" || return_code=$?
-    exit "${return_code}"
+        "${BIN_DIR}"/mycmd "${@}"
 }
 
 function test-command-directly() {
-    local return_code=0
-
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${BIN_DIR}:${PATH}" \
-        "${TEST_USER_BASE}/test-command" "${@}" || return_code=$?
-    exit "${return_code}"
+        "${TEST_USER_BASE}/test-command" "${@}"
 }
 
 function test-command-outside-dir() {
-    local return_code=0
-
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${BIN_DIR}:${PATH}" \
-        "${TEST_BASE}/test-command-outside-dir" "${@}" || return_code=$?
-    exit "${return_code}"
+        "${TESTING_BASE}/test-command-outside-dir" "${@}"
 }
 
 function migrate-command-group() {
-    local return_code=0
-
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${BIN_DIR}:${PATH}" \
-        "${SYSTEM_BASE}/migrate/command-group" "${@}" || return_code=$?
-    exit "${return_code}"
+        "${SYSTEM_BASE}/migrate/command-group" "${@}"
 }
 
 function migrate-command() {
-    local return_code=0
-
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         PATH="${BIN_DIR}:${PATH}" \
-        "${SYSTEM_BASE}/migrate/command" "${@}" || return_code=$?
-    exit "${return_code}"
+        "${SYSTEM_BASE}/migrate/command" "${@}"
 }
 
 function mycmd-debugger() {
-    local return_code=0
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
-        bashdb "${BIN_DIR}"/mycmd "${@}" || return_code=$?
-    exit "${return_code}"
+        bashdb "${BIN_DIR}"/mycmd "${@}"
 }
 
 function mycmd-no-env() {
-    local return_code=0
     /usr/bin/env -i \
         PATH="${PATH}" \
         HOME="${HOME}" \
-        "${BIN_DIR}"/mycmd "${@}" || return_code=$?
-    exit "${return_code}"
+        "${BIN_DIR}"/mycmd "${@}"
 }
 
 function function_exists() {
@@ -200,6 +251,7 @@ function call_if_function_exists() {
     shift
 
     if function_exists "${fn}"; then
+        echo >&2 "Executing task: ${fn}..."
         "${fn}" "$@"
     else
         echo >&2 "Unknown task: '${fn}'."

@@ -138,12 +138,13 @@ function mycmd_launcher.main() {
 
     mycmd_launcher.clean_environment
 
+    mycmd_launcher.usage
+
     if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
         mycmd.execute_command "${@}"
     else
         mycmd.execute_command "${MYCMD_SYSTEM_BASE_DIR}/logging/log-both" "${@}"
     fi
-
 }
 
 mycmd_launcher.main "${@}"

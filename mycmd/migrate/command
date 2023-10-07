@@ -42,6 +42,7 @@ function mycmd.main() {
 
     migrate.enforce-command-shebang-and-mode-line "${command_file}"
     migrate.remove-source-mycmd-lib "${command_file}"
+    migrate.enforce-using-function-keyword "${command_file}"
     migrate.remove-auto-source-mycmd-libs "${command_file}"
     migrate.remove-explicit-call-to-main "${command_file}"
     migrate.rename-main-to-mycmd-main "${command_file}"
