@@ -13,3 +13,6 @@ MyCmd is licensed under the [MIT license](LICENSE.md) and includes other open so
 These other libraries included in the `vendor` subdirectory have their own licenses, acknowledged here:
 * `bashup.events`: Licensed under the [CC0 License](https://creativecommons.org/publicdomain/zero/1.0/). The project repository is at <https://github.com/bashup/events/tree/bash44>.
 * `ansi`: Licensed under the [MIT License with a non-advertising clause](https://github.com/fidian/ansi/blob/master/LICENSE.md). The project repository is at <https://github.com/fidian/ansi>.
+
+Additionally, these libraries used for testing MyCmd included in the `testing/vendor` subdirectory have their own licenses, acknowledged here:
+* `shunit2`: Licensed under the [Apache License 2.0](https://github.com/kward/shunit2/blob/master/LICENSE). The project repository is at <https://github.com/kward/shunit2>.

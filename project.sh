@@ -18,13 +18,14 @@ readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
 readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
 readonly SYSTEM_BASE="${PROJECT_DIR}/mycmd"
 readonly VENDOR_DIR="${PROJECT_DIR}/vendor"
+readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
 readonly VENDOR_WORKING_DIR="${PROJECT_DIR}/vendor/.working"
 
 function all-files-breadth-first() {
     # shellcheck disable=SC2312
     readarray -t ALL_FILES < <((
         echo -e "0\t${PROJECT_DIR}/project.sh"
-        gfind "${BIN_DIR}" "${SYSTEM_BASE}" "${TESTING_BASE}" -type f -printf '%d\t%p\n'
+        gfind "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f -printf '%d\t%p\n'
     ) | sort -nk1 | cut -f2- | xargs grealpath --relative-to="${PROJECT_DIR}")
 }
 
@@ -86,7 +87,11 @@ function _execute-test() {
 
     local result=0
     echo "Executing test file: ${test_file}"
-    "${test_file}" || result=$?
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${test_file}" || result=$?
 
     echo "Result of ${test_file}: ${result}"
     return "${result}"
@@ -135,13 +140,19 @@ function lint() {
     shellcheck --check-sourced "${ALL_FILES[@]}" && echo "Success"
 }
 
-function _update_vendored_file() {
+function _update_vendored_file_for_vendor_base_dir() {
     local -r source_path="${VENDOR_WORKING_DIR}/${1}"
-    local -r dest_path="${VENDOR_DIR}/${2}"
+    local -r vendor_dir="${2}"
+    local -r dest_path="${vendor_dir}/${3}"
+    local -r dest_dir=$(dirname "${dest_path}")
 
     if [[ ! -e "${source_path}" ]]; then
         echo >&2 "Source file '${source_path}' not found."
         return 1
+    fi
+
+    if [[ ! -e "${dest_dir}" ]]; then
+        mkdir -p "${dest_dir}"
     fi
 
     if [[ -e "${dest_path}" ]]; then
@@ -153,6 +164,14 @@ function _update_vendored_file() {
 
     echo "Updating vendor destination '${dest_path}'."
     cp -a "${source_path}" "${dest_path}"
+}
+
+function _update_vendored_file() {
+    _update_vendored_file_for_vendor_base_dir "${1}" "${VENDOR_DIR}" "${2}"
+}
+
+function _update_vendored_test_file() {
+    _update_vendored_file_for_vendor_base_dir "${1}" "${TEST_VENDOR_DIR}" "${2}"
 }
 
 function update-ansi() {
@@ -185,6 +204,23 @@ function update-bashup-events() {
     git pull --rebase --quiet
 
     _update_vendored_file "bashup.events/bashup.events" "bashup.events"
+}
+
+function update-shunit2() {
+    # https://github.com/kward/shunit2/tree/master
+    if [[ ! -e "${VENDOR_WORKING_DIR}/shunit2" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        echo "Cloning shunit2 git repository."
+        git clone --quiet git@github.com:kward/shunit2.git shunit2
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/shunit2"
+    echo "Pulling latest shunit2 changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_test_file "shunit2/shunit2" "shunit2"
+    _update_vendored_test_file "shunit2/shunit2_test_helpers" "shunit2_test_helpers"
 }
 
 function mycmd-minimal-env() {
