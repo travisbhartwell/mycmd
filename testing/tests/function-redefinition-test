@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test directory."
+    exit 1
+fi
+
+if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd lib directory."
+    exit 1
+fi
+
+function test_mycmd_lib_is_loaded() {
+    assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
+}
+
+function test_function_redefinition_fails() {
+    local -r fn_string='function mycmd.is_linux() { echo "Hello"; }'
+
+    local ret_val=0
+    eval "${fn_string}" &> /dev/null || ret_val=$?
+
+    assertEquals 'Attempted redefinition of MyCmd core function fails' 1 "${ret_val}"
+}
+
+function oneTimeSetUp() {
+    echo "Executing oneTimeSetup"
+
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+}
+
+# shellcheck source=../vendor/shunit2
+source "${TEST_VENDOR_DIRECTORY}/shunit2"

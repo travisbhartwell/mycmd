@@ -6,8 +6,6 @@ set -o nounset -o errexit -o errtrace -o pipefail
 
 shopt -s inherit_errexit
 
-declare -A _MYCMD_LAUNCHER_DISPATCH=()
-
 declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=("_MYCMD_LAUNCHER_SELF_FILE" "_MYCMD_LAUNCHER_VARS_TO_CLEANUP")
 
 function mycmd_launcher.set_mycmd_system_environment() {
@@ -127,6 +125,12 @@ function mycmd_launcher.usage() {
     mycmd.output "MYCMD_TRACE              - enables output of trace logging in the executing command."
 }
 
+function mycmd_launcher.parse_command_line() {
+    local -n arguments_ref="${1}"
+    shift
+
+}
+
 function mycmd_launcher.main() {
     # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
@@ -136,9 +140,11 @@ function mycmd_launcher.main() {
         exit 0
     fi
 
-    mycmd_launcher.clean_environment
+    declare -A launcher_dispatch=()
 
-    mycmd_launcher.usage
+    mycmd_launcher.parse_command_line launcher_dispatch "${@}"
+
+    mycmd_launcher.clean_environment
 
     if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
         mycmd.execute_command "${@}"
