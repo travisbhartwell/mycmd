@@ -3,10 +3,18 @@
 # shellcheck shell=bash
 
 set -o nounset -o errexit -o errtrace -o pipefail
-
 shopt -s inherit_errexit
 
-declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=("_MYCMD_LAUNCHER_SELF_FILE" "_MYCMD_LAUNCHER_VARS_TO_CLEANUP")
+declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=(
+    "_MYCMD_ARGS_FOUND_HELP"
+    "_MYCMD_ARGS_FOUND_NON_FLAGS"
+    "_MYCMD_ARGS_FOUND_VERSION"
+    "_MYCMD_ARGS_FOUND_ZSH_COMPLETE"
+    "_MYCMD_COMMAND_FULL_PATH"
+    "_MYCMD_COMMAND_RELATIVE_PATH"
+    "_MYCMD_LAUNCHER_SELF_FILE"
+    "_MYCMD_LAUNCHER_SHIFT_AMOUNT"
+    "_MYCMD_LAUNCHER_VARS_TO_CLEANUP")
 
 function mycmd_launcher.set_mycmd_system_environment() {
     _MYCMD_LAUNCHER_SELF_FILE="${BASH_SOURCE[0]}"
@@ -107,7 +115,7 @@ function mycmd_launcher.clean_environment() {
     done
 }
 
-function mycmd_launcher.usage() {
+function mycmd_launcher.launcher_usage() {
     local -r mycmd_name=$(basename "${_MYCMD_LAUNCHER_SELF_FILE}")
 
     mycmd.output "\nUsage:"
@@ -125,10 +133,231 @@ function mycmd_launcher.usage() {
     mycmd.output "MYCMD_TRACE              - enables output of trace logging in the executing command."
 }
 
+function mycmd_launcher.launcher_version() {
+    # TODO: Get version from standard place
+    mycmd.output "MyCmd 0.1"
+}
+
+function mycmd_launcher.launcher_help() {
+    mycmd_launcher.launcher_version
+    # TODO: Print help summary
+    mycmd_launcher.launcher_usage
+    # TODO: Print command group children summary
+}
+
+function mycmd_launcher.command_group_version() {
+    local -r command_group_path="${1}"
+
+    mycmd.output "'${command_group_path}' Version."
+
+    # if ! mycmd.source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}" "${@}"; then
+    #     mycmd.err_exit 1 "MyCmd command group '${MYCMD_COMMAND_ABSPATH}' not found."
+    # fi
+}
+
+function mycmd_launcher.command_group_help() {
+    local -r command_group_path="${1}"
+
+    mycmd.output "Help for '${command_group_path}'."
+}
+
+function mycmd_launcher.command_version() {
+    local -r command_path="${1}"
+
+    mycmd.output "Command '${command_path}' Version."
+}
+
+function mycmd_launcher.command_help() {
+    local -r command_path="${1}"
+
+    mycmd.output "Help for command '${command_path}'."
+}
+
+function mycmd_launcher.help() {
+    local -r found_non_flags="${1}"
+    local -r full_path="${2}"
+
+    if [[ "${found_non_flags}" = "true" ]]; then
+        mycmd.trace "Skipping printing help because an invalid command was found."
+        return 0
+    elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+        mycmd_launcher.launcher_help
+    elif [[ -d "${full_path}" ]]; then
+        mycmd_launcher.command_group_help "${full_path}"
+    else
+        mycmd_launcher.command_help "${full_path}"
+    fi
+
+    exit 0
+}
+
+function mycmd_launcher.version() {
+    local -r found_non_flags="${1}"
+    local -r full_path="${2}"
+
+    if [[ "${found_non_flags}" = "true" ]]; then
+        mycmd.trace "Skipping printing version because an invalid command was found."
+        return 0
+    elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+        mycmd_launcher.launcher_version
+    elif [[ -d "${full_path}" ]]; then
+        mycmd_launcher.command_group_version "${full_path}"
+    else
+        mycmd_launcher.command_version "${full_path}"
+    fi
+
+    exit 0
+}
+
+function mycmd_launcher.zsh_complete() {
+    local -r full_path="${1}"
+
+    mycmd.output "ZSH Complete for '${full_path}'."
+
+    exit 0
+}
+
+mycmd.init_bin realpath
+function mycmd_launcher.canonicalize_path() {
+    local -r path_to_resolve="${1}"
+
+    if [[ -v missing_ok ]]; then
+        mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
+    else
+        mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${path_to_resolve}"
+    fi
+}
+
+function mycmd_launcher.matching_relative_paths_in_system_or_user_dir() {
+    local -r relative_path="${1}"
+    local -r first_only="${2-:false}"
+
+    local system_relative_path
+    if ! system_relative_path="$(missing_ok=1 mycmd_launcher.canonicalize_path "${MYCMD_SYSTEM_BASE_DIR}/${relative_path}")"; then
+        mycmd.log "Error resolving possible system path for relative path '${relative_path}'"
+        return 1
+    fi
+    readonly system_relative_path
+
+    mycmd.trace "Examining full system path of '${system_relative_path}'."
+
+    if [[ -e "${system_relative_path}" ]]; then
+        echo "${system_relative_path}"
+
+        if [[ "${first_only}" = "true" ]]; then
+            return 0
+        fi
+    fi
+
+    if [[ -v MYCMD_USER_BASE_DIR ]]; then
+        local user_relative_path
+        if ! user_relative_path="$(missing_ok=1 mycmd_launcher.canonicalize_path "${MYCMD_USER_BASE_DIR}/${relative_path}")"; then
+            mycmd.log "Error resolving possible user path for relative path '${relative_path}'"
+            return 1
+        fi
+
+        mycmd.trace "Examining full user path of '${user_relative_path}'."
+
+        if [[ -e "${user_relative_path}" ]]; then
+            echo "${user_relative_path}"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+function mycmd_launcher.first_matching_relative_path_in_system_or_user_dir() {
+    local -r relative_path="${1}"
+
+    mycmd_launcher.matching_relative_paths_in_system_or_user_dir "${relative_path}" "true"
+    return $?
+}
+
+_MYCMD_LAUNCHER_SHIFT_AMOUNT="shift_amount"
+_MYCMD_ARGS_FOUND_HELP="found_help"
+_MYCMD_ARGS_FOUND_VERSION="found_version"
+_MYCMD_ARGS_FOUND_ZSH_COMPLETE="found_zsh_complete"
+_MYCMD_ARGS_FOUND_NON_FLAGS="found_non_flags"
+_MYCMD_COMMAND_FULL_PATH="command_full_path"
+_MYCMD_COMMAND_RELATIVE_PATH="command_relative_path"
+
 function mycmd_launcher.parse_command_line() {
     local -n arguments_ref="${1}"
     shift
 
+    local -i shift_amount=0
+    local relative_path=""
+
+    local found_help=false
+    local found_version=false
+    local found_zsh_complete=false
+    local found_non_flags=false
+
+    if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
+        arguments_ref["${_MYCMD_COMMAND_FULL_PATH}"]="${1}"
+
+        shift
+        ((shift_amount += 1))
+
+        if ! relative_path="$(mycmd.path_relative_to_mycmd_base "${full_path}")"; then
+            mycmd.debug "Command '${1}' is not relative to MYCMD directories."
+            relative_path="${1}"
+        fi
+    else
+        local full_path="${MYCMD_SYSTEM_BASE_DIR}"
+        local possible_full_path
+        local possible_relative_path
+        local element
+
+        while (($# > 0)); do
+            element="${1}"
+            possible_relative_path="${relative_path-}${relative_path:+/}${element}"
+
+            mycmd.trace "Examining path component '${element}'; with relative path of '${possible_relative_path}'"
+
+            if possible_full_path="$(mycmd_launcher.first_matching_relative_path_in_system_or_user_dir "${possible_relative_path}")"; then
+                relative_path="${possible_relative_path}"
+                full_path="${possible_full_path}"
+
+                shift
+                ((shift_amount += 1))
+
+                [[ -f "${full_path}" ]] && break
+            else
+                break
+            fi
+        done
+
+        arguments_ref["${_MYCMD_COMMAND_FULL_PATH}"]="${full_path}"
+    fi
+
+    arguments_ref["${_MYCMD_COMMAND_RELATIVE_PATH}"]="${relative_path}"
+
+    for arg in "${@}"; do
+        case "${arg}" in
+            --help | -h) found_help=true ;;
+            --version | -v) found_version=true ;;
+            --zsh-complete) found_zsh_complete=true ;;
+            *) found_non_flags=true ;;
+        esac
+    done
+
+    arguments_ref["${_MYCMD_ARGS_FOUND_HELP}"]="${found_help}"
+    arguments_ref["${_MYCMD_ARGS_FOUND_VERSION}"]="${found_version}"
+    arguments_ref["${_MYCMD_ARGS_FOUND_ZSH_COMPLETE}"]="${found_zsh_complete}"
+    arguments_ref["${_MYCMD_ARGS_FOUND_NON_FLAGS}"]="${found_non_flags}"
+    arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]="${shift_amount}"
+
+    mycmd.debug "Parsed arguments:"
+    mycmd.debug "- Full Path found:     ${arguments_ref["${_MYCMD_COMMAND_FULL_PATH}"]}"
+    mycmd.debug "- Relative Path found: ${arguments_ref["${_MYCMD_COMMAND_RELATIVE_PATH}"]}"
+    mycmd.debug "- Args shift count:    ${arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
+    mycmd.debug "- Remaining arguments: ${*}"
+    mycmd.debug "- Found help:          ${arguments_ref["${_MYCMD_ARGS_FOUND_HELP}"]}"
+    mycmd.debug "- Found version:       ${arguments_ref["${_MYCMD_ARGS_FOUND_VERSION}"]}"
+    mycmd.debug "- Found Zsh Complete:  ${arguments_ref["${_MYCMD_ARGS_FOUND_ZSH_COMPLETE}"]}"
+    mycmd.debug "- Found non-flags:     ${arguments_ref["${_MYCMD_ARGS_FOUND_NON_FLAGS}"]}"
 }
 
 function mycmd_launcher.main() {
@@ -136,20 +365,45 @@ function mycmd_launcher.main() {
     mycmd.run_startup_deferreds
 
     if (($# == 0)); then
-        mycmd_launcher.usage
+        mycmd_launcher.launcher_usage
         exit 0
     fi
 
     declare -A launcher_dispatch=()
-
     mycmd_launcher.parse_command_line launcher_dispatch "${@}"
 
-    mycmd_launcher.clean_environment
+    local -r full_path="${launcher_dispatch["${_MYCMD_COMMAND_FULL_PATH}"]}"
+    local -r relative_path="${launcher_dispatch["${_MYCMD_COMMAND_RELATIVE_PATH}"]}"
+    local -ir shift_amount="${launcher_dispatch["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
+    shift "${shift_amount}"
 
-    if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
-        mycmd.execute_command "${@}"
+    local -r found_non_flags="${launcher_dispatch["${_MYCMD_ARGS_FOUND_NON_FLAGS}"]}"
+
+    if [[ "${launcher_dispatch["${_MYCMD_ARGS_FOUND_HELP}"]}" = "true" ]]; then
+        mycmd_launcher.help "${found_non_flags}" "${full_path}"
+    elif [[ "${launcher_dispatch["${_MYCMD_ARGS_FOUND_VERSION}"]}" = "true" ]]; then
+        mycmd_launcher.version "${found_non_flags}" "${full_path}"
+    elif [[ "${launcher_dispatch["${_MYCMD_ARGS_FOUND_ZSH_COMPLETE}"]}" = "true" ]]; then
+        mycmd_launcher.zsh_complete "${full_path}"
+    fi
+
+    if [[ -d "${full_path}" ]]; then
+        # If we only resolved to a directory and there are still arguments left,
+        # we are trying to dispatch to a non-existant command.
+        if (($# > 0)); then
+            local command_group_name
+            command_group_name="$(mycmd.command_group_name_from_path "${relative_path}")"
+            readonly command_group_name
+
+            mycmd.err_exit 1 "MyCmd command '${1}' not found in command group '${command_group_name}'."
+        elif [[ "${full_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+            mycmd_launcher.launcher_help
+        else
+            mycmd_launcher.command_group_help "${full_path}" "${relative_path}"
+        fi
     else
-        mycmd.execute_command "${MYCMD_SYSTEM_BASE_DIR}/logging/log-both" "${@}"
+        mycmd_launcher.clean_environment
+        mycmd.execute_command "${full_path}" "${@}"
     fi
 }
 
