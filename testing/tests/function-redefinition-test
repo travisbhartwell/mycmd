@@ -25,9 +25,24 @@ function test_function_redefinition_fails() {
     local -r fn_string='function mycmd.is_linux() { echo "Hello"; }'
 
     local ret_val=0
-    eval "${fn_string}" &> /dev/null || ret_val=$?
+    eval "${fn_string}" &>/dev/null || ret_val=$?
 
     assertEquals 'Attempted redefinition of MyCmd core function fails' 1 "${ret_val}"
+}
+
+function test_log_unproected_functions() {
+    local -a functions_before=()
+    mycmd.capture_unprotected_functions functions_before
+
+    assertNotContains 'new_one not yet in functions_before' "${functions_before[*]}" "new_one"
+
+    local -r fn_string='function new_one() { echo "Hello"; }'
+    eval "${fn_string}"
+
+    local -a functions_after=()
+    mycmd.capture_unprotected_functions functions_after
+
+    assertContains 'new_one in functions_after' "${functions_after[*]}" "new_one"
 }
 
 function oneTimeSetUp() {

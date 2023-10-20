@@ -511,7 +511,7 @@ function mycmd.init_bin() {
     esac
 }
 
-function mycmd.bin_execute {
+function mycmd.bin_execute() {
     local -r command="${1}"
     shift
 
@@ -574,6 +574,16 @@ function mycmd.running_command_name() {
 
     basename "${MYCMD_COMMAND_ABSPATH}"
     return 0
+}
+
+# mycmd.command_group_name_from_path
+#   Returns the command group name -- basically the space separated hierarchy -- given a command group relative path..
+function mycmd.command_group_name_from_path() {
+    # TODO Convert to relative path
+    local -r command_group_relative_path="${1}"
+
+    # Simply replace all / with spaces
+    echo "${command_group_relative_path//\// }"
 }
 
 # mycmd.source_lib_by_path_if_found

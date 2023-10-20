@@ -11,6 +11,7 @@ if ! PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); t
     echo >&2 "Error fetching project directory."
     exit 1
 fi
+readonly PROJECT_DIR
 
 readonly BIN_DIR="${PROJECT_DIR}/bin"
 readonly TESTING_BASE="${PROJECT_DIR}/testing"
@@ -113,6 +114,12 @@ function execute-all-tests() {
     summarize_test_results results
 }
 
+function list-mycmd-lib-functions() {
+    local -r mycmd_lib="${SYSTEM_BASE}/mycmd-lib"
+
+    grep "^function" "${mycmd_lib}" | sed -n 's/function \(.*\)() {/\1/p'
+}
+
 function format() {
     if (("${#ALL_FILES[@]}" == 0)); then
         echo >&2 "No files defined, skipping format."
@@ -137,7 +144,7 @@ function lint() {
 
     cd "${PROJECT_DIR}"
     echo "Running ShellCheck:"
-    shellcheck --check-sourced "${ALL_FILES[@]}" && echo "Success"
+    shellcheck --check-sourced "${ALL_FILES[@]}"
 }
 
 function _update_vendored_file_for_vendor_base_dir() {
@@ -278,20 +285,54 @@ function mycmd-no-env() {
         "${BIN_DIR}"/mycmd "${@}"
 }
 
+function list-tasks() {
+    declare -F | grep -v \
+        -e "^declare -f call_task" \
+        -e "^declare -f function_exists" \
+        -e "^declare -f _" \
+        | sed 's/declare -f //' \
+        | sort
+}
+
 function function_exists() {
     declare -F "$1" >/dev/null
 }
 
-function call_if_function_exists() {
+function call_tasks() {
+    for task in "${@}"; do
+        local return_code=0
+
+        call_task "${task}" || return_code=$?
+
+        if ((return_code != 0)); then
+            return "${return_code}"
+        fi
+    done
+}
+
+function call_task() {
     local -r fn=$1
     shift
 
+    cd "${PROJECT_DIR}"
+
+    local return_code=0
     if function_exists "${fn}"; then
-        echo >&2 "Executing task: ${fn}..."
-        "${fn}" "$@"
+        echo "➡️ Executing task '${fn}'..."
+
+        "${fn}" "$@" || return_code=$?
     else
         echo >&2 "Unknown task: '${fn}'."
+        return_code=1
     fi
+
+    if ((return_code == 0)); then
+        echo "✅ Task '${fn}' succeeded."
+    else
+        echo "❌ Task '${fn}' failed."
+    fi
+
+    return "${return_code}"
 }
 
 if (($# == 0)); then
@@ -300,4 +341,4 @@ if (($# == 0)); then
     exit 1
 fi
 
-call_if_function_exists "${@}"
+call_task "${@}"
