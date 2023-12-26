@@ -26,6 +26,16 @@ readonly _MYCMD_LIB=1
 
 readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 
+[[ -n "${_MYCMD_TRACE_LOG_FILE-}" ]] && {
+    # PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[0]:+${FUNCNAME[0]}()}]:'
+    PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[0]:+${FUNCNAME[0]}()}]:[${FUNCNAME[*]}]:'
+    export PS4
+
+    exec {_MYCMD_TRACE_LOG_FD}>>"${_MYCMD_TRACE_LOG_FILE}"
+    BASH_XTRACEFD="${_MYCMD_TRACE_LOG_FD}"
+    set -o xtrace
+}
+
 # _MYCMD_EARLY_SHELL_TRACE and _MYCMD_EARLY_SHELL_VERBOSE are mainly for the ease of debugging
 # MyCmd itself; since the MyCmd launcher is also in shell and sources mycmd-lib, if we check
 # the user facing variables MYCMD_SHELL_TRACE and MYCMD_SHELL_VERBOSE and set the options here
@@ -95,15 +105,37 @@ exec {_MYCMD_OUTPUT_FD}>&1
 readonly _MYCMD_OUTPUT_FD
 export _MYCMD_OUTPUT_FD
 
-# mycmd.output
-#   Convenience for runtime output to stdout. Provided for symmetry in output
-#   functions.
-function mycmd._output() {
-    local -r output_fd="${1}"
-    shift
+if [[ -v _MYCMD_TESTING ]]; then
+    declare -ax _MYCMD_OUTPUT_ARRAY=()
 
-    printf '%b\n' "$*" >&"${output_fd}"
-}
+    function mycmd._reset_output() {
+        _MYCMD_OUTPUT_ARRAY=()
+    }
+
+    # mycmd.output
+    #   Convenience for runtime output to stdout. Provided for symmetry in output
+    #   functions.
+    function mycmd._output() {
+        local -r output_fd="${1}"
+        shift
+
+        local output
+        printf -v output '%b\n' "$*"
+        _MYCMD_OUTPUT_ARRAY+=("${output}")
+
+        echo -e "${output}" >&"${output_fd}"
+    }
+else
+    # mycmd.output
+    #   Convenience for runtime output to stdout. Provided for symmetry in output
+    #   functions.
+    function mycmd._output() {
+        local -r output_fd="${1}"
+        shift
+
+        printf '%b\n' "$*" >&"${output_fd}"
+    }
+fi
 
 # mycmd.output
 #   Convenience for runtime output to stdout. Provided for symmetry in output
@@ -161,27 +193,38 @@ function mycmd.err_exit() {
     local -r exit_code=$1
     shift
 
-    mycmd.log "$*"
+    mycmd.log "${*}"
     exit "${exit_code}"
 }
 
 # ------------------------------------------------------------------------------
 # Validate environment
-function mycmd._validate_environment() {
-    local mycmd_var
+if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" ]]; then
+    mycmd.err_exit 1 "Required environment variable MYCMD_SYSTEM_BASE_DIR is not set."
+fi
 
-    for mycmd_var in "MYCMD_SYSTEM_BASE_DIR" "MYCMD_USER_BASE_DIR" "MYCMD_VENDOR_DIR"; do
-        if [[ -z "${!mycmd_var-}" ]]; then
-            mycmd.err_exit 1 "Required environment variable ${mycmd_var} is not set."
-        fi
+if [[ ! -d "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+    mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_SYSTEM_BASE_DIR, '${MYCMD_SYSTEM_BASE_DIR}' does not exist."
+fi
+mycmd.trace "MYCMD_SYSTEM_BASE_DIR: ${MYCMD_SYSTEM_BASE_DIR}"
 
-        if [[ ! -d "${!mycmd_var-}" ]]; then
-            mycmd.err_exit 1 "Directory in environment variable ${mycmd_var}, '${!mycmd_var-}' does not exist."
-        fi
-    done
-}
+if [[ -z "${MYCMD_USER_BASE_DIR-}" ]]; then
+    mycmd.err_exit 1 "Required environment variable MYCMD_USER_BASE_DIR is not set."
+fi
 
-mycmd._validate_environment
+if [[ ! -d "${MYCMD_USER_BASE_DIR}" ]]; then
+    mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_USER_BASE_DIR, '${MYCMD_USER_BASE_DIR}' does not exist."
+fi
+mycmd.trace "MYCMD_USER_BASE_DIR:   ${MYCMD_USER_BASE_DIR}"
+
+if [[ -z "${MYCMD_VENDOR_DIR-}" ]]; then
+    mycmd.err_exit 1 "Required environment variable MYCMD_VENDOR_DIR is not set."
+fi
+
+if [[ ! -d "${MYCMD_VENDOR_DIR}" ]]; then
+    mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_VENDOR_DIR, '${MYCMD_VENDOR_DIR}' does not exist."
+fi
+mycmd.trace "MYCMD_VENDOR_DIR:      ${MYCMD_VENDOR_DIR}"
 
 # ------------------------------------------------------------------------------
 # Vendor Library Support
@@ -234,7 +277,7 @@ function mycmd.load_vendor_library() {
 # ------------------------------------------------------------------------------
 # Event Handling Support
 if ! mycmd.load_vendor_library "bashup.events"; then
-    mycmd.err_exit 1 "Required library missing."
+    mycmd.err_exit 1 "Required vendor library 'bashup.events' missing."
 fi
 
 # mycmd.event
@@ -251,7 +294,7 @@ function mycmd.event() {
 
 # mycmd._dispatch_with_calling_file
 #   Higher order function that passes the full pathname of the shell file that called the
-#   function that called  mycmd._dispatch_with_calling_file as the first parameter of the
+#   function that called mycmd._dispatch_with_calling_file as the first parameter of the
 #   function.
 function mycmd._dispatch_with_calling_file() {
     local -r fn=$1
@@ -417,7 +460,7 @@ function mycmd.is_linux() {
 #
 #     Keys:  command names
 #     Value: the path of the given command
-declare -Ax MYCMD_BIN
+declare -gAx MYCMD_BIN
 
 # mycmd._locate_bin
 #   If already defined in MYCMD_BIN, return that. Otherwise, attempt to find the given command on the PATH.
@@ -436,31 +479,52 @@ function mycmd._locate_bin() {
 }
 
 function mycmd.init_bin_homebrew() {
-    local -r command=$1
-    local -r exe_name=$2
-    local -r long_name=$3
-    local -r homebrew_package=$4
+    local -r exit_on_failure=$1
+    local -r command=$2
+    local -r exe_name=$3
+    local -r long_name=$4
+    local -r homebrew_package=$5
 
     local exe_path
     if exe_path=$(mycmd._locate_bin "${exe_name}"); then
         MYCMD_BIN[${command}]="${exe_path}"
-    else
+        return 0
+    elif [[ "${exit_on_failure}" = "true" ]]; then
         mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
+    else
+        return 1
     fi
 }
 
-# mycmd.init_bin
-#  If not already set, attempt to set MYCMD_BIN for the given command name. Will
-#  first call mycmd_local.init_bin, if the user has defined mycmd-local-lib, and
-#  use the value from there as an override.
+# mycmd.init_bin_no_exit
+#  If not already set, attempt to set MYCMD_BIN for the given command name.
 #
-#  Common commands like sed, which require a different name if using GNU set installed
-#  from HomeBrew on Mac OS, are included here.
+#  This version just returns 1 if the command isn't found, intending for the use case
+#  of graceful fallbacks to Bash builtins or other implementations where optional dependencies
+#  are missing.
+function mycmd.init_bin_no_exit() {
+    mycmd._init_bin false "${@}"
+}
+
+# mycmd.init_bin
+#  If not already set, attempt to set MYCMD_BIN for the given command name.
 #
 #  It is intended that when this function is callled, the command is a required
 #  dependency and thus this will exit with an error if the command cannot be found.
 function mycmd.init_bin() {
-    local -r command=$1
+    mycmd._init_bin true "${@}"
+}
+
+# mycmd._init_bin
+#  Common functionality for mycmd.init_bin and mycmd.init_bin_no_exit. Will
+#  first call mycmd_local.init_bin, if the user has defined mycmd-local-lib,
+#  and use the value from there as an override.
+#
+#  Common commands like sed, which require a different name if using GNU set installed
+#  from HomeBrew on Mac OS, are included here.
+function mycmd._init_bin() {
+    local -r exit_on_failure=$1
+    local -r command=$2
 
     mycmd.call_if_function_exists mycmd_local.init_bin "$@"
 
@@ -469,26 +533,28 @@ function mycmd.init_bin() {
         return 0
     }
 
+    local found_command=0
+
     local command_path
 
     case "${command}+${_MYCMD_OS}" in
         "awk+Darwin")
-            mycmd.init_bin_homebrew awk gawk "GNU awk" gawk
+            mycmd.init_bin_homebrew "${exit_on_failure}" awk gawk "GNU awk" gawk || found_command=$?
             ;;
         "find+Darwin")
-            mycmd.init_bin_homebrew find gfind "GNU find" findutils
+            mycmd.init_bin_homebrew "${exit_on_failure}" find gfind "GNU find" findutils || found_command=$?
             ;;
         "realpath+Darwin")
-            mycmd.init_bin_homebrew realpath grealpath "GNU realpath" coreutils
+            mycmd.init_bin_homebrew "${exit_on_failure}" realpath grealpath "GNU realpath" coreutils || found_command=$?
             ;;
         "sed+Darwin")
-            mycmd.init_bin_homebrew sed gsed "GNU Sed" "gnu-sed"
+            mycmd.init_bin_homebrew "${exit_on_failure}" sed gsed "GNU Sed" "gnu-sed" || found_command=$?
             ;;
         "stat+Darwin")
-            mycmd.init_bin_homebrew sed gstat "GNU Stat" coreutils
+            mycmd.init_bin_homebrew "${exit_on_failure}" sed gstat "GNU Stat" coreutils || found_command=$?
             ;;
         "wc+Darwin")
-            mycmd.init_bin_homebrew wc gwc "GNU wc" coreutils
+            mycmd.init_bin_homebrew "${exit_on_failure}" wc gwc "GNU wc" coreutils || found_command=$?
             ;;
         "sha1sum+Darwin")
             local shasum_path
@@ -497,18 +563,27 @@ function mycmd.init_bin() {
             if shasum_path=$(mycmd._locate_bin shasum); then
                 MYCMD_BIN[${command}]="${shasum_path}"
             else
-                mycmd.err_exit 1 "Unable to locate shasum"
+                found_command=1
             fi
             ;;
         *)
             if command_path=$(mycmd._locate_bin "${command}"); then
                 MYCMD_BIN[${command}]="${command_path}"
             else
-                mycmd.err_exit 1 "Unable to locate path for '${command}'."
+                found_command=1
             fi
             ;;
-
     esac
+
+    if (( found_command == 0 )); then
+        return 0
+    fi
+
+    if [[ "${exit_on_failure}" = "true" ]]; then
+        mycmd.err_exit 1 "Unable to locate ${command}."
+    else
+        return 1
+    fi
 }
 
 function mycmd.bin_execute() {
@@ -527,6 +602,11 @@ function mycmd.bin_execute() {
 
 # -------------------------------------------------------------------------------k
 # MyCmd Command and Command Group Execution and Loading Support
+
+# First, helpful constants used in output
+readonly _MYCMD_DESC="MyCmd"
+readonly _MYCMD_COMMAND_GROUP_DESC="${_MYCMD_DESC} Command Group"
+readonly _MYCMD_COMMAND_DESC="${_MYCMD_DESC} Command"
 
 # mycmd.execute_command
 #  Execute a MyCmd command, given the full path to the command.
@@ -576,15 +656,37 @@ function mycmd.running_command_name() {
     return 0
 }
 
-# mycmd.command_group_name_from_path
-#   Returns the command group name -- basically the space separated hierarchy -- given a command group relative path..
-function mycmd.command_group_name_from_path() {
-    # TODO Convert to relative path
-    local -r command_group_relative_path="${1}"
+# mycmd.command_or_group_parts_from_path
+#   Returns the command group name -- basically the space separated hierarchy -- given a command or command group relative path.
+function mycmd.command_or_group_parts_from_path() {
+    local -r command_or_group_path="${1}"
+    local -r output_prefix="${2}"
 
-    # Simply replace all / with spaces
-    echo "${command_group_relative_path//\// }"
+    if [[ "${command_or_group_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+        mycmd.output "${_MYCMD_DESC}"
+    fi
+
+    mycmd.trace "Calling with '${command_or_group_path}'."
+    local relative_path
+    if ! relative_path="$(mycmd.path_relative_to_mycmd_base "${command_or_group_path}")"; then
+        mycmd.log "Error fetching relative_path for ${command_or_group_path}."
+        return 1
+    fi
+    readonly relative_path
+
+    local parts
+    # shellcheck disable=SC2162
+    IFS="/" read -a parts <<<"${relative_path}"
+    readonly parts
+
+    echo "${output_prefix} ${parts[*]}"
 }
+
+# function mycmd.is_path_a_command_group() {
+# }
+
+# function mycmd.is_path_a_command() {
+# }
 
 # mycmd.source_lib_by_path_if_found
 #   Source the library if it exists.

@@ -1,8 +1,9 @@
 # This is where mycmd-lib is located
 source-path=./mycmd
+source-path=./testing/vendor/
 
 # Allow opening any 'source'd file, even if not specified as input
-external-sources=true
+external-sources=false
 
 # Enable all optional checks
 enable=all
@@ -10,3 +11,4 @@ enable=all
 # Except for the ones we don't like
 # https://www.shellcheck.net/wiki/SC2310: I explicitly use this pattern to control error flow of expected errors and rely on set -o errexit for unexpected errors
 disable=SC2310
+disable=SC1091
