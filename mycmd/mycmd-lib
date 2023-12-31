@@ -615,6 +615,17 @@ readonly _MYCMD_DESC="MyCmd"
 readonly _MYCMD_COMMAND_GROUP_DESC="${_MYCMD_DESC} Command Group"
 readonly _MYCMD_COMMAND_DESC="${_MYCMD_DESC} Command"
 
+function mycmd.source_command_for_help() {
+    declare -gx MYCMD_COMMAND_ABSPATH="${1}"
+    shift
+
+    declare -gx _MYCMD_SOURCING_COMMAND_FOR_HELP=1
+    if ! mycmd.source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}" "${@}"; then
+        mycmd.err_exit 1 "MyCmd command '${MYCMD_COMMAND_ABSPATH}' not found."
+    fi
+    unset _MYCMD_SOURCING_COMMAND_FOR_HELP
+}
+
 # mycmd.execute_command
 #  Execute a MyCmd command, given the full path to the command.
 function mycmd.execute_command() {
