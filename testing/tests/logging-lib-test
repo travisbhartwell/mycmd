@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test directory."
+    exit 1
+fi
+
+if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd lib directory."
+    exit 1
+fi
+
+function test_mycmd_lib_is_loaded() {
+    assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
+}
+
+function test_logging_lib_is_loaded() {
+    assertTrue 'Logging Lib is loaded' '[ -v _MYCMD_LOGGING_LIB ]'
+}
+
+# shellcheck disable=SC2016
+function test_log_rotation() {
+    # shellcheck disable=SC2154
+    local -r test_directory="${SHUNIT_TMPDIR}/test-log-rotation"
+    mkdir -p "${test_directory}"
+
+    echo "log-file" >"${test_directory}/log-file"
+    local -i index
+    for ((index = 1; index < 4; index++)); do
+        echo "log-file.${index}" >"${test_directory}/log-file.${index}"
+    done
+
+    logging.rotate_log_files_if_needed "${test_directory}" "log-file" 4 3
+
+    assertTrue 'log-file.1 exists' '[[ -e "${test_directory}/log-file.1" ]]'
+    assertEquals 'log-file.1 has expected content' 'log-file' "$(cat "${test_directory}"/log-file.1 || true)"
+    assertTrue 'log-file.2 exists' '[[ -e "${test_directory}/log-file.2" ]]'
+    assertEquals 'log-file.2 has expected content' 'log-file.1' "$(cat "${test_directory}"/log-file.2 || true)"
+    assertTrue 'log-file.3 exists' '[[ -e "${test_directory}/log-file.3" ]]'
+    assertEquals 'log-file.3 has expected content' 'log-file.2' "$(cat "${test_directory}"/log-file.3 || true)"
+    assertTrue 'log-file.4.gz exists' '[[ -e "${test_directory}/log-file.4.gz" ]]'
+    assertEquals 'log-file.4.gz has expected content' 'log-file.3' "$(gzcat "${test_directory}"/log-file.4.gz || true)"
+
+    echo "another-log-file" >"${test_directory}/log-file"
+
+    logging.rotate_log_files_if_needed "${test_directory}" "log-file" 4 3
+
+    assertTrue 'log-file.1 exists' '[[ -e "${test_directory}/log-file.1" ]]'
+    assertEquals 'log-file.1 has expected content' 'another-log-file' "$(cat "${test_directory}"/log-file.1 || true)"
+    assertTrue 'log-file.2 exists' '[[ -e "${test_directory}/log-file.2" ]]'
+    assertEquals 'log-file.2 has expected content' 'log-file' "$(cat "${test_directory}"/log-file.2 || true)"
+    assertTrue 'log-file.3 exists' '[[ -e "${test_directory}/log-file.3" ]]'
+    assertEquals 'log-file.3 has expected content' 'log-file.1' "$(cat "${test_directory}"/log-file.3 || true)"
+    assertTrue 'log-file.4.gz exists' '[[ -e "${test_directory}/log-file.4.gz" ]]'
+    assertEquals 'log-file.4.gz has expected content' 'log-file.2' "$(gzcat "${test_directory}"/log-file.4.gz || true)"
+    assertTrue \
+        'log-file.5 does not exist' \
+        '[[ ! -e "${test_directory}/log-file.5" ]]'
+    assertTrue \
+        'log-file.5.gz does not exist' \
+        '[[ ! -e "${test_directory}/log-file.5.gz" ]]'
+
+}
+
+function oneTimeSetUp() {
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+    mycmd.source_mycmd_lib "logging"
+}
+
+# shellcheck source=../vendor/shunit2
+. "${TEST_VENDOR_DIRECTORY}/shunit2"
