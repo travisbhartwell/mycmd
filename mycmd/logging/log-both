@@ -221,7 +221,7 @@ function mycmd.main() {
     local exit_code=0
 
     mycmd.output "$(mycmd.ansi bold || true)Logging output to file: $(mycmd.ansi blue || true)${log_file_path}$(mycmd.ansi resetForeground || true)$(mycmd.ansi normal || true)"
-    logging.capture_and_display "${@}" || exit_code=$?
+    logging.rotate_then_capture_and_display "${log_file_path}" "${files_to_keep}" "${files_to_keep_uncompressed}" ${@} || exit_code=$?
 
     exit "${exit_code}"
 }
