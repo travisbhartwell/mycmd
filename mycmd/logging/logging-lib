@@ -127,7 +127,7 @@ function logging.rotate_then_capture_and_display() {
 }
 
 readonly _LOGGING_FILES_TO_KEEP_DEFAULT=10
-readonly _LOGGING_FILES_TO_KEEP_COMPRESSED_DEFAULT=3
+readonly _LOGGING_FILES_TO_KEEP_UNCOMPRESSED_DEFAULT=3
 
 function logging.rotate_with_defaults_then_capture_and_display() {
     local -r log_file_path="${1}"
@@ -145,7 +145,7 @@ function logging.rotate_with_defaults_then_capture_and_display() {
         "${log_dir}" \
         "${log_file_name}" \
         "${_LOGGING_FILES_TO_KEEP_DEFAULT}" \
-        "${_LOGGING_FILES_TO_KEEP_COMPRESSED_DEFAULT}"; then
+        "${_LOGGING_FILES_TO_KEEP_UNCOMPRESSED_DEFAULT}"; then
         mycmd.log "Error rotating existing log files."
         return 1
     fi
