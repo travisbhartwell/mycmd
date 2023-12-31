@@ -155,6 +155,7 @@ function parse_command_line() {
                 ;;
 
             "--")
+                ((shift_amount += 1))
                 arguments_ref["${_SHIFT_AMOUNT}"]="${shift_amount}"
                 break
                 ;;
@@ -202,7 +203,7 @@ function mycmd.main() {
     fi
 
     if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
-        mycmd.usage
+        mycmd.help
         exit 0
     fi
 
