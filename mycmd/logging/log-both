@@ -187,7 +187,7 @@ function parse_command_line() {
             else
                 mycmd.trace "${argument} is not set."
             fi
-        else [[ -v errors["${argument}"] ]]; then
+        elif [[ -v errors["${argument}"] ]]; then
             mycmd.trace "Error found processing argument ${argument}."
         fi
     done
