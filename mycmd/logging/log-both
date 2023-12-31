@@ -78,13 +78,13 @@ function parse_command_line() {
 
     while (($# > 0)); do
         case "${1}" in
-            "--${_HELP}" | "-h" | "--help-me")
+            "--${_HELP}" | "-h")
                 arguments_ref["${_HELP}"]=true
                 # Ignore other arguments
                 return 0
                 ;;
 
-            "--${_VERSION}" | "-v" | "--version-me")
+            "--${_VERSION}" | "-v")
                 arguments_ref["${_VERSION}"]=true
                 # Ignore other arguments
                 return 0

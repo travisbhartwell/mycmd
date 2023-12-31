@@ -165,13 +165,15 @@ function mycmd_launcher.command_group_help() {
 function mycmd_launcher.command_version() {
     local -r command_path="${1}"
 
-    mycmd.output "Command '${command_path}' Version."
+    mycmd.source_command_for_help "${command_path}"
+    mycmd.command_version
 }
 
 function mycmd_launcher.command_help() {
     local -r command_path="${1}"
 
-    mycmd.output "Help for command '${command_path}'."
+    mycmd.source_command_for_help "${command_path}"
+    mycmd.command_help
 }
 
 function mycmd_launcher.help() {
