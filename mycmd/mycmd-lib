@@ -297,13 +297,20 @@ function mycmd.event() {
 #   function that called mycmd._dispatch_with_calling_file as the first parameter of the
 #   function.
 function mycmd._dispatch_with_calling_file() {
-    local -r fn=$1
+    mycmd._dispatch_with_calling_file_up_frames 1 "${@}"
+}
+
+function mycmd._dispatch_with_calling_file_up_frames() {
+    local -r frames="${1}"
+    shift
+    local -r fn="${1}"
     shift
 
     local calling_file
     # stack frame 0 - who called me
     # stack frame 1 - who called that
-    read -r _ _ calling_file <<<"$(caller 1 || true)"
+    # etc
+    read -r _ _ calling_file <<<"$(caller "${frames}" || true)"
     # TODO: Do I need to get an abspath?
     readonly calling_file
     mycmd.trace "Dispatching with calling file '${calling_file}'"
@@ -663,7 +670,7 @@ function mycmd.command_or_group_parts_from_path() {
     local -r output_prefix="${2}"
 
     if [[ "${command_or_group_path}" = "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
-        mycmd.output "${_MYCMD_DESC}"
+        echo "${_MYCMD_DESC}"
     fi
 
     mycmd.trace "Calling with '${command_or_group_path}'."
@@ -680,6 +687,20 @@ function mycmd.command_or_group_parts_from_path() {
     readonly parts
 
     echo "${output_prefix} ${parts[*]}"
+}
+
+function mycmd.running_command_parts_from_path() {
+    if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
+        mycmd.log "MYCMD_COMMAND_ABSPATH not yet set; perhaps not yet executing a MyCmd Command"
+        return 1
+    fi
+
+    if output="$(mycmd.command_or_group_parts_from_path "${MYCMD_COMMAND_ABSPATH}" "mycmd")"; then
+        echo "${output}"
+        return 0
+    else
+        return 1
+    fi
 }
 
 # function mycmd.is_path_a_command_group() {
@@ -971,19 +992,40 @@ declare -Agx _MYCMD_COMMAND_GROUP_VERSIONS=()
 declare -Agx _MYCMD_COMMAND_GROUP_SHORT_DESCS=()
 declare -Agx _MYCMD_COMMAND_GROUP_LONG_DESCS=()
 declare -Agx _MYCMD_COMMAND_VERSIONS=()
-declare -Agx _MYCMD_COMMAND_SHORT_DESC=()
+declare -Agx _MYCMD_COMMAND_SHORT_DESCS=()
 declare -Agx _MYCMD_COMMAND_HELPS=()
 declare -Agx _MYCMD_COMMAND_HELP_FNS=()
 
 function mycmd._register_value_for_calling_file() {
     if (($# < 3)); then
-        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}" "${@}"
+        mycmd._dispatch_with_calling_file_up_frames 2 "${FUNCNAME[0]}" "${@}"
         return $?
     fi
 
     local -r calling_file="${1}"
     local -n value_array_ref="${2}"
     local -r value="${3}"
+
+    local command_or_group_path
+    if ! command_or_group_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
+        mycmd.debug "Error getting command or command group path for calling file ${calling_file}."
+        return 1
+    fi
+    readonly command_or_group_path
+
+    mycmd.trace "Setting value in ${!value_array_ref} for calling file '${calling_file}' to '${value}'."
+    # shellcheck disable=SC2034
+    value_array_ref["${command_or_group_path}"]="${value}"
+}
+
+function mycmd._get_value_for_calling_file() {
+    if (($# < 2)); then
+        mycmd._dispatch_with_calling_file_up_frames 2 "${FUNCNAME[0]}" "${@}"
+        return $?
+    fi
+
+    local -r calling_file="${1}"
+    local -n get_value_array_ref="${2}"
 
     local command_group_path
     if ! command_group_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
@@ -992,8 +1034,42 @@ function mycmd._register_value_for_calling_file() {
     fi
     readonly command_group_path
 
-    # shellcheck disable=SC2034
-    value_array_ref["${command_group_path}"]="${value}"
+    if [[ -v get_value_array_ref["${command_group_path}"] ]]; then
+        echo "${get_value_array_ref["${command_group_path}"]}"
+        return 0
+    else
+        mycmd.debug "Entry not found in ${!get_value_array_ref} for ${calling_file}."
+        return 1
+    fi
+}
+
+function mycmd._get_value_for_calling_file_with_default() {
+    if (($# < 3)); then
+        mycmd._dispatch_with_calling_file_up_frames 2 "${FUNCNAME[0]}" "${@}"
+        return $?
+    fi
+
+    mycmd.debug "Called with '${*}'"
+
+    local -r calling_file="${1}"
+    local -n get_value_array_ref="${2}"
+    local -r default="${3}"
+
+    local command_group_path
+    if ! command_group_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
+        mycmd.debug "Error getting command group path for calling file ${calling_file}."
+        return 1
+    fi
+    readonly command_group_path
+
+    if [[ -v get_value_array_ref["${command_group_path}"] ]]; then
+        echo "${get_value_array_ref["${command_group_path}"]}"
+    else
+        mycmd.debug "Entry not found in ${!get_value_array_ref} for ${calling_file}."
+        echo "${default}"
+    fi
+
+    return 0
 }
 
 function mycmd.register_command_group_version() {
@@ -1015,6 +1091,99 @@ function mycmd.register_command_group_long_desc() {
     mycmd._register_value_for_calling_file \
         _MYCMD_COMMAND_GROUP_LONG_DESCS \
         "${long_desc}"
+}
+
+function mycmd.register_command_version() {
+    local -r version="${1}"
+    mycmd._register_value_for_calling_file \
+        _MYCMD_COMMAND_VERSIONS \
+        "${version}"
+}
+
+function mycmd.register_command_short_desc() {
+    local -r short_desc="${1}"
+    mycmd._register_value_for_calling_file \
+        _MYCMD_COMMAND_SHORT_DESCS \
+        "${short_desc}"
+}
+
+function mycmd.register_command_help() {
+    local -r help="${1}"
+    mycmd._register_value_for_calling_file \
+        _MYCMD_COMMAND_HELPS \
+        "${help}"
+}
+
+function mycmd.add_command_help_line() {
+    local -r help_line="${1}"
+
+    local existing_help
+    if ! existing_help="$(mycmd._get_value_for_calling_file _MYCMD_COMMAND_HELPS)"; then
+        existing_help=""
+    fi
+    readonly existing_help
+
+    local -r new_help="${existing_help-}${existing_help:+\n}${help_line}"
+
+    mycmd._register_value_for_calling_file \
+        _MYCMD_COMMAND_HELPS \
+        "${new_help}"
+}
+
+function mycmd.command_version() {
+    if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
+        mycmd.log "MYCMD_COMMAND_ABSPATH not yet set; perhaps not yet executing a MyCmd Command"
+        return 1
+    fi
+
+    local version
+    if ! version="$(mycmd._get_value_for_calling_file_with_default "${MYCMD_COMMAND_ABSPATH}" _MYCMD_COMMAND_VERSIONS "Unknown")"; then
+        mycmd.log "Error getting version for command."
+        return 1
+    fi
+    readonly version
+
+    local command_path
+    if ! command_path="$(mycmd.running_command_parts_from_path)"; then
+        mycmd.log "Error getting running command parts."
+        return 1
+    fi
+    readonly command_path
+
+    mycmd.output "${command_path} version ${version}"
+    return 0
+}
+
+function mycmd.command_help() {
+    if [[ ! -v MYCMD_COMMAND_ABSPATH ]]; then
+        mycmd.log "MYCMD_COMMAND_ABSPATH not yet set; perhaps not yet executing a MyCmd Command"
+        return 1
+    fi
+
+    local command_path
+    if ! command_path="$(mycmd.running_command_parts_from_path)"; then
+        mycmd.log "Error getting running command parts."
+        return 1
+    fi
+    readonly command_path
+
+    local short_desc
+    if ! short_desc="$(mycmd._get_value_for_calling_file_with_default "${MYCMD_COMMAND_ABSPATH}" _MYCMD_COMMAND_SHORT_DESCS "${_MYCMD_COMMAND_DESC} ${command_path}")"; then
+        mycmd.log "Error getting short description for command."
+        return 1
+    fi
+    readonly short_desc
+
+    mycmd.output "${command_path}\n"
+    mycmd.output "${short_desc}\n"
+
+    local help
+    if help="$(mycmd._get_value_for_calling_file "${MYCMD_COMMAND_ABSPATH}" _MYCMD_COMMAND_HELPS)"; then
+        mycmd.output "${help}\n"
+    fi
+    readonly help
+
+    mycmd.command_version
 }
 
 # ------------------------------------------------------------------------------
