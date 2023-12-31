@@ -2,6 +2,26 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
+mycmd.register_command_version "0.1"
+mycmd.register_command_short_desc "Log stdout/stderr of specified command to a log file, with rotation."
+
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) \\\\"
+mycmd.add_command_help_line "      --log-file-path=<log file path> \\\\"
+mycmd.add_command_help_line "      [--log-files-to-keep=<number of log files to keep>] \\\\"
+mycmd.add_command_help_line "      [--log-files-to-keep-uncompressed=<number of log files to keep uncompressed>] \\\\"
+mycmd.add_command_help_line "      -- <command to run>"
+mycmd.add_command_help_line "\tlog file path                            - the path to the log file to save the output to"
+mycmd.add_command_help_line "\tnumber of log files to keep              - the number of old log files to keep when rotating"
+mycmd.add_command_help_line "\tnumber of log files to keep uncompressed - the number of old log files to keep uncompressed; will gzip kept files more than these"
+mycmd.add_command_help_line "\tcommand to run                           - the command to execute, must come after --\n"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
+mycmd.add_command_help_line "Options:"
+mycmd.add_command_help_line "\t-h | --help    - Show this help"
+mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+
 set -o nounset -o errexit -o errtrace -o pipefail
 
 mycmd.defer_at_startup mycmd.init_bin realpath
@@ -64,7 +84,7 @@ function parse_command_line() {
                 return 0
                 ;;
 
-            "--${_VERSION}" | "-v")
+            "--${_VERSION}" | "-v" | "--version-me")
                 arguments_ref["${_VERSION}"]=true
                 # Ignore other arguments
                 return 0
@@ -203,12 +223,12 @@ function mycmd.main() {
     fi
 
     if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
-        mycmd.help
+        mycmd.command_help
         exit 0
     fi
 
     if [[ "${parsed_arguments[${_VERSION}]}" = "true" ]]; then
-        mycmd.version
+        mycmd.command_version
         exit 0
     fi
 
