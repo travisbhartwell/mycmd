@@ -275,13 +275,13 @@ function mycmd_launcher.first_matching_relative_path_in_system_or_user_dir() {
     return $?
 }
 
-_MYCMD_LAUNCHER_SHIFT_AMOUNT="shift_amount"
-_MYCMD_ARGS_FOUND_HELP="found_help"
-_MYCMD_ARGS_FOUND_VERSION="found_version"
-_MYCMD_ARGS_FOUND_ZSH_COMPLETE="found_zsh_complete"
-_MYCMD_ARGS_FOUND_NON_FLAGS="found_non_flags"
-_MYCMD_COMMAND_FULL_PATH="command_full_path"
-_MYCMD_COMMAND_RELATIVE_PATH="command_relative_path"
+readonly _MYCMD_LAUNCHER_SHIFT_AMOUNT="shift_amount"
+readonly _MYCMD_ARGS_FOUND_HELP="found_help"
+readonly _MYCMD_ARGS_FOUND_VERSION="found_version"
+readonly _MYCMD_ARGS_FOUND_ZSH_COMPLETE="found_zsh_complete"
+readonly _MYCMD_ARGS_FOUND_NON_FLAGS="found_non_flags"
+readonly _MYCMD_COMMAND_FULL_PATH="command_full_path"
+readonly _MYCMD_COMMAND_RELATIVE_PATH="command_relative_path"
 
 function mycmd_launcher.parse_command_line() {
     local -n arguments_ref="${1}"
@@ -295,7 +295,7 @@ function mycmd_launcher.parse_command_line() {
     local found_zsh_complete=false
     local found_non_flags=false
 
-    if [[ "${1}" = /* ]] && [[ -e "${1}" ]]; then
+    if [[ "${1}" = /* ]] || [[ "${1}" = ./* ]] && [[ -e "${1}" ]]; then
         local full_path="${1}"
         arguments_ref["${_MYCMD_COMMAND_FULL_PATH}"]="${full_path}"
 

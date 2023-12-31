@@ -1,12 +1,226 @@
 #!/usr/bin/env -S mycmd
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
+mycmd.defer_at_startup mycmd.init_bin realpath
+function get_absolute_log_file_path() {
+    local -r log_file_name="${1}"
+    local log_file_full_path
+
+    if log_file_full_path="$(mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${log_file_name}" 2>/dev/null)"; then
+        local log_directory
+        if ! log_directory="$(dirname "${log_file_name}")"; then
+            mycmd.log "Errors getting directory for log file name."
+            return 1
+        fi
+        readonly log_directory
+
+        if [[ ! -d "${log_directory}" ]]; then
+            mycmd.trace "Creating missing log directory '${log_directory}'."
+
+            if ! mkdir -p "${log_directory}"; then
+                mycmd.log "Error creating log directory '${log_directory}'."
+                return 1
+            fi
+        fi
+
+        echo "${log_file_full_path}"
+        return 0
+    else
+        mycmd.log "Error getting absolute path for log file name: '${log_file_name}'."
+        return 1
+    fi
+}
+
+readonly _HELP='help'
+readonly _VERSION='version'
+readonly _LOG_FILE_PATH='log-file-path'
+readonly _FILES_TO_KEEP='log-files-to-keep'
+readonly _FILES_TO_KEEP_UNCOMPRESSED='log-files-to-keep-uncompressed'
+readonly _SHIFT_AMOUNT='shift_amount'
+
+function parse_command_line() {
+    local -n arguments_ref="${1}"
+    shift
+    local -A errors=()
+
+    local -i shift_amount=0
+
+    # Set defaults
+    arguments_ref["${_HELP}"]=false
+    arguments_ref["${_VERSION}"]=false
+    # shellcheck disable=SC2154
+    arguments_ref["${_FILES_TO_KEEP}"]="${_LOGGING_FILES_TO_KEEP_DEFAULT}"
+    # shellcheck disable=SC2154
+    arguments_ref["${_FILES_TO_KEEP_UNCOMPRESSED}"]="${_LOGGING_FILES_TO_KEEP_UNCOMPRESSED_DEFAULT}"
+
+    while (($# > 0)); do
+        case "${1}" in
+            "--${_HELP}" | "-h" | "--help-me")
+                arguments_ref["${_HELP}"]=true
+                # Ignore other arguments
+                return 0
+                ;;
+
+            "--${_VERSION}" | "-v")
+                arguments_ref["${_VERSION}"]=true
+                # Ignore other arguments
+                return 0
+                ;;
+
+            "--${_LOG_FILE_PATH}"*)
+                local log_file_path
+
+                if [[ "${1}" =~ --${_LOG_FILE_PATH}=.+ ]]; then
+                    log_file_path=${1##*"${_LOG_FILE_PATH}"=}
+                    ((shift_amount += 1))
+                    shift
+                elif [[ "${#}" -ge 2 && "${2:0:1}" != "-" ]]; then
+                    log_file_path="${2}"
+                    ((shift_amount += 2))
+                    shift 2
+                else
+                    mycmd.log "Missing argument for '--${_LOG_FILE_PATH}'"
+                    errors["${_LOG_FILE_PATH}"]=1
+                    ((shift_amount += 1))
+                    shift
+                fi
+
+                if [[ -v log_file_path ]]; then
+                    local log_file_full_path
+                    if log_file_full_path="$(get_absolute_log_file_path "${log_file_path}")"; then
+                        arguments_ref["${_LOG_FILE_PATH}"]="${log_file_full_path}"
+                    else
+                        errors["${_LOG_FILE_PATH}"]=1
+                    fi
+                fi
+                ;;
+
+            "--${_FILES_TO_KEEP}"*)
+                local files_to_keep
+
+                if [[ "${1}" =~ --${_FILES_TO_KEEP}=.+ ]]; then
+                    files_to_keep=${1##*"${_FILES_TO_KEEP}"=}
+                    ((shift_amount += 1))
+                    shift
+                elif [[ "${#}" -ge 2 && "${2:0:1}" != "-" ]]; then
+                    files_to_keep="${2}"
+                    ((shift_amount += 2))
+                    shift 2
+                else
+                    mycmd.log "Missing argument for '--${_FILES_TO_KEEP}'"
+                    errors[${_FILES_TO_KEEP}]=1
+                    ((shift_amount += 1))
+                    shift
+                fi
+
+                if [[ -v files_to_keep ]]; then
+                    if ! [[ ${files_to_keep} =~ ^[1-9][0-9]*$ ]]; then
+                        arguments_ref["${_FILES_TO_KEEP}"]="${files_to_keep}"
+                    else
+                        mycmd.log "Specified files to keep is not a number >= 1: '${files_to_keep}'."
+                        errors[${_FILES_TO_KEEP}]=1
+                    fi
+                fi
+                ;;
+
+            "--${_FILES_TO_KEEP_UNCOMPRESSED}"*)
+                local files_to_keep_uncompressed
+
+                if [[ "${1}" =~ --${_FILES_TO_KEEP_UNCOMPRESSED}=.+ ]]; then
+                    files_to_keep_uncompressed=${1##*"${_FILES_TO_KEEP_UNCOMPRESSED}"=}
+                    ((shift_amount += 1))
+                    shift
+                elif [[ "${#}" -ge 2 && "${2:0:1}" != "-" ]]; then
+                    files_to_keep_uncompressed="${2}"
+                    ((shift_amount += 2))
+                    shift 2
+                else
+                    mycmd.log "Missing argument for '--${_FILES_TO_KEEP_UNCOMPRESSED}'"
+                    errors[${_FILES_TO_KEEP_UNCOMPRESSED}]=1
+                    ((shift_amount += 1))
+                    shift
+                fi
+
+                if [[ -v files_to_keep_uncompressed ]]; then
+                    if ! [[ ${files_to_keep_uncompressed} =~ ^[1-9][0-9]*$ ]]; then
+                        arguments_ref["${_FILES_TO_KEEP_UNCOMPRESSED}"]="${files_to_keep_uncompressed}"
+                    else
+                        mycmd.log "Specified files to keep uncompressed is not a number >= 1: '${files_to_keep_uncompressed}'."
+                        errors[${_FILES_TO_KEEP_UNCOMPRESSED}]=1
+                    fi
+                fi
+                ;;
+
+            "--")
+                arguments_ref["${_SHIFT_AMOUNT}"]="${shift_amount}"
+                break
+                ;;
+
+            *)
+                mycmd.log "Unknown argument: '${1}'"
+                errors['UNKNOWN']=1
+                shift
+                ;;
+        esac
+    done
+
+    mycmd.trace "Parsed arguments:"
+    local argument
+    for argument in "${_LOG_FILE_PATH}" \
+        "${_FILES_TO_KEEP}" \
+        "${_FILES_TO_KEEP_UNCOMPRESSED}" \
+        "${_SHIFT_AMOUNT}" \
+        "${_HELP}" \
+        "${_VERSION}"; do
+        if [[ -v arguments_ref["${argument}"] ]]; then
+            mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
+        elif ! [[ -v errors["${argument}"] ]]; then
+            if ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_SHIFT_AMOUNT}$) ]]; then
+                mycmd.log "Required argument '--${argument}' is not set."
+                errors["${argument}"]=1
+            elif [[ "${argument}" = "${_SHIFT_AMOUNT}" ]]; then
+                mycmd.log "Missing command to run after --."
+                errors["${argument}"]=1
+            else
+                mycmd.trace "${argument} is not set."
+            fi
+        else [[ -v errors["${argument}"] ]]; then
+            mycmd.trace "Error found processing argument ${argument}."
+        fi
+    done
+
+    (("${#errors[@]}" == 0))
+}
+
 function mycmd.main() {
+    local -A parsed_arguments=()
+    if ! parse_command_line parsed_arguments "${@}"; then
+        mycmd.err_exit 1 "Errors parsing command line arguments."
+    fi
+
+    if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
+        mycmd.usage
+        exit 0
+    fi
+
+    if [[ "${parsed_arguments[${_VERSION}]}" = "true" ]]; then
+        mycmd.version
+        exit 0
+    fi
+
+    local log_file_path="${parsed_arguments[${_LOG_FILE_PATH}]}"
+    local files_to_keep="${parsed_arguments[${_FILES_TO_KEEP}]}"
+    local files_to_keep_uncompressed="${parsed_arguments[${_FILES_TO_KEEP_UNCOMPRESSED}]}"
+    local shift_amount="${parsed_arguments[${_SHIFT_AMOUNT}]}"
+
+    shift "${shift_amount}"
+
     local exit_code=0
 
-    mycmd.output "$(mycmd.ansi bold || true)Logging output to file: $(mycmd.ansi blue || true)${1}$(mycmd.ansi resetForeground || true)$(mycmd.ansi normal || true)"
+    mycmd.output "$(mycmd.ansi bold || true)Logging output to file: $(mycmd.ansi blue || true)${log_file_path}$(mycmd.ansi resetForeground || true)$(mycmd.ansi normal || true)"
     logging.capture_and_display "${@}" || exit_code=$?
 
     exit "${exit_code}"

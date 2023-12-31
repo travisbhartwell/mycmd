@@ -15,10 +15,18 @@ set -o nounset -o errexit -o errtrace -o pipefail
     exit 1
 }
 
+mycmd.register_command_group_version "0.1"
+mycmd.register_command_group_short_desc "MyCmd Logging Command Group Library"
+mycmd.register_command_group_long_desc "Library for common routines for logging command output."
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP:-}" ]] && return
+
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
 [[ -n "${_MYCMD_LOGGING_LIB:-}" ]] && return
 readonly _MYCMD_LOGGING_LIB=1
+
+mycmd.trace "Continuing to source logging library."
 
 # This is needed to preserve the colors in any build output
 mycmd.defer_at_startup mycmd.init_bin script
@@ -30,6 +38,56 @@ function logging._faketty() {
     else
         mycmd.bin_execute script -qefc "${BASH}" -c "${command}" /dev/null
     fi
+}
+
+function logging.rotate_log_files_if_needed() {
+    local -r log_dir="${1}"
+    local -r log_file_name="${2}"
+    local -r files_to_keep="${3}"
+    local -r files_to_keep_uncompressed="${4}"
+
+    local -r base_log_file_path="${log_dir}/${log_file_name}"
+
+    if [[ ! -e "${base_log_file_path}" ]]; then
+        mycmd.debug "No existing log files found, not rotating."
+        return 0
+    fi
+
+    local log_file_path
+    local destination_file_path
+    local -i index
+    local -i next_index
+
+    for ((index = files_to_keep; index >= 0; index--)); do
+        log_file_path="${base_log_file_path}"
+
+        if ((index > 0)); then
+            log_file_path="${log_file_path}.${index}"
+        fi
+
+        ((next_index = index + 1))
+
+        destination_file_path="${base_log_file_path}.${next_index}"
+
+        if ((index > files_to_keep_uncompressed)); then
+            log_file_path="${log_file_path}.gz"
+            destination_file_path="${destination_file_path}.gz"
+        fi
+
+        if [[ -e "${log_file_path}" ]]; then
+            if ((index == files_to_keep)); then
+                mycmd.trace "Removing oldest log file ${log_file_path}"
+                rm "${log_file_path}"
+            else
+                mycmd.trace "Rotating log file ${log_file_path} to ${destination_file_path}"
+                mv "${log_file_path}" "${destination_file_path}"
+
+                if ((index == files_to_keep_uncompressed)); then
+                    gzip "${destination_file_path}"
+                fi
+            fi
+        fi
+    done
 }
 
 # Captures both stderr and stdout, saving to the specified log file
@@ -44,6 +102,57 @@ function logging.capture_and_display() {
     { logging._faketty "${@}"; } 2>&1 | tee "${log_file}" || exit_code=$?
 
     return "${exit_code}"
+}
+
+function logging.rotate_then_capture_and_display() {
+    local -r log_file_path="${1}"
+    shift
+    local -r files_to_keep="${1}"
+    shift
+    local -r files_to_keep_uncompressed="${1}"
+    shift
+
+    local log_dir
+    log_dir="$(dirname "${log_file_path}")"
+    readonly log_dir
+
+    local log_file_name
+    log_file_name="$(basename "${log_file_path}")"
+    readonly log_file_name
+
+    if ! logging.rotate_log_files_if_needed "${log_dir}" "${log_file_name}" "${files_to_keep}" "${files_to_keep_uncompressed}"; then
+        mycmd.log "Error rotating existing log files."
+        return 1
+    fi
+
+    logging.capture_and_display "${log_file_path}" "${@}"
+}
+
+readonly _LOGGING_FILES_TO_KEEP_DEFAULT=10
+readonly _LOGGING_FILES_TO_KEEP_COMPRESSED_DEFAULT=3
+
+function logging.rotate_with_defaults_then_capture_and_display() {
+    local -r log_file_path="${1}"
+    shift
+
+    local log_dir
+    log_dir="$(dirname "${log_file_path}")"
+    readonly log_dir
+
+    local log_file_name
+    log_file_name="$(basename "${log_file_path}")"
+    readonly log_file_name
+
+    if ! logging.rotate_log_files_if_needed \
+        "${log_dir}" \
+        "${log_file_name}" \
+        "${_LOGGING_FILES_TO_KEEP_DEFAULT}" \
+        "${_LOGGING_FILES_TO_KEEP_COMPRESSED_DEFAULT}"; then
+        mycmd.log "Error rotating existing log files."
+        return 1
+    fi
+
+    logging.capture_and_display "${log_file_path}" "${@}"
 }
 
 mycmd.trace "The MyCmd Logging command group library has been sourced."

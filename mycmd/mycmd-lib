@@ -450,7 +450,7 @@ function mycmd.is_linux() {
     [[ "${_MYCMD_OS}" == "Linux" ]]
 }
 
-# ------------------------------------------------------------------------------k
+# ------------------------------------------------------------------------------
 # Convenience methods for locating common utilities cross platform
 
 # MYCMD_BIN
@@ -575,7 +575,7 @@ function mycmd._init_bin() {
             ;;
     esac
 
-    if (( found_command == 0 )); then
+    if ((found_command == 0)); then
         return 0
     fi
 
@@ -963,6 +963,79 @@ mycmd.defer_at_startup mycmd._create_cache_dir_if_needed
 #   These files are used for caching state in between runs of commands.
 function mycmd.get_named_cache_file() {
     mycmd.err_exit 1 "TODO: Not Implemented"
+}
+
+# ------------------------------------------------------------------------------
+# Convenience Methods and Data Structures Supporting MyCmd Help Output
+declare -Agx _MYCMD_COMMAND_GROUP_VERSIONS=()
+declare -Agx _MYCMD_COMMAND_GROUP_SHORT_DESCS=()
+declare -Agx _MYCMD_COMMAND_GROUP_LONG_DESCS=()
+declare -Agx _MYCMD_COMMAND_VERSIONS=()
+declare -Agx _MYCMD_COMMAND_SHORT_DESC=()
+declare -Agx _MYCMD_COMMAND_HELPS=()
+declare -Agx _MYCMD_COMMAND_HELP_FNS=()
+
+function mycmd.register_command_group_version() {
+    if (($# < 2)); then
+        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}" "${@}"
+        return $?
+    fi
+
+    local -r calling_file="${1}"
+    local -r version="${2}"
+
+    local command_group_path
+    if ! command_group_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
+        mycmd.debug "Error getting command group path for calling file ${calling_file}."
+        return 1
+    fi
+    readonly command_group_path
+
+    mycmd.trace "Called with '${calling_file}', path: '${command_group_path}', version: '${version}'."
+
+    _MYCMD_COMMAND_GROUP_VERSIONS["${command_group_path}"]="${version}"
+}
+
+function mycmd.register_command_group_short_desc() {
+    if (($# < 2)); then
+        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}" "${@}"
+        return $?
+    fi
+
+    local -r calling_file="${1}"
+    local -r short_desc="${2}"
+
+    local command_group_path
+    if ! command_group_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
+        mycmd.debug "Error getting command group path for calling file ${calling_file}."
+        return 1
+    fi
+    readonly command_group_path
+
+    mycmd.trace "Called with '${calling_file}', path: '${command_group_path}', description: '${short_desc}'."
+
+    _MYCMD_COMMAND_GROUP_SHORT_DESCS["${command_group_path}"]="${short_desc}"
+}
+
+function mycmd.register_command_group_long_desc() {
+    if (($# < 2)); then
+        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}" "${@}"
+        return $?
+    fi
+
+    local -r calling_file="${1}"
+    local -r long_desc="${2}"
+
+    local command_group_path
+    if ! command_group_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
+        mycmd.debug "Error getting command group path for calling file ${calling_file}."
+        return 1
+    fi
+    readonly command_group_path
+
+    mycmd.trace "Called with '${calling_file}', path: '${command_group_path}', description: '${long_desc}'."
+
+    _MYCMD_COMMAND_GROUP_LONG_DESCS["${command_group_path}"]="${long_desc}"
 }
 
 # ------------------------------------------------------------------------------
