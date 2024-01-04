@@ -81,13 +81,13 @@ function parse_command_line() {
             "--${_HELP}" | "-h")
                 arguments_ref["${_HELP}"]=true
                 # Ignore other arguments
-                return 0
+                break
                 ;;
 
             "--${_VERSION}" | "-v")
                 arguments_ref["${_VERSION}"]=true
                 # Ignore other arguments
-                return 0
+                break
                 ;;
 
             "--${_LOG_FILE_PATH}"*)
@@ -137,7 +137,7 @@ function parse_command_line() {
                 fi
 
                 if [[ -v files_to_keep ]]; then
-                    if ! [[ ${files_to_keep} =~ ^[1-9][0-9]*$ ]]; then
+                    if [[ ${files_to_keep} =~ ^[1-9][0-9]*$ ]]; then
                         arguments_ref["${_FILES_TO_KEEP}"]="${files_to_keep}"
                     else
                         mycmd.log "Specified files to keep is not a number >= 1: '${files_to_keep}'."
@@ -165,7 +165,7 @@ function parse_command_line() {
                 fi
 
                 if [[ -v files_to_keep_uncompressed ]]; then
-                    if ! [[ ${files_to_keep_uncompressed} =~ ^[1-9][0-9]*$ ]]; then
+                    if [[ ${files_to_keep_uncompressed} =~ ^[1-9][0-9]*$ ]]; then
                         arguments_ref["${_FILES_TO_KEEP_UNCOMPRESSED}"]="${files_to_keep_uncompressed}"
                     else
                         mycmd.log "Specified files to keep uncompressed is not a number >= 1: '${files_to_keep_uncompressed}'."
@@ -232,17 +232,17 @@ function mycmd.main() {
         exit 0
     fi
 
-    local log_file_path="${parsed_arguments[${_LOG_FILE_PATH}]}"
-    local files_to_keep="${parsed_arguments[${_FILES_TO_KEEP}]}"
-    local files_to_keep_uncompressed="${parsed_arguments[${_FILES_TO_KEEP_UNCOMPRESSED}]}"
-    local shift_amount="${parsed_arguments[${_SHIFT_AMOUNT}]}"
+    local -r log_file_path="${parsed_arguments[${_LOG_FILE_PATH}]}"
+    local -r files_to_keep="${parsed_arguments[${_FILES_TO_KEEP}]}"
+    local -r files_to_keep_uncompressed="${parsed_arguments[${_FILES_TO_KEEP_UNCOMPRESSED}]}"
+    local -r shift_amount="${parsed_arguments[${_SHIFT_AMOUNT}]}"
 
     shift "${shift_amount}"
 
     local exit_code=0
 
     mycmd.output "$(mycmd.ansi bold || true)Logging output to file: $(mycmd.ansi blue || true)${log_file_path}$(mycmd.ansi resetForeground || true)$(mycmd.ansi normal || true)"
-    logging.rotate_then_capture_and_display "${log_file_path}" "${files_to_keep}" "${files_to_keep_uncompressed}" ${@} || exit_code=$?
+    logging.rotate_then_capture_and_display "${log_file_path}" "${files_to_keep}" "${files_to_keep_uncompressed}" "${@}" || exit_code=$?
 
     exit "${exit_code}"
 }

@@ -1,0 +1,58 @@
+#!/usr/bin/env -S mycmd
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+mycmd.register_command_version "0.1"
+mycmd.register_command_short_desc "Provide summary of the specified log file, for preview."
+
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) <log file path>"
+mycmd.add_command_help_line "\tlog file path - the path of the log file to summarize\n"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
+mycmd.add_command_help_line "Options:"
+mycmd.add_command_help_line "\t-h | --help    - Show this help"
+mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+mycmd.init_bin sed
+function summarize_log() {
+    local -r log_file="${1}"
+
+    mycmd.output "Log File Full Path: ${log_file}"
+    logging.cat_log "${log_file}" | head -n2
+    logging.cat_log "${log_file}" | tail -n2
+    mycmd.output "\nPartial Content:"
+
+    logging.cat_log "${log_file}" \
+        | mycmd.bin_execute sed -n \
+            '/^OUTPUT START: ----------$/,/^OUTPUT END: ----------$/{/^OUTPUT START: ----------$/!{/^OUTPUT END: ----------$/!p;};}' \
+        | head -n10
+}
+
+function mycmd.main() {
+    if (($# < 1)); then
+        mycmd.command_help
+        exit 1
+    fi
+
+    if [[ "${1}" = "--help" || "${1}" = "-h" ]]; then
+        mycmd.command_help
+        exit 0
+    fi
+
+    if [[ "${1}" = "--version" || "${1}" = "-v" ]]; then
+        mycmd.command_version
+        exit 0
+    fi
+
+    local -r log_file_path="${1}"
+
+    if [[ ! -e "${log_file_path}" ]]; then
+        mycmd.err_exit 1 "Log file '${log_file_path}' does not exist."
+    fi
+
+    summarize_log "${log_file_path}"
+}
