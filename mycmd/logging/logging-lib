@@ -26,15 +26,25 @@ mycmd.register_command_group_long_desc "Library for common routines for logging 
 [[ -n "${_MYCMD_LOGGING_LIB:-}" ]] && return
 readonly _MYCMD_LOGGING_LIB=1
 
-# This is needed to preserve the colors in any build output
+# This is needed to preserve the colors in any output
 mycmd.defer_at_startup mycmd.init_bin script
 function logging._faketty() {
-    local -r command="$(printf '%q ' "${@}")"
+    local -r command="${1}"
 
     if mycmd.is_mac_os; then
         mycmd.bin_execute script -q /dev/null "${BASH}" -c "${command}"
     else
         mycmd.bin_execute script -qefc "${BASH}" -c "${command}" /dev/null
+    fi
+}
+
+function logging.cat_log() {
+    local -r log_file="${1}"
+
+    if [[ "${log_file}" =~ .+\.gz$ ]]; then
+        gzcat "${log_file}"
+    else
+        cat "${log_file}"
     fi
 }
 
@@ -94,10 +104,23 @@ function logging.capture_and_display() {
     local -r log_file=$1
     shift
 
+    local -r command="$(printf '%q ' "${@}")"
+
     # For returning the exit code of the process being logged
     local exit_code=0
 
-    { logging._faketty "${@}"; } 2>&1 | tee "${log_file}" || exit_code=$?
+    {
+        printf 'Command Run: %s\n' "${command}"
+        printf 'Started at: %(%F %T)T\n'
+        echo "OUTPUT START: ----------"
+        logging._faketty "${command}"
+    } 2>&1 | tee "${log_file}" || exit_code=$?
+
+    {
+        echo "OUTPUT END: ----------"
+        printf 'Completed at: %(%F %T)T\n'
+        printf 'Exit code: %d\n' "${exit_code}"
+    } 2>&1 | tee -a "${log_file}"
 
     return "${exit_code}"
 }

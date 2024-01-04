@@ -1,0 +1,260 @@
+#!/usr/bin/env -S mycmd
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+mycmd.register_command_version "0.1"
+mycmd.register_command_short_desc "Select and page a log file previously logged with log-both."
+
+mycmd.add_command_help_line "If there are multiple rotated copies of the log file present, this will prompt the user for which version"
+mycmd.add_command_help_line "to view, unless the --log-number parameter is specified, which will open the specific one directly.\n"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) \\\\"
+mycmd.add_command_help_line "      --base-log-file-path=<base log file path> \\\\"
+mycmd.add_command_help_line "      [--log-number=<number of log file to view>] \\\\"
+mycmd.add_command_help_line "\tbase log file path  - the path of the base filename of the log to view"
+mycmd.add_command_help_line "\log number           - the number of the log file to view, 0 = most recent log stored"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
+mycmd.add_command_help_line "Options:"
+mycmd.add_command_help_line "\t-h | --help    - Show this help"
+mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+mycmd.defer_at_startup mycmd.init_bin realpath
+function get_absolute_log_file_path() {
+    local -r log_file_name="${1}"
+    local log_file_full_path
+
+    if log_file_full_path="$(mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${log_file_name}" 2>/dev/null)"; then
+        echo "${log_file_full_path}"
+        return 0
+    else
+        mycmd.log "Log file '${log_file_name}' not found."
+        return 1
+    fi
+}
+
+function get_rotated_log_file() {
+    local -r base_log_file_name="${1}"
+    local -r log_number="${2}"
+
+    if ((log_number == 0)); then
+        echo "${base_log_file_name}"
+        return 0
+    fi
+
+    local -r rotated_file="${base_log_file_name}.${log_number}"
+    local -r rotated_compressed_file="${rotated_file}.gz"
+
+    if [[ -e "${rotated_file}" ]]; then
+        echo "${rotated_file}"
+        return 0
+    elif [[ -e "${rotated_compressed_file}" ]]; then
+        echo "${rotated_compressed_file}"
+        return 0
+    fi
+
+    return 1
+}
+
+function page_log() {
+    local -r log_file="${1}"
+
+    logging.cat_log "${log_file}" | ${PAGER:-less}
+}
+
+function list_log_files() {
+    local -r base_log_file_path="${1}"
+    local log_file_name
+
+    if ! log_file_name="$(basename "${base_log_file_path}")"; then
+        mycmd.debug "Error getting bare file name."
+        return 1
+    fi
+
+    printf "%d,%s,%s -- Most Recent\n" 0 "${base_log_file_path}" "${log_file_name}"
+
+    local log_files
+    mapfile -t log_files < <(
+        shopt -s nullglob
+        for f in "${base_log_file_path}".*; do echo "${f}"; done
+    )
+
+    local log_file
+    local log_number
+    for log_file in "${log_files[@]}"; do
+        log_number="${log_file##"${base_log_file_path}".}"
+        log_number="${log_number%%.gz}"
+        printf "%d,%s,%s -- Rotation %d\n" "${log_number}" "${log_file}" "${log_file_name}" "${log_number}"
+    done | LC_ALL=en_US.UTF-8 sort -g -k1
+}
+
+mycmd.init_bin fzf
+function select_log_file() {
+    local -r base_log_file_path="${1}"
+
+    local output
+    if ! output="$(list_log_files "${base_log_file_path}" \
+        | mycmd.bin_execute fzf \
+            --prompt="Select Log File: " \
+            --layout=reverse \
+            --info=inline \
+            --border \
+            --margin=0,15 \
+            --nth=.. \
+            --with-nth=3 \
+            --delimiter=',' \
+            --preview='mycmd logging summarize-log {2} 2> /dev/null')"; then
+        mycmd.debug "No file selected"
+        return 1
+    fi
+
+    echo "${output}" | cut -d, -f2
+}
+
+readonly _HELP='help'
+readonly _VERSION='version'
+readonly _BASE_LOG_FILE_PATH='base-log-file-path'
+readonly _LOG_NUMBER='log-number'
+
+function parse_command_line() {
+    local -n arguments_ref="${1}"
+    shift
+    local -A errors=()
+
+    # Set defaults
+    arguments_ref["${_HELP}"]=false
+    arguments_ref["${_VERSION}"]=false
+
+    while (($# > 0)); do
+        case "${1}" in
+            "--${_HELP}" | "-h")
+                arguments_ref["${_HELP}"]=true
+                # Ignore other arguments
+                break
+                ;;
+
+            "--${_VERSION}" | "-v")
+                arguments_ref["${_VERSION}"]=true
+                # Ignore other arguments
+                break
+                ;;
+
+            "--${_BASE_LOG_FILE_PATH}"*)
+                local base_log_file_path
+
+                if [[ "${1}" =~ --${_BASE_LOG_FILE_PATH}=.+ ]]; then
+                    base_log_file_path=${1##*"${_BASE_LOG_FILE_PATH}"=}
+                    shift
+                elif [[ "${#}" -ge 2 && "${2:0:1}" != "-" ]]; then
+                    base_log_file_path="${2}"
+                    shift 2
+                else
+                    mycmd.log "Missing argument for '--${_BASE_LOG_FILE_PATH}'"
+                    errors["${_BASE_LOG_FILE_PATH}"]=1
+                    shift
+                fi
+
+                if [[ -v base_log_file_path ]]; then
+                    local base_log_file_full_path
+                    if base_log_file_full_path="$(get_absolute_log_file_path "${base_log_file_path}")"; then
+                        arguments_ref["${_BASE_LOG_FILE_PATH}"]="${base_log_file_full_path}"
+                    else
+                        errors["${_BASE_LOG_FILE_PATH}"]=1
+                    fi
+                fi
+                ;;
+
+            "--${_LOG_NUMBER}"*)
+                local log_number
+
+                if [[ "${1}" =~ --${_LOG_NUMBER}=.+ ]]; then
+                    log_number=${1##*"${_LOG_NUMBER}"=}
+                    shift
+                elif [[ "${#}" -ge 2 && "${2:0:1}" != "-" ]]; then
+                    log_number="${2}"
+                    shift 2
+                else
+                    mycmd.log "Missing argument for '--${_LOG_NUMBER}'"
+                    errors[${_LOG_NUMBER}]=1
+                    shift
+                fi
+
+                if [[ -v log_number ]]; then
+                    if [[ ${log_number} =~ ^[0-9]+$ ]]; then
+                        arguments_ref["${_LOG_NUMBER}"]="${log_number}"
+                    else
+                        mycmd.log "Specified log number is not a number: '${log_number}'."
+                        errors[${_LOG_NUMBER}]=1
+                    fi
+                fi
+                ;;
+
+            *)
+                mycmd.log "Unknown argument: '${1}'"
+                errors['UNKNOWN']=1
+                shift
+                ;;
+        esac
+    done
+
+    mycmd.trace "Parsed arguments:"
+    local argument
+    for argument in "${_BASE_LOG_FILE_PATH}" \
+        "${_LOG_NUMBER}" \
+        "${_HELP}" \
+        "${_VERSION}"; do
+        if [[ -v arguments_ref["${argument}"] ]]; then
+            mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
+        elif ! [[ -v errors["${argument}"] ]]; then
+            if ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_LOG_NUMBER}$) ]]; then
+                mycmd.log "Required argument '--${argument}' is not set."
+                errors["${argument}"]=1
+            else
+                mycmd.trace "${argument} is not set."
+            fi
+        elif [[ -v errors["${argument}"] ]]; then
+            mycmd.trace "Error found processing argument ${argument}."
+        fi
+    done
+
+    (("${#errors[@]}" == 0))
+}
+
+function mycmd.main() {
+    local -A parsed_arguments=()
+    if ! parse_command_line parsed_arguments "${@}"; then
+        mycmd.err_exit 1 "Errors parsing command line arguments."
+    fi
+
+    if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
+        mycmd.command_help
+        exit 0
+    fi
+
+    if [[ "${parsed_arguments[${_VERSION}]}" = "true" ]]; then
+        mycmd.command_version
+        exit 0
+    fi
+
+    local -r base_log_file_path="${parsed_arguments[${_BASE_LOG_FILE_PATH}]}"
+    local log_file_full_path
+
+    if [[ -v parsed_arguments["${_LOG_NUMBER}"] ]]; then
+        local -r log_number="${parsed_arguments[${_LOG_NUMBER}]}"
+
+        if ! log_file_full_path="$(get_rotated_log_file "${base_log_file_path}" "${log_number}")"; then
+            mycmd.err_exit 1 "Specified log file '${base_log_file_path}' number ${log_number} not found."
+        fi
+    else
+        if ! log_file_full_path="$(select_log_file "${base_log_file_path}")"; then
+            mycmd.err_exit 1 "No log file selected"
+        fi
+    fi
+
+    if [[ -n "${log_file_full_path-}" ]]; then
+        page_log "${log_file_full_path}"
+    fi
+}
