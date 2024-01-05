@@ -738,6 +738,17 @@ function mycmd.source_lib_by_path_if_found() {
     fi
 }
 
+mycmd.defer_at_startup mycmd.init_bin realpath
+function mycmd.canonicalize_path() {
+    local -r path_to_resolve="${1}"
+
+    if [[ -v missing_ok ]]; then
+        mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
+    else
+        mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${path_to_resolve}"
+    fi
+}
+
 # mycmd._path_relative_to_directory
 #   Given an absolute path to a command or command group, output the relative path to
 #   the base directory specified.

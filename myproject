@@ -1,0 +1,107 @@
+#!/usr/bin/env -S mycmd project run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+mycmd.output "Set the following variables:"
+readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
+mycmd.output "- BIN_DIR: ${BIN_DIR}"
+readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
+mycmd.output "- TESTING_BASE: ${TESTING_BASE}"
+readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
+mycmd.output "- TEST_FILES_BASE: ${TEST_FILES_BASE}"
+readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
+mycmd.output "- TEST_USER_BASE: ${TEST_USER_BASE}"
+readonly SYSTEM_BASE="${MYPROJECT_BASE_DIR}/mycmd"
+mycmd.output "- SYSTEM_BASE: ${SYSTEM_BASE}"
+readonly VENDOR_DIR="${MYPROJECT_BASE_DIR}/vendor"
+mycmd.output "- VENDOR_DIR: ${VENDOR_DIR}"
+readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
+mycmd.output "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
+readonly VENDOR_WORKING_DIR="${MYPROJECT_BASE_DIR}/vendor/.working"
+mycmd.output "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
+
+function _update_vendored_file_for_vendor_base_dir() {
+    local -r source_path="${VENDOR_WORKING_DIR}/${1}"
+    local -r vendor_dir="${2}"
+    local -r dest_path="${vendor_dir}/${3}"
+    local -r dest_dir=$(dirname "${dest_path}")
+
+    if [[ ! -e "${source_path}" ]]; then
+        mycmd.log "Source file '${source_path}' not found."
+        return 1
+    fi
+
+    if [[ ! -e "${dest_dir}" ]]; then
+        mkdir -p "${dest_dir}"
+    fi
+
+    if [[ -e "${dest_path}" ]]; then
+        if diff -q "${source_path}" "${dest_path}"; then
+            mycmd.log "Vendored file '${dest_path}' is up to date."
+            return 0
+        fi
+    fi
+
+    mycmd.log "Updating vendor destination '${dest_path}'."
+    cp -a "${source_path}" "${dest_path}"
+}
+
+function _update_vendored_file() {
+    _update_vendored_file_for_vendor_base_dir "${1}" "${VENDOR_DIR}" "${2}"
+}
+
+function _update_vendored_test_file() {
+    _update_vendored_file_for_vendor_base_dir "${1}" "${TEST_VENDOR_DIR}" "${2}"
+}
+
+function update-ansi() {
+    # https://github.com/fidian/ansi
+    if [[ ! -e "${VENDOR_WORKING_DIR}/ansi" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        mycmd.output "Cloning ansi git repository."
+        git clone --quiet git@github.com:fidian/ansi.git
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/ansi"
+    mycmd.output "Pulling latest ansi changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_file "ansi/ansi" "ansi"
+}
+project.register_task update-ansi
+
+function update-bashup-events() {
+    # https://github.com/bashup/events/tree/bash44
+    if [[ ! -e "${VENDOR_WORKING_DIR}/bashup.events" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        mycmd.output "Cloning bashup.events git repository."
+        git clone --quiet -b bash44 git@github.com:bashup/events.git bashup.events
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/bashup.events"
+    mycmd.output "Pulling latest bashup.events changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_file "bashup.events/bashup.events" "bashup.events"
+}
+project.register_task update-bashup-events
+
+function update-shunit2() {
+    # https://github.com/kward/shunit2/tree/master
+    if [[ ! -e "${VENDOR_WORKING_DIR}/shunit2" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        mycmd.output "Cloning shunit2 git repository."
+        git clone --quiet git@github.com:kward/shunit2.git shunit2
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/shunit2"
+    mycmd.output "Pulling latest shunit2 changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_test_file "shunit2/shunit2" "shunit2"
+    _update_vendored_test_file "shunit2/shunit2_test_helpers" "shunit2_test_helpers"
+}
+project.register_task update-shunit2
