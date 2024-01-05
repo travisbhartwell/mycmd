@@ -1,0 +1,25 @@
+#!/usr/bin/env -S mycmd
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+function mycmd.main() {
+    local project_file_path
+    if ! project_file_path="$(project.find_closest_project_file "${PWD}")"; then
+        mycmd.err_exit 1 "No project file (named myproject) found in this directory or any parent."
+    fi
+    readonly project_file_path
+
+    mycmd.output "Using project file: ${project_file_path}."
+
+    if ! project.load_project_file "${project_file_path}"; then
+        mycmd.err_exit 1 "Error loading project."
+    fi
+
+    if (( $# < 1 )); then
+        mycmd.err_exit 1 "Missing task to run."
+    fi
+
+    project.execute_task "${@}"
+}

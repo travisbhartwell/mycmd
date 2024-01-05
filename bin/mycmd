@@ -5,6 +5,13 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 shopt -s inherit_errexit
 
+[[ -n "${_MYCMD_EARLY_TRACE_LOG_FILE-}" ]] && {
+    PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[*]}]:'
+    export PS4
+    exec {_MYCMD_EARLY_TRACE_LOG_FD}>>"${_MYCMD_EARLY_TRACE_LOG_FILE}"
+    BASH_XTRACEFD="${_MYCMD_EARLY_TRACE_LOG_FD}"
+    set -o xtrace
+}
 
 declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=(
     "_MYCMD_ARGS_FOUND_HELP"
@@ -220,23 +227,12 @@ function mycmd_launcher.zsh_complete() {
     exit 0
 }
 
-mycmd.init_bin realpath
-function mycmd_launcher.canonicalize_path() {
-    local -r path_to_resolve="${1}"
-
-    if [[ -v missing_ok ]]; then
-        mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
-    else
-        mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${path_to_resolve}"
-    fi
-}
-
 function mycmd_launcher.matching_relative_paths_in_system_or_user_dir() {
     local -r relative_path="${1}"
     local -r first_only="${2-:false}"
 
     local system_relative_path
-    if ! system_relative_path="$(missing_ok=1 mycmd_launcher.canonicalize_path "${MYCMD_SYSTEM_BASE_DIR}/${relative_path}")"; then
+    if ! system_relative_path="$(missing_ok=1 mycmd.canonicalize_path "${MYCMD_SYSTEM_BASE_DIR}/${relative_path}")"; then
         mycmd.log "Error resolving possible system path for relative path '${relative_path}'"
         return 1
     fi
@@ -254,7 +250,7 @@ function mycmd_launcher.matching_relative_paths_in_system_or_user_dir() {
 
     if [[ -v MYCMD_USER_BASE_DIR ]]; then
         local user_relative_path
-        if ! user_relative_path="$(missing_ok=1 mycmd_launcher.canonicalize_path "${MYCMD_USER_BASE_DIR}/${relative_path}")"; then
+        if ! user_relative_path="$(missing_ok=1 mycmd.canonicalize_path "${MYCMD_USER_BASE_DIR}/${relative_path}")"; then
             mycmd.log "Error resolving possible user path for relative path '${relative_path}'"
             return 1
         fi

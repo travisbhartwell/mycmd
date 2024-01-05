@@ -1,0 +1,129 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Project Command Group Library
+#   Library for Project Task Runner Functionality
+
+# Set Bash options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+mycmd.register_command_group_version "0.1"
+mycmd.register_command_group_short_desc "MyCmd Project Command Group Library"
+mycmd.register_command_group_long_desc "Library for Project Task Runner Functionality"
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP:-}" ]] && return
+
+# This library should only be sourced once. Technique borrowed from
+# https://stackoverflow.com/a/64534652
+[[ -n "${_MYCMD_PROJECT_LIB:-}" ]] && return
+readonly _MYCMD_PROJECT_LIB=1
+
+# project.find_up
+# - returns 1 if the file is not found in the current directory or any parent
+# - returns 0 if the file is found in the current directory or any parent
+# if found, the absolute path of the location of the file is echoed
+project.find_up() {
+    local -r name_to_find="${1}"
+    local starting_dir="${2}"
+
+    if ! starting_dir="$(mycmd.canonicalize_path "${starting_dir}")"; then
+        mycmd.debug "'${starting_dir}' not found."
+        return 1
+    fi
+
+    local -r possible_path="${starting_dir}/${name_to_find}"
+
+    if [[ -e "${possible_path}" ]]; then
+        echo "${possible_path}"
+        return 0
+    fi
+
+    if [[ "${starting_dir}" = "/" ]]; then
+        mycmd.debug "File '${name_to_find}' not found"
+        return 1
+    fi
+
+    project.find_up "${name_to_find}" "${starting_dir}/.."
+}
+
+project.find_closest_project_file() {
+    local -r starting_dir="${1}"
+
+    project.find_up myproject "${starting_dir}"
+}
+
+project.load_project_file() {
+    local -r project_file="${1}"
+    shift
+
+    declare -gx MYPROJECT_BASE_DIR
+    if ! MYPROJECT_BASE_DIR="$(cd "$(dirname "${project_file}")" &>/dev/null && pwd -P)"; then
+        echo >&2 "Error fetching project directory."
+    fi
+    readonly MYPROJECT_BASE_DIR
+
+    if ! mycmd.source_lib_by_path_if_found "${project_file}"; then
+        mycmd.log "Error loading project file '${project_file}'"
+        return 1
+    fi
+}
+
+declare -Agx _MYCMD_PROJECT_TASKS=()
+
+function project.register_task() {
+    local -r task_name="${1}"
+    if (( $# > 1 )); then
+        local -r task_function_name="${2}"
+    else
+        local -r task_function_name="${1}"
+    fi
+
+    if [[ -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
+        mycmd.log "Task '${task_name}' already registered."
+        return 1
+    fi
+
+    _MYCMD_PROJECT_TASKS[${task_name}]="${task_function_name}"
+}
+
+project.execute_task() {
+    local -r task_name="${1}"
+    shift
+
+    if [[ ! -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
+        mycmd.log "Task '${task_name}' not defined."
+        return 1
+    fi
+
+    local fn=${_MYCMD_PROJECT_TASKS[${task_name}]}
+
+    cd "${MYPROJECT_BASE_DIR}"
+
+    local return_code=0
+    if mycmd.function_exists "${fn}"; then
+        mycmd.output "➡️ Executing task '${task_name}'..."
+
+        "${fn}" "${@}" || return_code=$?
+    else
+        mycmd.output "Unknown task: '${fn}'."
+        return_code=1
+    fi
+
+    if ((return_code == 0)); then
+        mycmd.output "✅ Task '${fn}' succeeded."
+    else
+        mycmd.output "❌ Task '${fn}' failed."
+    fi
+
+    return "${return_code}"
+}
+
+mycmd.trace "The MyCmd Project command group library has been sourced."
