@@ -12,9 +12,5 @@ function mycmd.main() {
     # shellcheck disable=SC2154
     mycmd.output "Using project file: ${MYPROJECT_PROJECT_FILE}."
 
-    if (( $# < 1 )); then
-        mycmd.err_exit 1 "Missing task to run."
-    fi
-
-    project.execute_task "${@}"
+    project.list_registered_tasks
 }

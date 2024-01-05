@@ -30,7 +30,7 @@ readonly _MYCMD_PROJECT_LIB=1
 # - returns 1 if the file is not found in the current directory or any parent
 # - returns 0 if the file is found in the current directory or any parent
 # if found, the absolute path of the location of the file is echoed
-project.find_up() {
+function project.find_up() {
     local -r name_to_find="${1}"
     local starting_dir="${2}"
 
@@ -54,26 +54,43 @@ project.find_up() {
     project.find_up "${name_to_find}" "${starting_dir}/.."
 }
 
-project.find_closest_project_file() {
+function project.find_closest_project_file() {
     local -r starting_dir="${1}"
 
     project.find_up myproject "${starting_dir}"
 }
 
-project.load_project_file() {
-    local -r project_file="${1}"
+function project.load_project_file() {
+    declare -rgx MYPROJECT_PROJECT_FILE="${1}"
     shift
 
     declare -gx MYPROJECT_BASE_DIR
-    if ! MYPROJECT_BASE_DIR="$(cd "$(dirname "${project_file}")" &>/dev/null && pwd -P)"; then
-        echo >&2 "Error fetching project directory."
+    if ! MYPROJECT_BASE_DIR="$(cd "$(dirname "${MYPROJECT_PROJECT_FILE}")" &>/dev/null && pwd -P)"; then
+        mycmd.log "Error fetching project directory."
+        return 1
     fi
     readonly MYPROJECT_BASE_DIR
 
-    if ! mycmd.source_lib_by_path_if_found "${project_file}"; then
-        mycmd.log "Error loading project file '${project_file}'"
+    if ! mycmd.source_lib_by_path_if_found "${MYPROJECT_PROJECT_FILE}"; then
+        mycmd.log "Error loading project file '${MYPROJECT_PROJECT_FILE}'"
         return 1
     fi
+}
+
+function project.load_closest_project_file() {
+    local project_file_path
+    if ! project_file_path="$(project.find_closest_project_file "${PWD}")"; then
+        mycmd.log "No project file (named myproject) found in this directory or any parent."
+        return 1
+    fi
+    readonly project_file_path
+
+    if ! project.load_project_file "${project_file_path}"; then
+        mycmd.log "Error loading project file."
+        return 1
+    fi
+
+    return 0
 }
 
 declare -Agx _MYCMD_PROJECT_TASKS=()
@@ -92,9 +109,10 @@ function project.register_task() {
     fi
 
     _MYCMD_PROJECT_TASKS[${task_name}]="${task_function_name}"
+    mycmd.trace "Registered task '${task_name}' with function '${task_function_name}'."
 }
 
-project.execute_task() {
+function project.execute_task() {
     local -r task_name="${1}"
     shift
 
@@ -124,6 +142,25 @@ project.execute_task() {
     fi
 
     return "${return_code}"
+}
+
+function project.list_registered_tasks() {
+    if (( "${#_MYCMD_PROJECT_TASKS[@]}" == 0 )); then
+        mycmd.output "There are no registered tasks."
+        return 0
+    fi
+
+    local -a sorted_task_names
+    # shellcheck disable=SC2034
+    readarray -t sorted_task_names  < \
+        <(printf '%s\n' "${!_MYCMD_PROJECT_TASKS[@]}" | LC_ALL=en_US.UTF-8 sort || true)
+
+    mycmd.output "The following tasks are registered:"
+
+    local task
+    for task in "${sorted_task_names[@]}"; do
+        mycmd.output "${task}"
+    done
 }
 
 mycmd.trace "The MyCmd Project command group library has been sourced."

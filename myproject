@@ -2,23 +2,24 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-mycmd.output "Set the following variables:"
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
-mycmd.output "- BIN_DIR: ${BIN_DIR}"
 readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
-mycmd.output "- TESTING_BASE: ${TESTING_BASE}"
 readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
-mycmd.output "- TEST_FILES_BASE: ${TEST_FILES_BASE}"
 readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
-mycmd.output "- TEST_USER_BASE: ${TEST_USER_BASE}"
 readonly SYSTEM_BASE="${MYPROJECT_BASE_DIR}/mycmd"
-mycmd.output "- SYSTEM_BASE: ${SYSTEM_BASE}"
 readonly VENDOR_DIR="${MYPROJECT_BASE_DIR}/vendor"
-mycmd.output "- VENDOR_DIR: ${VENDOR_DIR}"
 readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
-mycmd.output "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
 readonly VENDOR_WORKING_DIR="${MYPROJECT_BASE_DIR}/vendor/.working"
-mycmd.output "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
+
+mycmd.trace "Set the following variables:"
+mycmd.trace "- BIN_DIR: ${BIN_DIR}"
+mycmd.trace "- TESTING_BASE: ${TESTING_BASE}"
+mycmd.trace "- TEST_FILES_BASE: ${TEST_FILES_BASE}"
+mycmd.trace "- TEST_USER_BASE: ${TEST_USER_BASE}"
+mycmd.trace "- SYSTEM_BASE: ${SYSTEM_BASE}"
+mycmd.trace "- VENDOR_DIR: ${VENDOR_DIR}"
+mycmd.trace "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
+mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
 
 function _update_vendored_file_for_vendor_base_dir() {
     local -r source_path="${VENDOR_WORKING_DIR}/${1}"
