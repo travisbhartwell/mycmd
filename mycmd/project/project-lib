@@ -45,8 +45,8 @@ function project.is_quiet_enabled() {
 }
 
 function project.output_only_if_not_quiet() {
-    project.is_quiet_enabled ||
-        mycmd.output "${*}"
+    project.is_quiet_enabled \
+        || mycmd.output "${*}"
 }
 
 function project.enable_verbose_mode() {
@@ -223,12 +223,12 @@ function project.execute_task() {
 }
 
 function project.execute_tasks() {
-     for task in "${@}"; do
+    for task in "${@}"; do
         local return_code=0
 
         project.execute_task "${task}" || return_code=$?
 
-        if (( return_code != 0 )); then
+        if ((return_code != 0)); then
             return "${return_code}"
         fi
     done
