@@ -4,6 +4,8 @@
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
+project.load_task_library "shell"
+
 # shellcheck disable=SC2154
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
 readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
@@ -197,30 +199,8 @@ project.register_task_with_fileset execute-all-tests execute-all-tests ALL_TEST_
 
 #----------------------------------------
 # Code formatting
-mycmd.defer_at_startup mycmd.init_bin shfmt
-function format() {
-    if project.verbose_enabled; then
-        mycmd.output "Formatting the following files:"
-        project.list-files "${1}"
-    fi
-
-    local -n format_fileset="${1}"
-
-    mycmd.bin_execute shfmt --language-dialect bash --indent=4 --binary-next-line --case-indent --write "${format_fileset[@]}"
-}
-project.register_task_with_fileset format format ALL_FILES
+project.register_task_with_fileset format shell.format ALL_FILES
 
 #----------------------------------------
 # Code Lint
-mycmd.defer_at_startup mycmd.init_bin shellcheck
-function lint() {
-    if project.verbose_enabled; then
-        mycmd.output "Linting the following files:"
-        project.list-files "${1}"
-    fi
-
-    local -n lint_fileset="${1}"
-    mycmd.output "Running ShellCheck:"
-    mycmd.bin_execute shellcheck --check-sourced "${lint_fileset[@]}"
-}
-project.register_task_with_fileset lint lint ALL_FILES
+project.register_task_with_fileset lint shell.lint ALL_FILES
