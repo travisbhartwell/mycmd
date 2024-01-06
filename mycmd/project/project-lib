@@ -26,6 +26,10 @@ mycmd.register_command_group_long_desc "Library for Project Task Runner Function
 [[ -n "${_MYCMD_PROJECT_LIB:-}" ]] && return
 readonly _MYCMD_PROJECT_LIB=1
 
+declare -Agx _MYCMD_PROJECT_FILESETS=()
+declare -Agx _MYCMD_PROJECT_TASKS=()
+declare -Agx _MYCMD_PROJECT_TASK_FILESET=()
+
 # project.find_up
 # - returns 1 if the file is not found in the current directory or any parent
 # - returns 0 if the file is found in the current directory or any parent
@@ -93,11 +97,9 @@ function project.load_closest_project_file() {
     return 0
 }
 
-declare -Agx _MYCMD_PROJECT_TASKS=()
-
 function project.register_task() {
     local -r task_name="${1}"
-    if (( $# > 1 )); then
+    if (($# > 1)); then
         local -r task_function_name="${2}"
     else
         local -r task_function_name="${1}"
@@ -112,27 +114,52 @@ function project.register_task() {
     mycmd.trace "Registered task '${task_name}' with function '${task_function_name}'."
 }
 
+function project.register_task_with_fileset() {
+    local -r task_name="${1}"
+    local -r task_function_name="${2}"
+    local -r fileset_name="${3}"
+
+    if [[ -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
+        mycmd.log "Task '${task_name}' already registered."
+        return 1
+    fi
+
+    _MYCMD_PROJECT_TASKS[${task_name}]="${task_function_name}"
+    _MYCMD_PROJECT_TASK_FILESET[${task_name}]="${fileset_name}"
+    mycmd.trace "Registered task '${task_name}' with function '${task_function_name}' and the fileset '${fileset_name}'."
+}
+
 function project.execute_task() {
     local -r task_name="${1}"
     shift
-
-    if [[ ! -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
-        mycmd.log "Task '${task_name}' not defined."
-        return 1
-    fi
 
     local fn=${_MYCMD_PROJECT_TASKS[${task_name}]}
 
     cd "${MYPROJECT_BASE_DIR}"
 
     local return_code=0
-    if mycmd.function_exists "${fn}"; then
+
+    if [[ ! -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
+        mycmd.log "Unknown task: '${task_name}'."
+        return_code=1
+    elif ! mycmd.function_exists "${fn}"; then
+        mycmd.log "Unknown task function: '${fn}' for task '${task_name}'."
+        return_code=1
+    else
         mycmd.output "➡️ Executing task '${task_name}'..."
 
-        "${fn}" "${@}" || return_code=$?
-    else
-        mycmd.output "Unknown task: '${fn}'."
-        return_code=1
+        if [[ -v _MYCMD_PROJECT_TASK_FILESET[${task_name}] ]]; then
+            local fileset_name="${_MYCMD_PROJECT_TASK_FILESET[${task_name}]}"
+
+            if [[ ! -v _MYCMD_PROJECT_FILESETS[${fileset_name}] ]]; then
+                mycmd.log "Specified file set '${fileset_name}' for task '${task_name}' not defined."
+                return_code=1
+            else
+                "${fn}" "${fileset_name}" "${@}" || return_code=$?
+            fi
+        else
+            "${fn}" "${@}" || return_code=$?
+        fi
     fi
 
     if ((return_code == 0)); then
@@ -145,14 +172,14 @@ function project.execute_task() {
 }
 
 function project.list_registered_tasks() {
-    if (( "${#_MYCMD_PROJECT_TASKS[@]}" == 0 )); then
+    if (("${#_MYCMD_PROJECT_TASKS[@]}" == 0)); then
         mycmd.output "There are no registered tasks."
         return 0
     fi
 
     local -a sorted_task_names
     # shellcheck disable=SC2034
-    readarray -t sorted_task_names  < \
+    readarray -t sorted_task_names < \
         <(printf '%s\n' "${!_MYCMD_PROJECT_TASKS[@]}" | LC_ALL=en_US.UTF-8 sort || true)
 
     mycmd.output "The following tasks are registered:"
@@ -161,6 +188,69 @@ function project.list_registered_tasks() {
     for task in "${sorted_task_names[@]}"; do
         mycmd.output "${task}"
     done
+}
+
+function project.register_fileset() {
+    local -r fileset_name="${1}"
+    declare -agx "${fileset_name}=()"
+    _MYCMD_PROJECT_FILESETS[${fileset_name}]=1
+}
+
+mycmd.defer_at_startup mycmd.init_bin find
+mycmd.defer_at_startup mycmd.init_bin realpath
+function project.find_files_for_fileset() {
+    local -n fileset="${1}"
+    shift
+
+    if ! [[ "${*}" =~ .*-print0.* ]]; then
+        set -- "${@}" -print0
+    fi
+
+    local realpath_exe
+    if ! realpath_exe="$(mycmd._locate_bin realpath)"; then
+        mycmd.debug "Unable to find realpath"
+        return 1
+    fi
+    readonly realpath_exe
+
+    # shellcheck disable=SC2034
+    readarray -t fileset < <(mycmd.bin_execute find "${@}" \
+        | xargs -0 "${realpath_exe}" --relative-to="${MYPROJECT_BASE_DIR}" \
+        | LC_ALL=en_US.UTF-8 sort || true)
+}
+
+mycmd.defer_at_startup mycmd.init_bin realpath
+function project.add_files_to_fileset() {
+    local -n fileset_to_append="${1}"
+    shift
+
+    local filename
+    local relative_filename
+
+    for filename in "${@}"; do
+        if ! relative_filename="$(mycmd.bin_execute realpath --relative-to="${MYPROJECT_BASE_DIR}" "${filename}")"; then
+            mycmd.debug "Error getting relative path for ${filename}"
+            return 1
+        fi
+
+        fileset_to_append+=("${relative_filename}")
+    done
+}
+
+function project.list-files() {
+    local -n fileset_to_list="${1}"
+
+    echo "${fileset_to_list[*]}" | tr ' ' '\n'
+}
+
+function project.verbose_enabled() {
+    [[ -n "${MYPROJECT_VERBOSE-}" ]]
+}
+
+function project.verbose() {
+    if project.verbose_enabled; then
+        mycmd.output "[VERBOSE] ${*}"
+    fi
 }
 
 mycmd.trace "The MyCmd Project command group library has been sourced."

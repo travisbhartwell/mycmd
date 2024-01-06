@@ -2,6 +2,9 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# shellcheck disable=SC2154
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
 readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
 readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
@@ -20,6 +23,13 @@ mycmd.trace "- SYSTEM_BASE: ${SYSTEM_BASE}"
 mycmd.trace "- VENDOR_DIR: ${VENDOR_DIR}"
 mycmd.trace "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
 mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
+
+project.register_fileset ALL_FILES
+project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
+# shellcheck disable=SC2154
+project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
+
+project.register_task_with_fileset list-all-files project.list-files ALL_FILES
 
 function _update_vendored_file_for_vendor_base_dir() {
     local -r source_path="${VENDOR_WORKING_DIR}/${1}"
@@ -106,3 +116,111 @@ function update-shunit2() {
     _update_vendored_test_file "shunit2/shunit2_test_helpers" "shunit2_test_helpers"
 }
 project.register_task update-shunit2
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function list-mycmd-lib-functions() {
+    local -r mycmd_lib="${SYSTEM_BASE}/mycmd-lib"
+
+    grep "^function" "${mycmd_lib}" \
+        | mycmd.bin_execute sed -n 's/function \(.*\)() {/\1/p'
+}
+
+project.register_task list-mycmd-lib-functions
+
+#----------------------------------------
+# Test execution
+project.register_fileset ALL_TEST_FILES
+project.find_files_for_fileset ALL_TEST_FILES "${TEST_FILES_BASE}" -type f -name '*-test'
+
+project.register_task_with_fileset list-test-files project.list-files ALL_TEST_FILES
+
+mycmd.defer_at_startup mycmd.init_bin gum
+function summarize_test_results() {
+    local -n results_ref="${1}"
+
+    (
+        echo "Testing Summary:"
+        echo "| Result | Test File |"
+        echo "|--------|-----------|"
+        local test_file
+        local result
+
+        for test_file in "${!results_ref[@]}"; do
+            result="${results_ref["${test_file}"]}"
+            if ((result == 0)); then
+                echo "| ✅︎ | ${test_file} |"
+            else
+                echo "| ❌ | ${test_file} |"
+            fi
+        done
+    ) | mycmd.bin_execute gum format --type=markdown
+}
+
+function execute-test() {
+    local -r test_file="${1}"
+
+    if [[ ! -e "${test_file}" ]]; then
+        mycmd.log "Test file not found: ${test_file}"
+        return 1
+    fi
+
+    local result=0
+    mycmd.log "Executing test file: ${test_file}"
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${test_file}" || result=$?
+
+    mycmd.log "Result of ${test_file}: ${result}"
+    return "${result}"
+}
+
+function execute-all-tests() {
+    local -n test_fileset="${1}"
+    local test_file
+    local -A results=()
+    local result
+
+    for test_file in "${test_fileset[@]}"; do
+        result=0
+
+        execute-test "${test_file}" || result=$?
+        # shellcheck disable=SC2034
+        results["${test_file}"]="${result}"
+    done
+
+    summarize_test_results results
+}
+
+project.register_task_with_fileset execute-all-tests execute-all-tests ALL_TEST_FILES
+
+#----------------------------------------
+# Code formatting
+mycmd.defer_at_startup mycmd.init_bin shfmt
+function format() {
+    if project.verbose_enabled; then
+        mycmd.output "Formatting the following files:"
+        project.list-files "${1}"
+    fi
+
+    local -n format_fileset="${1}"
+
+    mycmd.bin_execute shfmt --language-dialect bash --indent=4 --binary-next-line --case-indent --write "${format_fileset[@]}"
+}
+project.register_task_with_fileset format format ALL_FILES
+
+#----------------------------------------
+# Code Lint
+mycmd.defer_at_startup mycmd.init_bin shellcheck
+function lint() {
+    if project.verbose_enabled; then
+        mycmd.output "Linting the following files:"
+        project.list-files "${1}"
+    fi
+
+    local -n lint_fileset="${1}"
+    mycmd.output "Running ShellCheck:"
+    mycmd.bin_execute shellcheck --check-sourced "${lint_fileset[@]}"
+}
+project.register_task_with_fileset lint lint ALL_FILES
