@@ -253,4 +253,11 @@ function project.verbose() {
     fi
 }
 
+function project.load_task_library() {
+    local -r task_library="${1}"
+    local -r full_library_name="project/${task_library}"
+
+    mycmd.source_mycmd_lib "${full_library_name}"
+}
+
 mycmd.trace "The MyCmd Project command group library has been sourced."
