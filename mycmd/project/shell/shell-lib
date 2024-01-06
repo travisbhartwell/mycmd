@@ -30,7 +30,7 @@ readonly _MYCMD_PROJECT_SHELL_LIB=1
 # Code formatting
 mycmd.defer_at_startup mycmd.init_bin shfmt
 function shell.format() {
-    if project.verbose_enabled; then
+    if project.is_verbose_enabled; then
         mycmd.output "Formatting the following files:"
         project.list-files "${1}"
     fi
@@ -44,7 +44,7 @@ function shell.format() {
 # Code Lint
 mycmd.defer_at_startup mycmd.init_bin shellcheck
 function shell.lint() {
-    if project.verbose_enabled; then
+    if project.is_verbose_enabled; then
         mycmd.output "Linting the following files:"
         project.list-files "${1}"
     fi
@@ -53,6 +53,5 @@ function shell.lint() {
     mycmd.output "Running ShellCheck:"
     mycmd.bin_execute shellcheck --check-sourced "${lint_fileset[@]}"
 }
-
 
 mycmd.trace "The MyCmd Project Shell command group library has been sourced."

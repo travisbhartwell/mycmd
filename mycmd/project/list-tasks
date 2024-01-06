@@ -62,7 +62,6 @@ function parse_command_line() {
                 break
                 ;;
 
-
             *)
                 mycmd.log "Unknown argument: '${1}'"
                 errors['UNKNOWN']=1
