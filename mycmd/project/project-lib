@@ -30,6 +30,45 @@ declare -Agx _MYCMD_PROJECT_FILESETS=()
 declare -Agx _MYCMD_PROJECT_TASKS=()
 declare -Agx _MYCMD_PROJECT_TASK_FILESET=()
 
+function project.enable_quiet_mode() {
+    declare -gx MYPROJECT_QUIET=1
+}
+
+function project.disable_quiet_mode() {
+    if [[ -v MYPROJECT_QUIET ]]; then
+        unset -v MYPROJECT_QUIET
+    fi
+}
+
+function project.is_quiet_enabled() {
+    [[ -n "${MYPROJECT_QUIET-}" ]]
+}
+
+function project.output_only_if_not_quiet() {
+    project.is_quiet_enabled ||
+        mycmd.output "${*}"
+}
+
+function project.enable_verbose_mode() {
+    declare -gx MYPROJECT_VERBOSE=1
+}
+
+function project.disable_verbose_mode() {
+    if [[ -v MYPROJECT_VERBOSE ]]; then
+        unset -v MYPROJECT_VERBOSE
+    fi
+}
+
+function project.is_verbose_enabled() {
+    [[ -n "${MYPROJECT_VERBOSE-}" ]]
+}
+
+function project.verbose() {
+    if project.is_verbose_enabled; then
+        mycmd.output "[VERBOSE] ${*}"
+    fi
+}
+
 # project.find_up
 # - returns 1 if the file is not found in the current directory or any parent
 # - returns 0 if the file is found in the current directory or any parent
@@ -129,24 +168,36 @@ function project.register_task_with_fileset() {
     mycmd.trace "Registered task '${task_name}' with function '${task_function_name}' and the fileset '${fileset_name}'."
 }
 
+function project.function_exists_for_task() {
+    local -r task_name="${1}"
+    local -r fn="${_MYCMD_PROJECT_TASKS[${task_name}]}"
+
+    if ! mycmd.function_exists "${fn}"; then
+        mycmd.log "Unknown task function: '${fn}' for task '${task_name}'."
+        return 1
+    fi
+
+    return 0
+}
+
 function project.execute_task() {
     local -r task_name="${1}"
     shift
-
-    local fn=${_MYCMD_PROJECT_TASKS[${task_name}]}
-
-    cd "${MYPROJECT_BASE_DIR}"
 
     local return_code=0
 
     if [[ ! -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
         mycmd.log "Unknown task: '${task_name}'."
         return_code=1
-    elif ! mycmd.function_exists "${fn}"; then
-        mycmd.log "Unknown task function: '${fn}' for task '${task_name}'."
+    elif ! project.function_exists_for_task "${task_name}"; then
         return_code=1
     else
+        local fn=${_MYCMD_PROJECT_TASKS[${task_name}]}
+        mycmd.debug "Executing function '${fn}' for task '${task_name}'."
+
         mycmd.output "➡️ Executing task '${task_name}'..."
+
+        cd "${MYPROJECT_BASE_DIR}"
 
         if [[ -v _MYCMD_PROJECT_TASK_FILESET[${task_name}] ]]; then
             local fileset_name="${_MYCMD_PROJECT_TASK_FILESET[${task_name}]}"
@@ -163,17 +214,29 @@ function project.execute_task() {
     fi
 
     if ((return_code == 0)); then
-        mycmd.output "✅ Task '${fn}' succeeded."
+        mycmd.output "✅ Task '${task_name}' succeeded."
     else
-        mycmd.output "❌ Task '${fn}' failed."
+        mycmd.output "❌ Task '${task_name}' failed."
     fi
 
     return "${return_code}"
 }
 
+function project.execute_tasks() {
+     for task in "${@}"; do
+        local return_code=0
+
+        project.execute_task "${task}" || return_code=$?
+
+        if (( return_code != 0 )); then
+            return "${return_code}"
+        fi
+    done
+}
+
 function project.list_registered_tasks() {
     if (("${#_MYCMD_PROJECT_TASKS[@]}" == 0)); then
-        mycmd.output "There are no registered tasks."
+        project.output_only_if_not_quiet "There are no registered tasks."
         return 0
     fi
 
@@ -182,7 +245,7 @@ function project.list_registered_tasks() {
     readarray -t sorted_task_names < \
         <(printf '%s\n' "${!_MYCMD_PROJECT_TASKS[@]}" | LC_ALL=en_US.UTF-8 sort || true)
 
-    mycmd.output "The following tasks are registered:"
+    project.output_only_if_not_quiet "The following tasks are registered:"
 
     local task
     for task in "${sorted_task_names[@]}"; do
@@ -241,16 +304,6 @@ function project.list-files() {
     local -n fileset_to_list="${1}"
 
     echo "${fileset_to_list[*]}" | tr ' ' '\n'
-}
-
-function project.verbose_enabled() {
-    [[ -n "${MYPROJECT_VERBOSE-}" ]]
-}
-
-function project.verbose() {
-    if project.verbose_enabled; then
-        mycmd.output "[VERBOSE] ${*}"
-    fi
 }
 
 function project.load_task_library() {
