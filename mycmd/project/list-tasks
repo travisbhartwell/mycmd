@@ -2,15 +2,121 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
+mycmd.register_command_version "0.1"
+mycmd.register_command_short_desc "List the tasks defined by the current myproject file."
+
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true)"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -q | --quiet"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -V | --verbose"
+mycmd.add_command_help_line "Options:"
+mycmd.add_command_help_line "\t-h | --help    - Show this help"
+mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+mycmd.add_command_help_line "\t-q | --quiet   - Only show the names of the tasks"
+mycmd.add_command_help_line "\t-V | --verbose - Show detailed information about the tasks"
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+
 set -o nounset -o errexit -o errtrace -o pipefail
 
+readonly _HELP='help'
+readonly _VERSION='version'
+readonly _QUIET='quiet'
+readonly _VERBOSE='verbose'
+
+function parse_command_line() {
+    local -n arguments_ref="${1}"
+    shift
+    local -A errors=()
+
+    # Set defaults
+    arguments_ref["${_HELP}"]=false
+    arguments_ref["${_VERSION}"]=false
+    arguments_ref["${_QUIET}"]=false
+    arguments_ref["${_VERBOSE}"]=false
+
+    while (($# > 0)); do
+        case "${1}" in
+            "--${_HELP}" | "-h")
+                arguments_ref["${_HELP}"]=true
+                # Ignore other arguments
+                break
+                ;;
+
+            "--${_VERSION}" | "-v")
+                arguments_ref["${_VERSION}"]=true
+                # Ignore other arguments
+                break
+                ;;
+
+            "--${_QUIET}" | "-q")
+                arguments_ref["${_QUIET}"]=true
+                # Ignore other arguments
+                break
+                ;;
+
+            "--${_VERBOSE}" | "-V")
+                arguments_ref["${_VERBOSE}"]=true
+                # Ignore other arguments
+                break
+                ;;
+
+
+            *)
+                mycmd.log "Unknown argument: '${1}'"
+                errors['UNKNOWN']=1
+                shift
+                ;;
+        esac
+    done
+
+    mycmd.trace "Parsed arguments:"
+    local argument
+    for argument in "${_QUIET}" \
+        "${_VERBOSE}" \
+        "${_HELP}" \
+        "${_VERSION}"; do
+        if [[ -v arguments_ref["${argument}"] ]]; then
+            mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
+        else
+            mycmd.log "Value not set for ${argument}."
+        fi
+    done
+
+    (("${#errors[@]}" == 0))
+}
+
 function mycmd.main() {
+    local -A parsed_arguments=()
+    if ! parse_command_line parsed_arguments "${@}"; then
+        mycmd.err_exit 1 "Errors parsing command line arguments."
+    fi
+
+    if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
+        mycmd.command_help
+        exit 0
+    fi
+
+    if [[ "${parsed_arguments[${_VERSION}]}" = "true" ]]; then
+        mycmd.command_version
+        exit 0
+    fi
+
+    if [[ "${parsed_arguments[${_QUIET}]}" = "true" ]]; then
+        project.enable_quiet_mode
+    fi
+
+    if [[ "${parsed_arguments[${_VERBOSE}]}" = "true" ]]; then
+        project.enable_verbose_mode
+    fi
+
     if ! project.load_closest_project_file; then
         exit 1
     fi
 
     # shellcheck disable=SC2154
-    mycmd.output "Using project file: ${MYPROJECT_PROJECT_FILE}."
+    project.output_only_if_not_quiet "Using project file: ${MYPROJECT_PROJECT_FILE}."
 
     # TODO: Add command-line parameters to add verbose information to show the task function and file set
     project.list_registered_tasks
