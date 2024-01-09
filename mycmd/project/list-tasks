@@ -117,6 +117,5 @@ function mycmd.main() {
     # shellcheck disable=SC2154
     project.output_only_if_not_quiet "Using project file: ${MYPROJECT_PROJECT_FILE}."
 
-    # TODO: Add command-line parameters to add verbose information to show the task function and file set
     project.list_registered_tasks
 }

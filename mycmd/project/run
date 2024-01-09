@@ -2,23 +2,258 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
+mycmd.register_command_version "0.1"
+mycmd.register_command_short_desc "List the tasks defined by the current myproject file."
+
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) [[-v|--verbose] [-q|--quiet] --] <task1> [argument1..] [;]\n"
+mycmd.add_command_help_line "Multiple tasks can be specified on one command line with a semi-colon separating them. This usually needs to be escaped so the shell passes it to the command."
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
+mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -p | --prompt"
+mycmd.add_command_help_line "Options:"
+mycmd.add_command_help_line "\t-h | --help    - Show this help"
+mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+mycmd.add_command_help_line "\t-p | --prompt  - Prompt for task to run, even if default is set"
+mycmd.add_command_help_line "\t-q | --quiet   - Only show the names of the tasks"
+mycmd.add_command_help_line "\t-V | --verbose - Show detailed information about the tasks"
+
+[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+
 set -o nounset -o errexit -o errtrace -o pipefail
 
+readonly _HELP='help'
+readonly _VERSION='version'
+readonly _QUIET='quiet'
+readonly _VERBOSE='verbose'
+readonly _PROMPT='prompt'
+readonly _PROJECT_FILE='project-file'
+readonly _TASKS='tasks'
+
+function parse_command_line() {
+    local -n arguments_ref="${1}"
+    shift
+    local -n task_positions_ref="${1}"
+    shift
+
+    local -A errors=()
+
+    # Set defaults
+    arguments_ref["${_HELP}"]=false
+    arguments_ref["${_VERSION}"]=false
+    arguments_ref["${_QUIET}"]=false
+    arguments_ref["${_VERBOSE}"]=false
+    arguments_ref["${_PROMPT}"]=false
+
+    local -i arg_index=0
+
+    # Check if 'mycmd project run' has been used in a shebang
+    if (($# > 0)); then
+        if [[ "${1}" = /* || "${1}" = ./* || "${1}" = ../* ]] && [[ -e "${1}" ]]; then
+            local project_file_path
+            if ! project_file_path="$(mycmd.canonicalize_path "${1}")"; then
+                mycmd.log "Error getting absolute path of project file '${1}'."
+                errors["${_PROJECT_FILE}"]=1
+            else
+                arguments_ref["${_PROJECT_FILE}"]="${project_file_path}"
+            fi
+
+            shift
+            ((arg_index += 1))
+        fi
+    fi
+
+    local completed_global_arguments=false
+
+    # {--help,--version}
+    # - only are valid with no other arguments present
+    # {--prompt}
+    # - only valid in combination with {--quiet,--verbose}
+    # {--verbose,--quiet}
+    # - if given in combination with tasks, must come before --
+    # tasks
+    # - if global arguments are provided, -- is required
+    # - otherwise, -- can be omitted
+    while (($# > 0)); do
+        if [[ "${completed_global_arguments}" = "false" ]]; then
+            case "${1}" in
+                "--${_HELP}" | "-h")
+                    arguments_ref["${_HELP}"]=true
+                    # Ignore other arguments
+                    break
+                    ;;
+
+                "--${_VERSION}" | "-v")
+                    arguments_ref["${_VERSION}"]=true
+                    # Ignore other arguments
+                    break
+                    ;;
+
+                "--${_PROMPT}" | "-p")
+                    arguments_ref["${_PROMPT}"]=true
+                    shift
+                    ((arg_index += 1))
+                    ;;
+
+                "--${_QUIET}" | "-q")
+                    arguments_ref["${_QUIET}"]=true
+                    shift
+                    ((arg_index += 1))
+                    ;;
+
+                "--${_VERBOSE}" | "-V")
+                    arguments_ref["${_VERBOSE}"]=true
+                    shift
+                    ((arg_index += 1))
+                    ;;
+
+                "--")
+                    mycmd.trace "Switching to task arguments because of arguments separator"
+                    completed_global_arguments="true"
+                    shift
+                    ((arg_index += 1))
+
+                    if (($# > 0)); then
+                        task_positions_ref+=("${arg_index}")
+                    else
+                        mycmd.log "Expecting tasks and arguments after options separator '--'."
+                        errors["${_TASKS}"]=1
+                    fi
+                    ;;
+
+                "--"* | "-"*)
+                    mycmd.log "Unknown flag or argument: '${1}'"
+                    errors['UNKNOWN']=1
+                    shift
+                    ((arg_index += 1))
+                    ;;
+
+                *)
+                    if [[ "${arguments_ref["${_QUIET}"]}" = "true" || "${arguments_ref["${_VERBOSE}"]}" = "true" || "${arguments_ref["${_VERBOSE}"]}" = "true" ]]; then
+                        mycmd.log "Tasks and arguments must be separated from options by '--'."
+                        errors["${_TASKS}"]=1
+                        break
+                    else
+                        mycmd.trace "Switching to global arguments parsing."
+                        task_positions_ref+=("${arg_index}")
+                        completed_global_arguments="true"
+                    fi
+                    ;;
+            esac
+        else
+            ((arg_index += 1))
+
+            if [[ "${1}" = ";" && "$#" -gt 0 ]]; then
+                task_positions_ref+=("${arg_index}")
+            fi
+
+            shift
+        fi
+    done
+
+    mycmd.trace "Parsed arguments:"
+    local argument
+    for argument in \
+        "${_PROJECT_FILE}" \
+        "${_QUIET}" \
+        "${_VERBOSE}" \
+        "${_HELP}" \
+        "${_VERSION}"; do
+        if [[ -v arguments_ref["${argument}"] ]]; then
+            mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
+        else
+            mycmd.trace "Value not set for ${argument}."
+        fi
+    done
+
+    if (("${#task_positions_ref[@]}" > 0)); then
+        mycmd.trace "Tasks specified starting at the following locations: ${task_positions_ref[*]}."
+    else
+        mycmd.trace "No tasks or task arguments provided."
+    fi
+
+    (("${#errors[@]}" == 0))
+}
+
 function mycmd.main() {
-    if ! project.load_closest_project_file; then
+    local -a task_positions=()
+    local -A parsed_arguments=()
+    if ! parse_command_line parsed_arguments task_positions "${@}"; then
+        mycmd.err_exit 1 "Errors parsing command line arguments."
+    fi
+
+    if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
+        mycmd.command_help
+        exit 0
+    fi
+
+    if [[ "${parsed_arguments[${_VERSION}]}" = "true" ]]; then
+        mycmd.command_version
+        exit 0
+    fi
+
+    if [[ "${parsed_arguments[${_QUIET}]}" = "true" ]]; then
+        project.enable_quiet_mode
+    fi
+
+    if [[ "${parsed_arguments[${_VERBOSE}]}" = "true" ]]; then
+        project.enable_verbose_mode
+    fi
+
+    if [[ -v parsed_arguments["${_PROJECT_FILE}"] ]]; then
+        if ! project.load_project_file "${parsed_arguments[${_PROJECT_FILE}]}"; then
+            exit 1
+        fi
+    elif ! project.load_closest_project_file; then
         exit 1
     fi
 
     # shellcheck disable=SC2154
-    mycmd.output "Using project file: ${MYPROJECT_PROJECT_FILE}."
+    project.output_only_if_not_quiet "Using project file: ${MYPROJECT_PROJECT_FILE}."
 
-    if (($# < 1)); then
-        mycmd.err_exit 1 "Missing task to run."
+    if (("${#task_positions[@]}" == 0)); then
+        local default_task
+
+        if default_task="$(project.get_default_task)"; then
+            task_positions+=("$#")
+            set -- "${@}" "${default_task}"
+        else
+            mycmd.err_exit 1 "No task specified on command-line or default task set in project file."
+        fi
     fi
 
-    local exit_code=0
+    local -a arguments=("${@}")
+    local -i max_argument=$#
 
-    project.execute_task "${@}" || exit_code=$?
+    local -i index
+    local -ri max_index=$(("${#task_positions[@]}" - 1))
 
-    exit "${exit_code}"
+    local start
+    local end
+    local len
+    local next_index
+
+    for ((index = 0; index < "${#task_positions[@]}"; index++)); do
+        start=${task_positions[index]}
+
+        if ((index < max_index)); then
+            next_index=$((index + 1))
+            end=${task_positions[${next_index}]}
+        else
+            end=${max_argument}
+        fi
+        len=$((end - start))
+
+        set -- "${arguments[@]:start:len}"
+
+        mycmd.trace "Set task and arguments to ${*}"
+        local exit_code=0
+
+        project.execute_task "${@}" || exit_code=$?
+
+        if ((exit_code != 0)); then
+            exit "${exit_code}"
+        fi
+    done
+
+    exit 0
 }

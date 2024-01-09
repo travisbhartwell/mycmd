@@ -33,6 +33,10 @@ project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
 
 project.register_task_with_fileset list-all-files project.list-files ALL_FILES
 
+project.register_fileset IMPLEMENTATION_FILES
+project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" -type f
+project.register_task_with_fileset list-implementation-files project.list-files IMPLEMENTATION_FILES
+
 function _update_vendored_file_for_vendor_base_dir() {
     local -r source_path="${VENDOR_WORKING_DIR}/${1}"
     local -r vendor_dir="${2}"
@@ -204,3 +208,9 @@ project.register_task_with_fileset format shell.format ALL_FILES
 #----------------------------------------
 # Code Lint
 project.register_task_with_fileset lint shell.lint ALL_FILES
+
+function all() {
+    project.execute_tasks format lint execute-all-tests
+}
+project.register_task all
+project.register_default_task all
