@@ -29,6 +29,7 @@ readonly _MYCMD_PROJECT_LIB=1
 declare -Agx _MYCMD_PROJECT_FILESETS=()
 declare -Agx _MYCMD_PROJECT_TASKS=()
 declare -Agx _MYCMD_PROJECT_TASK_FILESET=()
+declare -gx _MYCMD_PROJECT_DEFAULT_TASK
 
 function project.enable_quiet_mode() {
     declare -gx MYPROJECT_QUIET=1
@@ -66,6 +67,15 @@ function project.is_verbose_enabled() {
 function project.verbose() {
     if project.is_verbose_enabled; then
         mycmd.output "[VERBOSE] ${*}"
+    fi
+}
+
+function project.get_default_task() {
+    if [[ -v _MYCMD_PROJECT_DEFAULT_TASK ]]; then
+        echo "${_MYCMD_PROJECT_DEFAULT_TASK}"
+        return 0
+    else
+        return 1
     fi
 }
 
@@ -123,7 +133,7 @@ function project.load_project_file() {
 function project.load_closest_project_file() {
     local project_file_path
     if ! project_file_path="$(project.find_closest_project_file "${PWD}")"; then
-        mycmd.log "No project file (named myproject) found in this directory or any parent."
+        mycmd.log "No project file (named 'myproject') found in this directory or any parent."
         return 1
     fi
     readonly project_file_path
@@ -178,6 +188,18 @@ function project.function_exists_for_task() {
     fi
 
     return 0
+}
+
+function project.register_default_task() {
+    local -r task_name="${1}"
+
+    if [[ -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
+        _MYCMD_PROJECT_DEFAULT_TASK="${task_name}"
+        return 0
+    else
+        mycmd.log "Unknown task '${task_name}' specified as default task."
+        return 1
+    fi
 }
 
 function project.execute_task() {
