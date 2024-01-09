@@ -237,7 +237,7 @@ function mycmd.main() {
 
         if ((index < max_index)); then
             next_index=$((index + 1))
-            end=${task_positions[${next_index}]}
+            end=$((${task_positions[${next_index}]} - 1))
         else
             end=${max_argument}
         fi
