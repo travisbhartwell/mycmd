@@ -626,6 +626,18 @@ function mycmd.source_command_for_help() {
     unset _MYCMD_SOURCING_COMMAND_FOR_HELP
 }
 
+# mycmd.source_command_group_for_help
+function mycmd.source_command_group_for_help() {
+    local -r command_group_path="${1}"
+    shift
+
+    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
+    if ! mycmd.source_mycmd_lib "${command_group_path}"; then
+        mycmd.err_exit 1 "MyCmd Command Group '${command_group_path}' not found."
+    fi
+    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
+}
+
 # mycmd.execute_command
 #  Execute a MyCmd command, given the full path to the command.
 function mycmd.execute_command() {
@@ -713,12 +725,6 @@ function mycmd.running_command_parts_from_path() {
         return 1
     fi
 }
-
-# function mycmd.is_path_a_command_group() {
-# }
-
-# function mycmd.is_path_a_command() {
-# }
 
 # mycmd.source_lib_by_path_if_found
 #   Source the library if it exists.
@@ -916,7 +922,6 @@ fi
 
 # ------------------------------------------------------------------------------
 # Additional Logging Support Functions
-
 mycmd.defer_at_startup mycmd.init_bin sed
 function mycmd._log_input() {
     local fn=$1
@@ -1206,6 +1211,73 @@ function mycmd.command_help() {
     readonly help
 
     mycmd.command_version
+}
+
+function mycmd.command_group_version() {
+    local -r command_group_path="${1}"
+    local command_group_launcher_parts
+    if ! command_group_launcher_parts="$(mycmd.command_or_group_parts_from_path "${command_group_path}" mycmd)"; then
+        mycmd.log "Error getting command group parts for '${command_group_path}'."
+        return 1
+    fi
+    readonly command_group_launcher_parts
+
+    local command_group_name
+    if ! command_group_name="$(basename "${command_group_path}")"; then
+        mycmd.log "Error getting command group name for '${command_group_path}'."
+        return 1
+    fi
+    readonly command_group_name
+
+    local -r command_group_file_path="${command_group_path}/${command_group_name}-lib"
+
+    local version
+    if ! version="$(mycmd._get_value_for_calling_file_with_default "${command_group_file_path}" _MYCMD_COMMAND_GROUP_VERSIONS "Unknown")"; then
+        mycmd.log "Error getting version for command group."
+        return 1
+    fi
+    readonly version
+
+    mycmd.output "${command_group_launcher_parts} version ${version}"
+
+    return 0
+}
+
+function mycmd.command_group_help() {
+    local -r command_group_path="${1}"
+    local command_group_launcher_parts
+    if ! command_group_launcher_parts="$(mycmd.command_or_group_parts_from_path "${command_group_path}" mycmd)"; then
+        mycmd.log "Error getting command group parts for '${command_group_path}'."
+        return 1
+    fi
+    readonly command_group_launcher_parts
+
+    local command_group_name
+    if ! command_group_name="$(basename "${command_group_path}")"; then
+        mycmd.log "Error getting command group name for '${command_group_path}'."
+        return 1
+    fi
+    readonly command_group_name
+
+    local -r command_group_file_path="${command_group_path}/${command_group_name}-lib"
+
+    local short_desc
+    if ! short_desc="$(mycmd._get_value_for_calling_file_with_default "${command_group_file_path}" _MYCMD_COMMAND_GROUP_SHORT_DESCS "${_MYCMD_COMMAND_GROUP_DESC} ${command_group_launcher_parts}")"; then
+        mycmd.log "Error getting short description for command group."
+        return 1
+    fi
+    readonly short_desc
+
+    mycmd.command_group_version "${command_group_path}"
+    mycmd.output "\n${short_desc}\n"
+
+    local long_desc
+    if long_desc="$(mycmd._get_value_for_calling_file "${command_group_file_path}" _MYCMD_COMMAND_GROUP_LONG_DESCS)"; then
+        mycmd.output "${long_desc}\n"
+    fi
+    readonly long_desc
+
+    return 0
 }
 
 # ------------------------------------------------------------------------------
