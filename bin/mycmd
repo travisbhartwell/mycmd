@@ -155,18 +155,28 @@ function mycmd_launcher.launcher_help() {
 
 function mycmd_launcher.command_group_version() {
     local -r command_group_path="${1}"
+    local relative_path
+    if ! relative_path="$(mycmd.path_relative_to_mycmd_base_with_command_group "${command_group_path}")"; then
+       mycmd.log "Error getting relative path for command group at '${command_group_path}'."
+       return 1
+    fi
+    readonly relative_path
 
-    mycmd.output "'${command_group_path}' Version."
-
-    # if ! mycmd.source_lib_by_path_if_found "${MYCMD_COMMAND_ABSPATH}" "${@}"; then
-    #     mycmd.err_exit 1 "MyCmd command group '${MYCMD_COMMAND_ABSPATH}' not found."
-    # fi
+    mycmd.source_command_group_for_help "${relative_path}"
+    mycmd.command_group_version "${command_group_path}"
 }
 
 function mycmd_launcher.command_group_help() {
     local -r command_group_path="${1}"
+    local relative_path
+    if ! relative_path="$(mycmd.path_relative_to_mycmd_base_with_command_group "${command_group_path}")"; then
+        mycmd.log "Error getting relative path for command group at '${command_group_path}'."
+        return 1
+    fi
+    readonly relative_path
 
-    mycmd.output "Help for '${command_group_path}'."
+    mycmd.source_command_group_for_help "${relative_path}"
+    mycmd.command_group_help "${command_group_path}"
 }
 
 function mycmd_launcher.command_version() {
@@ -293,7 +303,7 @@ function mycmd_launcher.parse_command_line() {
     local found_zsh_complete=false
     local found_non_flags=false
 
-    if [[ "${1}" = /* ]] || [[ "${1}" = ./* ]] && [[ -e "${1}" ]]; then
+    if [[ "${1}" = /* || "${1}" = ./* || "${1}" = ../* ]] && [[ -e "${1}" ]]; then
         local full_path="${1}"
         arguments_ref["${_MYCMD_COMMAND_FULL_PATH}"]="${full_path}"
 
