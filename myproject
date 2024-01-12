@@ -15,6 +15,7 @@ readonly SYSTEM_BASE="${MYPROJECT_BASE_DIR}/mycmd"
 readonly VENDOR_DIR="${MYPROJECT_BASE_DIR}/vendor"
 readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
 readonly VENDOR_WORKING_DIR="${MYPROJECT_BASE_DIR}/vendor/.working"
+readonly TMP_WORKING_DIR="${MYPROJECT_BASE_DIR}/tmp"
 
 mycmd.trace "Set the following variables:"
 mycmd.trace "- BIN_DIR: ${BIN_DIR}"
@@ -25,6 +26,7 @@ mycmd.trace "- SYSTEM_BASE: ${SYSTEM_BASE}"
 mycmd.trace "- VENDOR_DIR: ${VENDOR_DIR}"
 mycmd.trace "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
 mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
+mycmd.trace "- TMP_WORKING_DIR: ${TMP_WORKING_DIR}"
 
 project.register_fileset ALL_FILES
 project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
@@ -34,7 +36,7 @@ project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
 project.register_task_with_fileset list-all-files project.list-files ALL_FILES
 
 project.register_fileset IMPLEMENTATION_FILES
-project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" -type f
+project.find_files_for_fileset IMPLEMENTATION_FILES "${BIN_DIR}" "${SYSTEM_BASE}" -type f
 project.register_task_with_fileset list-implementation-files project.list-files IMPLEMENTATION_FILES
 
 function _update_vendored_file_for_vendor_base_dir() {
@@ -127,11 +129,52 @@ mycmd.defer_at_startup mycmd.init_bin sed
 function list-mycmd-lib-functions() {
     local -r mycmd_lib="${SYSTEM_BASE}/mycmd-lib"
 
-    grep "^function" "${mycmd_lib}" \
-        | mycmd.bin_execute sed -n 's/function \(.*\)() {/\1/p'
+    grep -E '^[[:space:]]*function' "${mycmd_lib}" |
+        mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' |
+        sort -u
 }
-
 project.register_task list-mycmd-lib-functions
+
+mycmd.init_bin grep
+function catalog-mycmd-lib-function-callers() {
+    local -n implementation_fileset="${1}"
+    local -a functions
+
+    readarray -t functions < <(list-mycmd-lib-functions || true)
+
+    local fn
+    local fn_pattern
+    local count
+    local -a data=()
+
+    project.output_only_if_not_quiet "Cataloging function from mycmd-lib across all implementation files."
+
+    for fn in "${functions[@]}"; do
+        local impl_file
+        for impl_file in "${implementation_fileset[@]}"; do
+            project.verbose "Searching for function '${fn}' in file '${impl_file}'."
+
+            fn_pattern="${fn/./\\.}"
+            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" |
+                               mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
+            data+=("${fn},${impl_file},${count}")
+        done
+    done
+
+    local -r output_file="${TMP_WORKING_DIR}/fn-call-counts.csv"
+
+    (
+        echo "function,file,count"
+
+        local line
+        for line in "${data[@]}"; do
+            echo "${line}"
+        done
+    ) > "${output_file}"
+
+    project.output_only_if_not_quiet "Wrote results to ${output_file}."
+}
+project.register_task_with_fileset catalog-mycmd-lib-function-callers catalog-mycmd-lib-function-callers IMPLEMENTATION_FILES
 
 #----------------------------------------
 # Test execution
