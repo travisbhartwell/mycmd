@@ -319,7 +319,7 @@ function mycmd._dispatch_with_calling_file_up_frames() {
 }
 
 function mycmd._get_file_startup_event_name() {
-    local -r calling_file=${1}
+    local -r calling_file="${1}"
     local -r event_name="${1}:mycmd_startup"
 
     echo "${event_name}"
@@ -331,7 +331,7 @@ function mycmd._defer_at_startup() {
 
     local event_name
     if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
-        mycmd.log "Error getting file startup event name"
+        mycmd.log "Error getting file startup event name."
         return 1
     fi
     readonly event_name
@@ -553,6 +553,9 @@ function mycmd._init_bin() {
             ;;
         "realpath+Darwin")
             mycmd.init_bin_homebrew "${exit_on_failure}" realpath grealpath "GNU realpath" coreutils || found_command=$?
+            ;;
+        "grep+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" grep ggrep "GNU grep" grep || found_command=$?
             ;;
         "sed+Darwin")
             mycmd.init_bin_homebrew "${exit_on_failure}" sed gsed "GNU Sed" "gnu-sed" || found_command=$?
