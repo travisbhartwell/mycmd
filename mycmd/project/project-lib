@@ -29,6 +29,7 @@ readonly _MYCMD_PROJECT_LIB=1
 declare -Agx _MYCMD_PROJECT_FILESETS=()
 declare -Agx _MYCMD_PROJECT_TASKS=()
 declare -Agx _MYCMD_PROJECT_TASK_FILESETS=()
+declare -Agx _MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAMES=()
 declare -Agx _MYCMD_PROJECT_TASK_ARGUMENT_INDICES=()
 declare -Agx _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS=()
 declare -agx _MYCMD_PROJECT_TASK_ARGUMENTS=()
@@ -37,24 +38,18 @@ declare -gx _MYCMD_PROJECT_DEFAULT_TASK
 readonly _MYCMD_PROJECT_TASK_NAME_FIELD='project-task-name'
 readonly _MYCMD_PROJECT_TASK_FUNCTION_FIELD='project-task-fn'
 readonly _MYCMD_PROJECT_TASK_FILESET_FIELD='project-task-fileset'
+readonly _MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD='project-task-arg-ref-name'
 readonly _MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD='project-task-arg-index'
 readonly _MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD='project-task-argc'
 
-function project.task.new_task() {
-    project.task._new_task \
-        _MYCMD_PROJECT_TASKS \
-        _MYCMD_PROJECT_TASK_ARGUMENTS \
-        _MYCMD_PROJECT_TASK_ARGUMENT_INDICES \
-        _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS \
-        "${@}"
-}
-
 function project.task._new_task() {
     local -n new_task_tasks_ref="${1}"
-    local -n new_task_task_arguments_ref="${2}"
-    local -n new_task_task_arg_indices_ref="${3}"
-    local -n new_task_task_arg_counts_ref="${4}"
-    shift 4
+    local -r arguments_ref_name="${2}"
+    local -n new_task_task_arguments_ref="${arguments_ref_name}"
+    local -n new_task_task_argument_ref_names="${3}"
+    local -n new_task_task_arg_indices_ref="${4}"
+    local -n new_task_task_arg_counts_ref="${5}"
+    shift 5
 
     local -r task_name="${1}"
     local -r task_function_name="${2}"
@@ -74,6 +69,7 @@ function project.task._new_task() {
     if ((argc > 0)); then
         local index="${#new_task_task_arguments_ref[@]}"
         new_task_task_arguments_ref+=("${@}")
+        new_task_task_argument_ref_names["${task_name}"]="${arguments_ref_name}"
         new_task_task_arg_indices_ref["${task_name}"]="${index}"
 
         mycmd.trace "Registered ${argc} arguments for task '${task_name}' at index ${index}."
@@ -83,23 +79,14 @@ function project.task._new_task() {
 
 }
 
-function project.task.new_task_with_fileset() {
-    project.task._new_task_with_fileset \
-        _MYCMD_PROJECT_TASKS \
-        _MYCMD_PROJECT_TASK_FILESETS \
-        _MYCMD_PROJECT_TASK_ARGUMENTS \
-        _MYCMD_PROJECT_TASK_ARGUMENT_INDICES \
-        _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS \
-        "${@}"
-}
-
 function project.task._new_task_with_fileset() {
-    local -n new_task_fileset_tasks_ref="${1}"
+    local -r new_task_fileset_tasks_ref_name="${1}"
     local -n new_task_fileset_task_filesets_ref="${2}"
-    local -n new_task_fileset_task_arguments_ref="${3}"
-    local -n new_task_fileset_task_arg_indices_ref="${4}"
-    local -n new_task_fileset_task_arg_counts_ref="${5}"
-    shift
+    local -r new_task_fileset_task_arguments_ref_name="${3}"
+    local -r new_task_fileset_task_argument_ref_names_name="${4}"
+    local -r new_task_fileset_task_arg_indices_ref_name="${5}"
+    local -r new_task_fileset_task_arg_counts_ref_name="${6}"
+    shift 6
 
     local -r task_name="${1}"
     local -r task_function_name="${2}"
@@ -107,10 +94,11 @@ function project.task._new_task_with_fileset() {
     shift 3
 
     if ! project.task._new_task \
-        "${new_task_fileset_tasks_ref}" \
-        "${new_task_fileset_task_arguments_ref}" \
-        "${new_task_fileset_task_arg_indices_ref}" \
-        "${new_task_fileset_task_arg_counts_ref}" \
+        "${new_task_fileset_tasks_ref_name}" \
+        "${new_task_fileset_task_arguments_ref_name}" \
+        "${new_task_fileset_task_argument_ref_names_name}" \
+        "${new_task_fileset_task_arg_indices_ref_name}" \
+        "${new_task_fileset_task_arg_counts_ref_name}" \
         "${task_name}" \
         "${task_function_name}" \
         "${@}"; then
@@ -125,6 +113,7 @@ function project.task.get_task() {
     project.task._get_task \
         _MYCMD_PROJECT_TASKS \
         _MYCMD_PROJECT_TASK_FILESETS \
+        _MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAMES \
         _MYCMD_PROJECT_TASK_ARGUMENT_INDICES \
         _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS \
         "${@}"
@@ -133,9 +122,10 @@ function project.task.get_task() {
 function project.task._get_task() {
     local -n get_task_tasks_ref="${1}"
     local -n get_task_task_filesets_ref="${2}"
-    local -n get_task_task_arg_indices_ref="${3}"
-    local -n get_task_task_arg_counts_ref="${4}"
-    shift 4
+    local -n get_task_task_arguments_ref_names_ref="${3}"
+    local -n get_task_task_arg_indices_ref="${4}"
+    local -n get_task_task_arg_counts_ref="${5}"
+    shift 5
 
     local -r task_name="${1}"
     local -n get_task_struct_ref="${2}"
@@ -159,6 +149,9 @@ function project.task._get_task() {
     if ((count > 0)); then
         get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]="${get_task_task_arg_indices_ref["${task_name}"]}"
         mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}: ${get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
+
+        get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]="${get_task_task_arguments_ref_names_ref["${task_name}"]}"
+        mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}: ${get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
     else
         mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}: No index set"
     fi
@@ -169,6 +162,31 @@ function project.task._get_task() {
     else
         mycmd.trace "- ${_MYCMD_PROJECT_TASK_FILESET_FIELD}: No fileset set"
     fi
+}
+
+function project.task.get_task_arguments() {
+    local -n get_task_arguments_struct_ref="${1}"
+    local -n get_task_arguments_arguments_ref="${2}"
+    shift 2
+
+    local -r task_name="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+
+    local -i argc
+    argc="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}"]}"
+    readonly argc
+
+    if ((argc == 0)); then
+        mycmd.trace "No arguments defined for task '${task_name}'."
+        return 0
+    fi
+
+    local -i index
+    index="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
+    readonly index
+
+    local -n arguments_ref="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
+
+    get_task_arguments_arguments_ref=("${arguments_ref[@]:index:argc}")
 }
 
 function project.enable_quiet_mode() {
@@ -287,35 +305,28 @@ function project.load_closest_project_file() {
 }
 
 function project.register_task() {
-    local -r task_name="${1}"
-    if (($# > 1)); then
-        local -r task_function_name="${2}"
-    else
-        local -r task_function_name="${1}"
+    if (($# == 1)); then
+        set -- "${1}" "${1}"
     fi
 
-    if [[ -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
-        mycmd.log "Task '${task_name}' already registered."
-        return 1
-    fi
-
-    _MYCMD_PROJECT_TASKS[${task_name}]="${task_function_name}"
-    mycmd.trace "Registered task '${task_name}' with function '${task_function_name}'."
+    project.task._new_task \
+        _MYCMD_PROJECT_TASKS \
+        _MYCMD_PROJECT_TASK_ARGUMENTS \
+        _MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAMES \
+        _MYCMD_PROJECT_TASK_ARGUMENT_INDICES \
+        _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS \
+        "${@}"
 }
 
 function project.register_task_with_fileset() {
-    local -r task_name="${1}"
-    local -r task_function_name="${2}"
-    local -r fileset_name="${3}"
-
-    if [[ -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
-        mycmd.log "Task '${task_name}' already registered."
-        return 1
-    fi
-
-    _MYCMD_PROJECT_TASKS[${task_name}]="${task_function_name}"
-    _MYCMD_PROJECT_TASK_FILESETS[${task_name}]="${fileset_name}"
-    mycmd.trace "Registered task '${task_name}' with function '${task_function_name}' and the fileset '${fileset_name}'."
+    project.task._new_task_with_fileset \
+        _MYCMD_PROJECT_TASKS \
+        _MYCMD_PROJECT_TASK_FILESETS \
+        _MYCMD_PROJECT_TASK_ARGUMENTS \
+        _MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAMES \
+        _MYCMD_PROJECT_TASK_ARGUMENT_INDICES \
+        _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS \
+        "${@}"
 }
 
 function project.function_exists_for_task() {

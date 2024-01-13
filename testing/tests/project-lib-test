@@ -30,14 +30,14 @@ function dummy_function() {
 }
 
 # shellcheck disable=SC2016
-function test_adding_new_task() {
+function test_adding_new_tasks() {
     assertTrue '_MYCMD_PROJECT_TASKS is empty' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 0 ))'
 
-    project.task.new_task "Task 1" dummy_function
+    project.register_task "Task 1" dummy_function
     assertTrue '_MYCMD_PROJECT_TASKS has a value' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 1 ))'
     assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 0 ))'
@@ -49,10 +49,11 @@ function test_adding_new_task() {
     assertEquals "Task 1" "${task1[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
     assertEquals dummy_function "${task1[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
     assertEquals 0 "${task1[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
+    assertFalse 'No argument ref name field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD] ]'
     assertFalse 'No index field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD] ]'
     assertFalse 'No fileset field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_FILESET_FIELD] ]'
 
-    project.task.new_task "Task 2" dummy_function 1 2 3 4
+    project.register_task "Task 2" dummy_function 1 2 3 4
     assertTrue '_MYCMD_PROJECT_TASKS has two entries' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 2 ))'
     assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS has four entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 4 ))'
@@ -65,7 +66,39 @@ function test_adding_new_task() {
     assertEquals dummy_function "${task2[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
     assertEquals 4 "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
     assertEquals 0 "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}]}"
+    assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}]}"
     assertFalse 'No fileset field is set' '[ -v task2[$_MYCMD_PROJECT_TASK_FILESET_FIELD] ]'
+
+    local -a task2_arguments=()
+    project.task.get_task_arguments task2 task2_arguments
+    assertTrue 'task2_arguments has four entries' '(( "${#task2_arguments[@]}" == 4 ))'
+    assertEquals 1 "${task2_arguments[0]}"
+    assertEquals 2 "${task2_arguments[1]}"
+    assertEquals 3 "${task2_arguments[2]}"
+    assertEquals 4 "${task2_arguments[3]}"
+
+    project.register_fileset adding_new_tasks_test_fileset
+    project.register_task_with_fileset "Task 3" dummy_function adding_new_tasks_test_fileset "first one" "second one"
+    assertTrue '_MYCMD_PROJECT_TASKS has three entries' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 3 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_FILESETS has one entry' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 1 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS has six entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 6 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES has two entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 2 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has three entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 3 ))'
+
+    local -A task3
+    project.task.get_task "Task 3" task3
+    assertEquals "Task 3" "${task3[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
+    assertEquals dummy_function "${task3[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
+    assertEquals 2 "${task3[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
+    assertEquals 4 "${task3[${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}]}"
+    assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "${task3[${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}]}"
+    assertEquals 'adding_new_tasks_test_fileset' "${task3[${_MYCMD_PROJECT_TASK_FILESET_FIELD}]}"
+
+    local -a task3_arguments=()
+    project.task.get_task_arguments task3 task3_arguments
+    assertTrue 'task3_arguments has two entries' '(( "${#task3_arguments[@]}" == 2 ))'
+    assertEquals "first one" "${task3_arguments[0]}"
+    assertEquals "second one" "${task3_arguments[1]}"
 }
 
 function oneTimeSetUp() {
