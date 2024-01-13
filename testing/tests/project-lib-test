@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test directory."
+    exit 1
+fi
+
+if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd lib directory."
+    exit 1
+fi
+
+function test_mycmd_lib_is_loaded() {
+    assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
+}
+
+function test_project_lib_is_loaded() {
+    assertTrue 'Project Lib is loaded' '[ -v _MYCMD_PROJECT_LIB ]'
+}
+
+function dummy_function() {
+    echo "dummy"
+}
+
+# shellcheck disable=SC2016
+function test_adding_new_task() {
+    assertTrue '_MYCMD_PROJECT_TASKS is empty' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 0 ))'
+
+    project.task.new_task "Task 1" dummy_function
+    assertTrue '_MYCMD_PROJECT_TASKS has a value' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 1 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has a value' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 1 ))'
+
+    project.task.new_task "Task 2" dummy_function 1 2 3 4
+    assertTrue '_MYCMD_PROJECT_TASKS has two entries' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 2 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS has four entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 4 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES has one entry' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 1 ))'
+    assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has two entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 2 ))'
+}
+
+function oneTimeSetUp() {
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+    mycmd.source_mycmd_lib "project"
+}
+
+# shellcheck source=../vendor/shunit2
+. "${TEST_VENDOR_DIRECTORY}/shunit2"
