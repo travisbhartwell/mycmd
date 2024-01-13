@@ -44,12 +44,28 @@ function test_adding_new_task() {
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has a value' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 1 ))'
 
+    local -A task1
+    project.task.get_task "Task 1" task1
+    assertEquals "Task 1" "${task1[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
+    assertEquals dummy_function "${task1[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
+    assertEquals 0 "${task1[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
+    assertFalse 'No index field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD] ]'
+    assertFalse 'No fileset field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_FILESET_FIELD] ]'
+
     project.task.new_task "Task 2" dummy_function 1 2 3 4
     assertTrue '_MYCMD_PROJECT_TASKS has two entries' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 2 ))'
     assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENTS has four entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENTS[@]}" == 4 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES has one entry' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 1 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has two entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 2 ))'
+
+    local -A task2
+    project.task.get_task "Task 2" task2
+    assertEquals "Task 2" "${task2[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
+    assertEquals dummy_function "${task2[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
+    assertEquals 4 "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
+    assertEquals 0 "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}]}"
+    assertFalse 'No fileset field is set' '[ -v task2[$_MYCMD_PROJECT_TASK_FILESET_FIELD] ]'
 }
 
 function oneTimeSetUp() {
