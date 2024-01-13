@@ -29,7 +29,7 @@ function dummy_function() {
     echo "dummy"
 }
 
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016,SC2312
 function test_adding_new_tasks() {
     assertTrue '_MYCMD_PROJECT_TASKS is empty' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_FILESETS is empty' '(( "${#_MYCMD_PROJECT_TASK_FILESETS[@]}" == 0 ))'
@@ -46,12 +46,12 @@ function test_adding_new_tasks() {
 
     local -A task1
     project.task.get_task "Task 1" task1
-    assertEquals "Task 1" "${task1[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
-    assertEquals dummy_function "${task1[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
-    assertEquals 0 "${task1[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
-    assertFalse 'No argument ref name field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD] ]'
-    assertFalse 'No index field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD] ]'
-    assertFalse 'No fileset field is set' '[ -v task1[$_MYCMD_PROJECT_TASK_FILESET_FIELD] ]'
+    assertEquals "Task 1" "$(project.task.get_name task1)"
+    assertEquals dummy_function "$(project.task.get_function_name task1)"
+    assertEquals 0 "$(project.task.get_argument_count task1)"
+    assertFalse 'No argument ref name field is set' 'project.task.get_arguments_ref_name task1'
+    assertFalse 'No index field is set' 'project.task.get_argument_index task1'
+    assertFalse 'No fileset field is set' 'project.task.get_fileset task1'
 
     project.register_task "Task 2" dummy_function 1 2 3 4
     assertTrue '_MYCMD_PROJECT_TASKS has two entries' '(( "${#_MYCMD_PROJECT_TASKS[@]}" == 2 ))'
@@ -62,15 +62,15 @@ function test_adding_new_tasks() {
 
     local -A task2
     project.task.get_task "Task 2" task2
-    assertEquals "Task 2" "${task2[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
-    assertEquals dummy_function "${task2[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
-    assertEquals 4 "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
-    assertEquals 0 "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}]}"
-    assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "${task2[${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}]}"
-    assertFalse 'No fileset field is set' '[ -v task2[$_MYCMD_PROJECT_TASK_FILESET_FIELD] ]'
+    assertEquals "Task 2" "$(project.task.get_name task2)"
+    assertEquals dummy_function "$(project.task.get_function_name task2)"
+    assertEquals 4 "$(project.task.get_argument_count task2)"
+    assertEquals 0 "$(project.task.get_argument_index task2)"
+    assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "$(project.task.get_arguments_ref_name task2)"
+    assertFalse 'No fileset field is set' 'project.task.get_fileset task2'
 
     local -a task2_arguments=()
-    project.task.get_task_arguments task2 task2_arguments
+    project.task.get_arguments task2 task2_arguments
     assertTrue 'task2_arguments has four entries' '(( "${#task2_arguments[@]}" == 4 ))'
     assertEquals 1 "${task2_arguments[0]}"
     assertEquals 2 "${task2_arguments[1]}"
@@ -87,15 +87,15 @@ function test_adding_new_tasks() {
 
     local -A task3
     project.task.get_task "Task 3" task3
-    assertEquals "Task 3" "${task3[${_MYCMD_PROJECT_TASK_NAME_FIELD}]}"
-    assertEquals dummy_function "${task3[${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}]}"
-    assertEquals 2 "${task3[${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}]}"
-    assertEquals 4 "${task3[${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}]}"
-    assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "${task3[${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}]}"
-    assertEquals 'adding_new_tasks_test_fileset' "${task3[${_MYCMD_PROJECT_TASK_FILESET_FIELD}]}"
+    assertEquals "Task 3" "$(project.task.get_name task3)"
+    assertEquals dummy_function "$(project.task.get_function_name task3)"
+    assertEquals 2 "$(project.task.get_argument_count task3)"
+    assertEquals 4 "$(project.task.get_argument_index task3)"
+    assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "$(project.task.get_arguments_ref_name task3)"
+    assertEquals 'adding_new_tasks_test_fileset' "$(project.task.get_fileset task3)"
 
     local -a task3_arguments=()
-    project.task.get_task_arguments task3 task3_arguments
+    project.task.get_arguments task3 task3_arguments
     assertTrue 'task3_arguments has two entries' '(( "${#task3_arguments[@]}" == 2 ))'
     assertEquals "first one" "${task3_arguments[0]}"
     assertEquals "second one" "${task3_arguments[1]}"

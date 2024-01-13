@@ -164,15 +164,75 @@ function project.task._get_task() {
     fi
 }
 
-function project.task.get_task_arguments() {
-    local -n get_task_arguments_struct_ref="${1}"
-    local -n get_task_arguments_arguments_ref="${2}"
+function project.task.get_name() {
+    local -n get_name_struct_ref="${1}"
+    shift
+
+    echo "${get_name_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+}
+
+function project.task.get_function_name() {
+    local -n get_function_name_struct_ref="${1}"
+    shift
+
+    echo "${get_function_name_struct_ref["${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}"]}"
+}
+
+function project.task.get_argument_count() {
+    local -n get_argument_count_struct_ref="${1}"
+    shift
+
+    echo "${get_argument_count_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}"]}"
+}
+
+function project.task.get_argument_index() {
+    local -n get_argument_index_struct_ref="${1}"
+    shift
+
+    if [[ -v get_argument_index_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"] ]]; then
+        echo "${get_argument_index_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
+        return 0
+    else
+        mycmd.trace "No argument index defined for ${get_argument_index_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+        return 1
+    fi
+}
+
+function project.task.get_arguments_ref_name() {
+    local -n get_arguments_ref_name_struct_ref="${1}"
+    shift
+
+    if [[ -v get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"] ]]; then
+        echo "${get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
+        return 0
+    else
+        mycmd.trace "No arguments ref name defined for ${get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+        return 1
+    fi
+}
+
+function project.task.get_fileset() {
+    local -n get_fileset_struct_ref="${1}"
+    shift
+
+    if [[ -v get_fileset_struct_ref["${_MYCMD_PROJECT_TASK_FILESET_FIELD}"] ]]; then
+        echo "${get_fileset_struct_ref["${_MYCMD_PROJECT_TASK_FILESET_FIELD}"]}"
+        return 0
+    else
+        mycmd.trace "No fileset defined for ${get_fileset_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+        return 1
+    fi
+}
+
+function project.task.get_arguments() {
+    local -n get_arguments_struct_ref="${1}"
+    local -n get_arguments_arguments_ref="${2}"
     shift 2
 
-    local -r task_name="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+    local -r task_name="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
 
     local -i argc
-    argc="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}"]}"
+    argc="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}"]}"
     readonly argc
 
     if ((argc == 0)); then
@@ -181,12 +241,12 @@ function project.task.get_task_arguments() {
     fi
 
     local -i index
-    index="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
+    index="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
     readonly index
 
-    local -n arguments_ref="${get_task_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
+    local -n arguments_ref="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
 
-    get_task_arguments_arguments_ref=("${arguments_ref[@]:index:argc}")
+    get_arguments_arguments_ref=("${arguments_ref[@]:index:argc}")
 }
 
 function project.enable_quiet_mode() {
