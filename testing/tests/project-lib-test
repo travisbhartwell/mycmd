@@ -48,6 +48,7 @@ function test_adding_new_tasks() {
     project.task.get_task "Task 1" task1
     assertEquals "Task 1" "$(project.task.get_name task1)"
     assertEquals dummy_function "$(project.task.get_function_name task1)"
+    assertTrue 'Function exists for Task 1' 'project.task.function_exists_for_task task1'
     assertEquals 0 "$(project.task.get_argument_count task1)"
     assertFalse 'No argument ref name field is set' 'project.task.get_arguments_ref_name task1'
     assertFalse 'No index field is set' 'project.task.get_argument_index task1'
@@ -64,6 +65,7 @@ function test_adding_new_tasks() {
     project.task.get_task "Task 2" task2
     assertEquals "Task 2" "$(project.task.get_name task2)"
     assertEquals dummy_function "$(project.task.get_function_name task2)"
+    assertTrue 'Function exists for Task 2' 'project.task.function_exists_for_task task2'
     assertEquals 4 "$(project.task.get_argument_count task2)"
     assertEquals 0 "$(project.task.get_argument_index task2)"
     assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "$(project.task.get_arguments_ref_name task2)"
@@ -89,6 +91,7 @@ function test_adding_new_tasks() {
     project.task.get_task "Task 3" task3
     assertEquals "Task 3" "$(project.task.get_name task3)"
     assertEquals dummy_function "$(project.task.get_function_name task3)"
+    assertTrue 'Function exists for Task 3' 'project.task.function_exists_for_task task3'
     assertEquals 2 "$(project.task.get_argument_count task3)"
     assertEquals 4 "$(project.task.get_argument_index task3)"
     assertEquals '_MYCMD_PROJECT_TASK_ARGUMENTS' "$(project.task.get_arguments_ref_name task3)"
