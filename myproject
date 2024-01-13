@@ -129,9 +129,9 @@ mycmd.defer_at_startup mycmd.init_bin sed
 function list-mycmd-lib-functions() {
     local -r mycmd_lib="${SYSTEM_BASE}/mycmd-lib"
 
-    grep -E '^[[:space:]]*function' "${mycmd_lib}" |
-        mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' |
-        sort -u
+    grep -E '^[[:space:]]*function' "${mycmd_lib}" \
+        | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
+        | sort -u
 }
 project.register_task list-mycmd-lib-functions
 
@@ -155,22 +155,22 @@ function catalog-mycmd-lib-function-callers() {
             project.verbose "Searching for function '${fn}' in file '${impl_file}'."
 
             fn_pattern="${fn/./\\.}"
-            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" |
-                               mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
+            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" \
+                | mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
             data+=("${fn},${impl_file},${count}")
         done
     done
 
     local -r output_file="${TMP_WORKING_DIR}/fn-call-counts.csv"
 
-    (
-        echo "function,file,count"
+    echo "function,file,count" >"${output_file}"
 
+    (
         local line
         for line in "${data[@]}"; do
             echo "${line}"
         done
-    ) > "${output_file}"
+    ) | sort -t, -k3 -nr >>"${output_file}"
 
     project.output_only_if_not_quiet "Wrote results to ${output_file}."
 }
