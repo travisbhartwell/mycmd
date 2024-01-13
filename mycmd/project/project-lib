@@ -38,7 +38,7 @@ declare -gx _MYCMD_PROJECT_DEFAULT_TASK
 readonly _MYCMD_PROJECT_TASK_NAME_FIELD='project-task-name'
 readonly _MYCMD_PROJECT_TASK_FUNCTION_FIELD='project-task-fn'
 readonly _MYCMD_PROJECT_TASK_FILESET_FIELD='project-task-fileset'
-readonly _MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD='project-task-arg-ref-name'
+readonly _MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD='project-task-args-ref-name'
 readonly _MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD='project-task-arg-index'
 readonly _MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD='project-task-argc'
 
@@ -150,10 +150,11 @@ function project.task._get_task() {
         get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]="${get_task_task_arg_indices_ref["${task_name}"]}"
         mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}: ${get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
 
-        get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]="${get_task_task_arguments_ref_names_ref["${task_name}"]}"
-        mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}: ${get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
+        get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}"]="${get_task_task_arguments_ref_names_ref["${task_name}"]}"
+        mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}: ${get_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}"]}"
     else
         mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}: No index set"
+        mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}: No task arguments ref names ref set"
     fi
 
     if [[ -v get_task_task_filesets_ref[${task_name}] ]]; then
@@ -168,6 +169,7 @@ function project.task.get_name() {
     local -n get_name_struct_ref="${1}"
     shift
 
+    mycmd.trace "${get_name_struct_ref[*]}"
     echo "${get_name_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
 }
 
@@ -176,6 +178,23 @@ function project.task.get_function_name() {
     shift
 
     echo "${get_function_name_struct_ref["${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}"]}"
+}
+
+function project.task.function_exists_for_task() {
+    local -n task="${1}"
+
+    local fn
+    fn=$(project.task.get_function_name task)
+    readonly fn
+
+    if ! mycmd.function_exists "${fn}"; then
+        local task_name
+        task_name=$(project.task.get_name task)
+        mycmd.log "Unknown task function: '${fn}' for task '${task_name}'."
+        return 1
+    fi
+
+    return 0
 }
 
 function project.task.get_argument_count() {
@@ -202,8 +221,8 @@ function project.task.get_arguments_ref_name() {
     local -n get_arguments_ref_name_struct_ref="${1}"
     shift
 
-    if [[ -v get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"] ]]; then
-        echo "${get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
+    if [[ -v get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}"] ]]; then
+        echo "${get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}"]}"
         return 0
     else
         mycmd.trace "No arguments ref name defined for ${get_arguments_ref_name_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
@@ -244,7 +263,7 @@ function project.task.get_arguments() {
     index="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}"]}"
     readonly index
 
-    local -n arguments_ref="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_REF_NAME_FIELD}"]}"
+    local -n arguments_ref="${get_arguments_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}"]}"
 
     get_arguments_arguments_ref=("${arguments_ref[@]:index:argc}")
 }
@@ -389,18 +408,6 @@ function project.register_task_with_fileset() {
         "${@}"
 }
 
-function project.function_exists_for_task() {
-    local -r task_name="${1}"
-    local -r fn="${_MYCMD_PROJECT_TASKS[${task_name}]}"
-
-    if ! mycmd.function_exists "${fn}"; then
-        mycmd.log "Unknown task function: '${fn}' for task '${task_name}'."
-        return 1
-    fi
-
-    return 0
-}
-
 function project.register_default_task() {
     local -r task_name="${1}"
 
@@ -414,27 +421,41 @@ function project.register_default_task() {
 }
 
 function project.execute_task() {
-    local -r task_name="${1}"
+    local -n task_execution="${1}"
     shift
+
+    local task_name
+    task_name=$(project.task.get_name task_execution)
+    readonly task_name
+    mycmd.trace "Executing task with name: '${task_name}'."
+
+    local -a execution_args=()
+    project.task.get_arguments task_execution execution_args
 
     local return_code=0
 
-    if [[ ! -v _MYCMD_PROJECT_TASKS[${task_name}] ]]; then
+    local -A task_definition=()
+
+    if ! project.task.get_task "${task_name}" task_definition; then
         mycmd.log "Unknown task: '${task_name}'."
         return_code=1
-    elif ! project.function_exists_for_task "${task_name}"; then
+    elif ! project.task.function_exists_for_task task_definition; then
         return_code=1
     else
-        local fn=${_MYCMD_PROJECT_TASKS[${task_name}]}
+        local -r fn="$(project.task.get_function_name task_definition || true)"
         mycmd.debug "Executing function '${fn}' for task '${task_name}'."
+
+        local -a task_args=()
+        project.task.get_arguments task_definition task_args
+
+        set -- "${task_args[@]}" "${execution_args[@]}"
 
         mycmd.output "➡️ Executing task '${task_name}'..."
 
         cd "${MYPROJECT_BASE_DIR}"
 
-        if [[ -v _MYCMD_PROJECT_TASK_FILESETS[${task_name}] ]]; then
-            local fileset_name="${_MYCMD_PROJECT_TASK_FILESETS[${task_name}]}"
-
+        local fileset_name
+        if fileset_name="$(project.task.get_fileset task_definition)"; then
             if [[ ! -v _MYCMD_PROJECT_FILESETS[${fileset_name}] ]]; then
                 mycmd.log "Specified file set '${fileset_name}' for task '${task_name}' not defined."
                 return_code=1
@@ -455,11 +476,53 @@ function project.execute_task() {
     return "${return_code}"
 }
 
+function project.extract_task_positions() {
+    local -n task_positions_ref="${1}"
+    shift
+    local -i arg_index=${1}
+    shift
+
+    shift "${arg_index}"
+
+    while (($# > 0)); do
+        ((arg_index += 1))
+
+        if [[ "${1}" = ";" && "$#" -gt 0 ]]; then
+            task_positions_ref+=("${arg_index}")
+        fi
+
+        shift
+    done
+}
+
+function project.task.new_unregistered_zero_arg_task() {
+    local -r task_name="${1}"
+    local -n new_unregistered_task_struct_ref="${2}"
+
+    mycmd.trace "Returning unregistered zero argument task definition:"
+    new_unregistered_task_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]="${task_name}"
+    mycmd.trace "- ${_MYCMD_PROJECT_TASK_NAME_FIELD}: ${new_unregistered_task_struct_ref["${_MYCMD_PROJECT_TASK_NAME_FIELD}"]}"
+
+    new_unregistered_task_struct_ref["${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}"]=execute_task
+    mycmd.trace "- ${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}: ${new_unregistered_task_struct_ref["${_MYCMD_PROJECT_TASK_FUNCTION_FIELD}"]}"
+
+    new_unregistered_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}"]=0
+    mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}: ${new_unregistered_task_struct_ref["${_MYCMD_PROJECT_TASK_ARGUMENT_COUNT_FIELD}"]}"
+
+    mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENT_INDEX_FIELD}: No index set"
+    mycmd.trace "- ${_MYCMD_PROJECT_TASK_ARGUMENTS_REF_NAME_FIELD}: No task arguments ref names ref set"
+    mycmd.trace "- ${_MYCMD_PROJECT_TASK_FILESET_FIELD}: No fileset set"
+}
+
 function project.execute_tasks() {
-    for task in "${@}"; do
+    local task_name
+
+    for task_name in "${@}"; do
+        local -A task=()
         local return_code=0
 
-        project.execute_task "${task}" || return_code=$?
+        project.task.new_unregistered_zero_arg_task "${task_name}" task
+        project.execute_task task || return_code=$?
 
         if ((return_code != 0)); then
             return "${return_code}"
