@@ -297,7 +297,7 @@ function mycmd.event() {
 #   function that called mycmd._dispatch_with_calling_file as the first parameter of the
 #   function.
 function mycmd._dispatch_with_calling_file() {
-    mycmd._dispatch_with_calling_file_up_frames 1 "${@}"
+    mycmd._dispatch_with_calling_file_up_frames 2 "${@}"
 }
 
 function mycmd._dispatch_with_calling_file_up_frames() {
@@ -833,6 +833,32 @@ function mycmd.running_command_relative_path() {
     fi
 }
 
+function mycmd._source_mycmd_lib() {
+    local -r lib_relative_path="${1}"
+    shift
+    local -r lib_name="${1}"
+    shift
+
+    mycmd.trace "Attempting to load '${lib_name}' from '${lib_relative_path}'."
+
+    local lib_dir="${MYCMD_SYSTEM_BASE_DIR}/${lib_relative_path}"
+    local lib_script="${lib_dir}/${lib_name}"
+    local local_lib_dir="${MYCMD_USER_BASE_DIR}/${lib_relative_path}"
+    local local_lib_script="${local_lib_dir}/${lib_name}"
+
+    if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
+        # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
+        local local_lib_name="${lib_name/%-lib/-local-lib}"
+        local local_lib_override="${local_lib_dir}/${local_lib_name}"
+        mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}"
+    elif ! mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}"; then
+        mycmd.log "Cannot find library '${lib_name}' in system or user directory."
+        return 1
+    fi
+
+    return 0
+}
+
 # mycmd.source_mycmd_lib
 #   Explicitly source a MyCmd library and its dependencies by providing the
 #   directory name of the MyCmd library relative to either first
@@ -851,34 +877,49 @@ function mycmd.source_mycmd_lib() {
     IFS="/" read -a dir_parts <<<"${library_path}"
     readonly dir_parts
 
-    # Start at the system base directory
-    local lib_dir="${MYCMD_SYSTEM_BASE_DIR}"
-    local local_lib_dir="${MYCMD_USER_BASE_DIR}"
+    local lib_dir=""
 
     local dir
     for dir in "${dir_parts[@]}"; do
-        lib_dir="${lib_dir}/${dir}"
-        local_lib_dir="${local_lib_dir}/${dir}"
+        lib_dir="${lib_dir-}${lib_dir:+/}${dir}"
 
-        # Look for a command group library named <dirname>-lib in <dirname>
-        local lib_script="${lib_dir}/${dir}-lib"
-
-        # First check in MYCMD_SYSTEM_BASE_DIR
-        if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
-            # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
-            local local_lib_override="${local_lib_dir}/${dir}-local-lib"
-            mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}"
-        else
-            # Otherwise, check in MYCMD_USER_BASE_DIR
-            local local_lib_script="${local_lib_dir}/${dir}-lib"
-            if ! mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}"; then
-                mycmd.log "Cannot find library '${dir}' in system or user directory."
-                return 1
-            fi
+        if ! mycmd._source_mycmd_lib "${lib_dir}" "${dir}-lib"; then
+            return 1
         fi
     done
 
     return 0
+}
+
+function mycmd.load_command_group_support_lib() {
+    # Re-dispatch if parameter count < 2
+    if (($# < 2)); then
+        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}" "${@}"
+        return $?
+    fi
+
+    local -r calling_file="${1}"
+    local -r support_lib_name="${2}"
+
+    # TODO: Validate called from command group
+    # Get command group relative path
+    local command_group_lib_path
+    if ! command_group_lib_path=$(mycmd.path_relative_to_mycmd_base "${calling_file}"); then
+        mycmd.debug "Error getting command group path for calling file ${calling_file}."
+        return 1
+    fi
+    readonly command_group_lib_path
+
+    local -r command_group_path="$(dirname "${command_group_lib_path}")"
+    local -r command_group_lib_name="$(basename "${command_group_lib_path}")"
+
+    # Construct name by adding the support lib name before -lib
+    local -r support_lib="${command_group_lib_name/%-lib/-${support_lib_name}-lib}"
+
+    mycmd.trace "Attempting to load ${support_lib} from path ${command_group_path}."
+
+    mycmd._source_mycmd_lib "${command_group_path}" "${support_lib}"
+    return $?
 }
 
 # mycmd.source_mycmd_local_lib

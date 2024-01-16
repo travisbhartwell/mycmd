@@ -1,7 +1,7 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-# MyCmd Project Shell Command Group Library
+# MyCmd Project Commad Group Library Shell Support Library
 #   Shell Script Related Functions for Project Tasks
 
 # Set Bash options for safety
@@ -15,12 +15,6 @@ set -o nounset -o errexit -o errtrace -o pipefail
     exit 1
 }
 
-mycmd.register_command_group_version "0.1"
-mycmd.register_command_group_short_desc "MyCmd Shell Project Command Group Library"
-mycmd.register_command_group_long_desc "Shell Script Related Functions for Project Tasks"
-
-[[ -n "${_MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP:-}" ]] && return
-
 # This library should only be sourced once. Technique borrowed from
 # https://stackoverflow.com/a/64534652
 [[ -n "${_MYCMD_PROJECT_SHELL_LIB:-}" ]] && return
@@ -29,7 +23,7 @@ readonly _MYCMD_PROJECT_SHELL_LIB=1
 #----------------------------------------
 # Code formatting
 mycmd.defer_at_startup mycmd.init_bin shfmt
-function shell.format() {
+function project:shell.format() {
     if project.is_verbose_enabled; then
         mycmd.output "Formatting the following files:"
         project.list-files "${1}"
@@ -43,7 +37,7 @@ function shell.format() {
 #----------------------------------------
 # Code Lint
 mycmd.defer_at_startup mycmd.init_bin shellcheck
-function shell.lint() {
+function project:shell.lint() {
     if project.is_verbose_enabled; then
         mycmd.output "Linting the following files:"
         project.list-files "${1}"
@@ -54,4 +48,4 @@ function shell.lint() {
     mycmd.bin_execute shellcheck --check-sourced "${lint_fileset[@]}"
 }
 
-mycmd.trace "The MyCmd Project Shell command group library has been sourced."
+mycmd.trace "The MyCmd Project Command Group Shell support library has been sourced."
