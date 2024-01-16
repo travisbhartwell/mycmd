@@ -168,7 +168,7 @@ function parse_command_line() {
 }
 
 function new_execution_task() {
-    project.task._new_task \
+    project:task._new_task \
         execution_tasks \
         execution_arguments \
         execution_task_argument_ref_names \
@@ -180,7 +180,7 @@ function new_execution_task() {
 function get_execution_task() {
     local -Ar _dummy_filesets=()
 
-    project.task._get_task \
+    project:task._get_task \
         execution_tasks \
         _dummy_filesets \
         execution_task_argument_ref_names \
@@ -192,7 +192,6 @@ function get_execution_task() {
 function execute_tasks() {
     local -n execution_arguments_ref="${1}"
     shift
-    mycmd.trace "Execution arguments: ${execution_arguments_ref[*]}"
     local -n task_positions_ref="${1}"
     shift
 

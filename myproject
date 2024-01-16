@@ -246,14 +246,19 @@ project.register_task_with_fileset execute-all-tests execute-all-tests ALL_TEST_
 
 #----------------------------------------
 # Code formatting
-project.register_task_with_fileset format shell.format ALL_FILES
+project.register_task_with_fileset format project:shell.format ALL_FILES
 
 #----------------------------------------
 # Code Lint
-project.register_task_with_fileset lint shell.lint ALL_FILES
+project.register_task_with_fileset lint project:shell.lint ALL_FILES
 
 function all() {
     project.execute_tasks format lint execute-all-tests
 }
 project.register_task all
 project.register_default_task all
+
+function new-task() {
+    mycmd.output "New Task called with $# arguments: '${*}'"
+}
+project.register_task new-task
