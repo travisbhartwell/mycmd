@@ -245,6 +245,21 @@ function execute-all-tests() {
 project.register_task_with_fileset execute-all-tests execute-all-tests ALL_TEST_FILES
 
 #----------------------------------------
+# Benchmarking
+mycmd.defer_at_startup mycmd.init_bin hyperfine
+function execute-benchmark() {
+    mycmd.output "Benchmark called with args '${@}'"
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
+        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
+        MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        hyperfine -- \
+        "${@}"
+}
+project.register_task benchmark-help execute-benchmark 'mycmd project --help'
+
+#----------------------------------------
 # Code formatting
 project.register_task_with_fileset format project:shell.format ALL_FILES
 
@@ -252,13 +267,11 @@ project.register_task_with_fileset format project:shell.format ALL_FILES
 # Code Lint
 project.register_task_with_fileset lint project:shell.lint ALL_FILES
 
+#----------------------------------------
+# Run everything
 function all() {
     project.execute_tasks format lint execute-all-tests
 }
 project.register_task all
 project.register_default_task all
 
-function new-task() {
-    mycmd.output "New Task called with $# arguments: '${*}'"
-}
-project.register_task new-task
