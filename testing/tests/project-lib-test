@@ -44,6 +44,7 @@ function test_adding_new_tasks() {
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES is empty' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 0 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has a value' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 1 ))'
 
+    # shellcheck disable=SC2034
     local -A task1
     project:task.get_task "Task 1" task1
     assertEquals "Task 1" "$(project:task.get_name task1)"
@@ -61,6 +62,7 @@ function test_adding_new_tasks() {
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES has one entry' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 1 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has two entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 2 ))'
 
+    # shellcheck disable=SC2034
     local -A task2
     project:task.get_task "Task 2" task2
     assertEquals "Task 2" "$(project:task.get_name task2)"
@@ -87,6 +89,7 @@ function test_adding_new_tasks() {
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_INDICES has two entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_INDICES[@]}" == 2 ))'
     assertTrue '_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS has three entries' '(( "${#_MYCMD_PROJECT_TASK_ARGUMENT_COUNTS[@]}" == 3 ))'
 
+    # shellcheck disable=SC2034
     local -A task3
     project:task.get_task "Task 3" task3
     assertEquals "Task 3" "$(project:task.get_name task3)"

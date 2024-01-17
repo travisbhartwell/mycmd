@@ -248,8 +248,6 @@ project.register_task_with_fileset execute-all-tests execute-all-tests ALL_TEST_
 # Benchmarking
 mycmd.defer_at_startup mycmd.init_bin hyperfine
 function execute-benchmark() {
-    mycmd.output "Benchmark called with args '${@}'"
-
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
@@ -274,4 +272,3 @@ function all() {
 }
 project.register_task all
 project.register_default_task all
-
