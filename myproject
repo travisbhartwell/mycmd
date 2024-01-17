@@ -28,17 +28,27 @@ mycmd.trace "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
 mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
 mycmd.trace "- TMP_WORKING_DIR: ${TMP_WORKING_DIR}"
 
+#----------------------------------------
+# Project File Sets
+# All Files
 project.register_fileset ALL_FILES
 project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
 # shellcheck disable=SC2154
 project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
-
 project.register_task_with_fileset list-all-files project.list-files ALL_FILES
 
+# Implementation Files Only
 project.register_fileset IMPLEMENTATION_FILES
 project.find_files_for_fileset IMPLEMENTATION_FILES "${BIN_DIR}" "${SYSTEM_BASE}" -type f
 project.register_task_with_fileset list-implementation-files project.list-files IMPLEMENTATION_FILES
 
+# Test Files Only
+project.register_fileset TEST_FILES
+project.find_files_for_fileset TEST_FILES "${TEST_FILES_BASE}" -type f -name '*-test'
+project.register_task_with_fileset list-test-files project.list-files TEST_FILES
+
+#----------------------------------------
+# Vendored Code Management
 function _update_vendored_file_for_vendor_base_dir() {
     local -r source_path="${VENDOR_WORKING_DIR}/${1}"
     local -r vendor_dir="${2}"
@@ -125,6 +135,8 @@ function update-shunit2() {
 }
 project.register_task update-shunit2
 
+#----------------------------------------
+# Code Metrics
 mycmd.defer_at_startup mycmd.init_bin sed
 function list-mycmd-lib-functions() {
     local -r mycmd_lib="${SYSTEM_BASE}/mycmd-lib"
@@ -176,13 +188,18 @@ function catalog-mycmd-lib-function-callers() {
 }
 project.register_task_with_fileset catalog-mycmd-lib-function-callers catalog-mycmd-lib-function-callers IMPLEMENTATION_FILES
 
+function count_source_lines() {
+    local -n fileset="${1}"
+
+    project.output_only_if_not_quiet "Counting source lines in fileset '${!fileset}'."
+    wc -l "${fileset[@]}" | sort -nr
+}
+project.register_task_with_fileset count-all-source-lines count_source_lines ALL_FILES
+project.register_task_with_fileset count-implementation-source-lines count_source_lines IMPLEMENTATION_FILES
+project.register_task_with_fileset count-test-source-lines count_source_lines TEST_FILES
+
 #----------------------------------------
 # Test execution
-project.register_fileset ALL_TEST_FILES
-project.find_files_for_fileset ALL_TEST_FILES "${TEST_FILES_BASE}" -type f -name '*-test'
-
-project.register_task_with_fileset list-test-files project.list-files ALL_TEST_FILES
-
 mycmd.defer_at_startup mycmd.init_bin gum
 function summarize_test_results() {
     local -n results_ref="${1}"
@@ -242,7 +259,7 @@ function execute-all-tests() {
     summarize_test_results results
 }
 
-project.register_task_with_fileset execute-all-tests execute-all-tests ALL_TEST_FILES
+project.register_task_with_fileset execute-all-tests execute-all-tests TEST_FILES
 
 #----------------------------------------
 # Benchmarking
