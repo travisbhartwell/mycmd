@@ -189,6 +189,7 @@ function get_execution_task() {
         "${@}"
 }
 
+# shellcheck disable=SC2178
 function execute_tasks() {
     local -n execution_arguments_ref="${1}"
     shift
@@ -231,9 +232,17 @@ function execute_tasks() {
         execution_task_names+=("${task_name}")
     done
 
+    mycmd.trace "Parsed task executions argument definitions of the following:"
+    mycmd.trace "- ${#execution_tasks[@]} total execution tasks defined"
+    mycmd.trace "- ${#execution_task_argument_counts[@]} total argument counts defined"
+    mycmd.trace "- ${#execution_arguments[@]} total arguments defined across those tasks"
+    mycmd.trace "- ${#execution_task_argument_indices[@]} total argument indcides defined"
+    mycmd.trace "- The following arguments ref names defined: ${execution_task_argument_ref_names[*]}"
+
     local task_name
     for task_name in "${execution_task_names[@]}"; do
         project.verbose "Dispatching task '${task_name}'."
+        # shellcheck disable=SC2034
         local -A task=()
 
         if ! get_execution_task "${task_name}" task; then
@@ -245,9 +254,11 @@ function execute_tasks() {
         project.execute_task task || exit_code=$?
 
         if ((exit_code != 0)); then
-            exit "${exit_code}"
+            return "${exit_code}"
         fi
     done
+
+    return 0
 }
 
 function mycmd.main() {
@@ -297,6 +308,7 @@ function mycmd.main() {
         fi
     fi
 
+    # shellcheck disable=SC2034
     local -a arguments=("${@}")
     local exit_code=0
     execute_tasks arguments task_positions || exit_code=$?
