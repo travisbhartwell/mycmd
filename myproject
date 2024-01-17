@@ -252,10 +252,12 @@ function execute-benchmark() {
         MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
         MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
         PATH="${BIN_DIR}:${PATH}" \
-        hyperfine -- \
-        "${@}"
+        hyperfine \
+        --warmup 3 \
+        -- "${@}"
 }
 project.register_task benchmark-help execute-benchmark 'mycmd project --help'
+project.register_task benchmark-list-project-tasks execute-benchmark 'mycmd project list-tasks'
 
 #----------------------------------------
 # Code formatting
