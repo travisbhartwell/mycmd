@@ -24,7 +24,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v3
 
-      - name: Generate site with dt scripts
+      - name: Install dependencies
+        uses: jdx/mise-action@v2
+
+      - name: Generate site
         run: |-
           ./gen.sh
 

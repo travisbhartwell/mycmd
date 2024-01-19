@@ -22,8 +22,16 @@ without_date() {
   cut -d'-' -f1,2,3 --complement
 }
 
+get_date() {
+  cut -d'-' -f1,2,3
+}
+
 drop_ext() {
   rev | cut -d'.' -f1 --complement | rev
+}
+
+add_ext() {
+  xargs printf "%s.$1"
 }
 
 kebab_to_space() {
@@ -31,23 +39,24 @@ kebab_to_space() {
 }
 
 # Posts, sorted for latest at the top.
-for post in *.html.part; do
-  dest="$(echo "$post" | drop_ext)"
+for post in *.md.part; do
+  dest="$(echo "$post" | drop_ext | drop_ext | add_ext html)"
+  date="$(echo "$post" | get_date)"
 
   TITLE="$(echo "$dest" | without_date | drop_ext | kebab_to_space)"
   export TITLE
-  CONTENT="$(cat "$post")"
+  CONTENT="$(pandoc --from commonmark --to html5 "$post")"
   export CONTENT
 
   < ../site.html.template \
     envsubst \
     > "$dest"
 
-  posts="$posts\n$dest"
+  posts="$posts\n$dest $date $TITLE"
 done
 
 export TITLE='Cat Writes a Blog'
-CONTENT="$(echo "$posts" | sort -r | awk 'NF { print("<p><a href=\""$1"\">"$1"</a></p>") }')"
+CONTENT="$(echo "$posts" | sort -r | awk 'NF { print("<p><a href=\""$1"\">"$2,$3"</a></p>") }')"
 export CONTENT
 
 < ../site.html.template \

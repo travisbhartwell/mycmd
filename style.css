@@ -4,3 +4,5 @@ header, footer { text-align: center; }
 
 /* Theme */
 body { color: #321; background-color: #edc; }
+
+a { color: #642; text-decoration: none; font-weight: bolder; }
