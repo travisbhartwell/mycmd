@@ -1,0 +1,6 @@
+/* Layout */
+body { display: grid; place-items: center; min-height: 80vh; }
+header, footer { text-align: center; }
+
+/* Theme */
+body { color: #321; background-color: #edc; }
