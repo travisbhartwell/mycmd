@@ -19,15 +19,15 @@ export BLOG='./'
 posts=''
 
 without_date() {
-  cut -d'-' -f1,2,3 --complement
+  cut -d'-' -f 4-
 }
 
 get_date() {
-  cut -d'-' -f1,2,3
+  cut -d'-' -f 1,2,3
 }
 
 drop_ext() {
-  rev | cut -d'.' -f1 --complement | rev
+  rev | cut -d'.' -f 2- | rev
 }
 
 add_ext() {
