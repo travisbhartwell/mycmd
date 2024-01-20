@@ -1,4 +1,4 @@
-# Dumb Site Generator (POSIX)
+# Dumb Site Generator (POSIX + Markdown via Pandoc)
 
 This is a template for generating your own Static Site Generator.
 
@@ -8,7 +8,7 @@ Feel free to clone it and hack it up into whatever you want it to be.
 
 # Template Credits
 
-This comes from a github repository template at https://github.com/booniepepper/dsg-posix
+This comes from a github repository template at https://github.com/booniepepper/dsg-md-posix
 
-Distributed as [beerware](https://github.com/booniepepper/dsg-posix/tree/core/LICENSE)
+Distributed as [beerware](https://github.com/booniepepper/dsg-md-posix/tree/core/LICENSE)
 by [J.R. Hill](https://so.dang.cool).
