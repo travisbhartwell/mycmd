@@ -1,5 +1,6 @@
 /* Layout */
 body { display: grid; place-items: center; min-height: 80vh; }
+body > div { min-width: 60ch; max-width: 80ch; }
 header, footer { text-align: center; }
 
 /* Theme */
