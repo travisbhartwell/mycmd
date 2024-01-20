@@ -1,0 +1,37 @@
+# MyCmd: A Development Log
+
+I have been working on, and using [MyCmd](https://github.com/travisbhartwell/mycmd/) for almost 2 1/2 years now. Frustrated by the constant copying and pasting of throw-away shell scripts for random little tasks at work, I was inspired by Ian Henry's post, [sd: my script directory](https://ianthehenry.com/posts/sd-my-script-directory/), about a similar tool that he has implemented for himself. The original twist and uniqueness came from a realization of how I could get code reuse.
+
+Because, you see, many of those ad hoc script at work had stemmed from a similar purpose. I needed to write something to call an internal REST-ish API, so I had a standard invocation of curl that set up authentication, certificates, the proper headers, etc. I had then been copying that base into different scripts to call different APIs. All calls to a given service set some of the headers the same in the same pattern, so that code was shared.
+
+So, I decided to make my scripts be referenced via a hierarchy. Something like this (names changed slightly to protect the innocent):
+
+```
+mycmd services deployment-service describe-deployment --deployment-id 123456
+```
+
+First, some vocabulary.
+
+## Concepts
+
+1. Similar to Ian's `sd`, all of the scripts for MyCmd are in a directory tree, for example `$HOME/mycmd`.
+
+2. A script that is executed is called a **command**. In the above example, `describe-deployment` is the **command**. In fact, in many ways, `describe-deployment` is a fairly regular shell script, it just happens to live in the `mycmd` directory. In this example, the script would be `$HOME/mycmd/services/deployment-service/describe-deployment`.
+
+3. However, the **command** script isn't run directly by the user. As shown above, I have a launcher called `mycmd` that sets everything up and then runs the specified **command**. When launching, the hierarchy is specified by spaces, and not slashes.
+
+4. Each command is part of a **command group**. Command groups are hierarchical. In this example, `deployment-service` and `services` are each command groups, and `mycmd` is the implicit top level command group. The **command group** is the mechanism for grouping related commands together, and also for code reuse. The **command group** consists of a directory named for the command group, as well as a shell library, by convention the **command group** name suffixed by `-lib`. So, for this example, there would be a `$HOME/mycmd/services/services-lib` and `$HOME/mycmd/services/deployment-service/deployment-service-lib`.
+
+5. Therefore, in this example, the code that sets up `curl` calls generally is found in `$HOME/mycmd/services/services-lib` and then code that builds on that to call the specific APIs in `deployment-service` are in `$HOME/mycmd/services/deployment-service/deployment-service-lib`.
+
+5. Before the **command** is run (the logistics of this have changed slightly over the course of development), the shell library associated with that command group is sourced, and then each of the parent **command group** libraries are sourced, so all of the shared code is made available.
+
+I've found this to be a unique way to implement things and it has proved ultimately fruitful. At this time, I've got over 30 **commands** implemented in my MyCmd directory at work, spread over 15 different **command groups**.
+
+## Where We're Going 
+
+In fact, the pattern has become so fruitful that I am writing a couple of general tools with MyCmd: 1) a project task runner, and 2) a Tmux session manager. However, I'm in the middle of a big rewrite (in the [rewrite branch](https://github.com/travisbhartwell/mycmd/tree/rewrite) of the fundamentals of how MyCmd works and I hope to have that done soon.
+
+## MyCmd Licensing
+
+For the record, I knew that this was something general that might one day be useful to others. I also wanted to be able to use it outside the context of my employment. Therefore, all work on the MyCmd tool and associated libraries themselves I did on my own time, on my own laptop. I then pulled it from my public Github and used it internally at work, and kept things separate. If I needed a new feature that wasn't specific to a work related library, I did it on my own time, tested at home, and then used it at work.

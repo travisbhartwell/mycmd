@@ -12,7 +12,7 @@
       <hr>
       <footer>
         <p><a href='${ROOT}'>Home</a> | <a href='${BLOG}'>Blog</a></p>
-        <em>Written by a cat on the internet</em>
+        <em>Authored by Travis B. Hartwell</em>
       </footer>
     </div>
   </body>

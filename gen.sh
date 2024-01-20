@@ -1,9 +1,9 @@
 #!/bin/sh
 
-export TITLE='Cat Writes'
+export TITLE='MyCmd: A Development Blog'
 export CONTENT='
-<p>Meow mew <a href="blog">blog</a> meow.</p>
-<p>にゃん</p>'
+<p><a href="blog">The MyCmd Development blog</a>.</p>
+'
 export ROOT='.'
 export BLOG='blog'
 
@@ -55,7 +55,7 @@ for post in *.md.part; do
   posts="$posts\n$dest $date $TITLE"
 done
 
-export TITLE='Cat Writes a Blog'
+export TITLE='MyCmd: A Development Blog'
 CONTENT="$(echo "$posts" | sort -r | awk 'NF { print("<p><a href=\""$1"\">"$2,$3"</a></p>") }')"
 export CONTENT
 
