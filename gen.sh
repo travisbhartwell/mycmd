@@ -1,5 +1,7 @@
 #!/bin/sh
 
+RS=""
+
 export TITLE='MyCmd: A Development Blog'
 export CONTENT='
 <p><a href="blog">The MyCmd Development blog</a>.</p>
@@ -52,11 +54,11 @@ for post in *.md.part; do
     envsubst \
     > "$dest"
 
-  posts="$posts\n$dest\0000$date\0000$TITLE"
+  posts="$posts\n$dest$RS$date$RS$TITLE"
 done
 
 export TITLE='MyCmd: A Development Blog'
-CONTENT="$(echo "$posts" | sort -r | awk -F "\0" 'NF { print("<p><a href=\""$1"\">"$2,$3"</a></p>") }')"
+CONTENT="$(echo "$posts" | sort -r | awk -F "$RS" 'NF { print("<p><a href=\""$1"\">"$2,$3"</a></p>") }')"
 export CONTENT
 
 < ../site.html.template \
