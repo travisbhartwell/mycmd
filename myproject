@@ -1,0 +1,91 @@
+#!/usr/bin/env -S mycmd project run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+project.load_task_library "shell"
+
+# shellcheck disable=SC2154
+readonly BLOG_DIR="${MYPROJECT_BASE_DIR}/blog"
+mycmd.trace "The following variables are set:"
+mycmd.trace "- BLOG_DIR: ${BLOG_DIR}"
+
+#----------------------------------------
+# Project File Sets
+
+#----------------------------------------
+# Just myproject
+project.register_fileset MYPROJECT_ONLY
+# shellcheck disable=SC2154
+project.add_files_to_fileset MYPROJECT_ONLY "${MYPROJECT_PROJECT_FILE}"
+
+project.register_task_with_fileset list-myproject-only project.list-files MYPROJECT_ONLY
+project.register_task_with_fileset format-myproject-only project:shell.format MYPROJECT_ONLY
+project.register_task_with_fileset lint-myproject-only project:shell.lint MYPROJECT_ONLY
+
+#----------------------------------------
+# All Shell Files
+project.register_fileset SHELL_FILES
+# shellcheck disable=SC2154
+project.add_files_to_fileset SHELL_FILES "${MYPROJECT_PROJECT_FILE}"
+project.add_files_to_fileset SHELL_FILES gen.sh
+
+project.register_task_with_fileset list-all-shell-files project.list-files SHELL_FILES
+project.register_task_with_fileset format-all-shell-files project:shell.format SHELL_FILES
+project.register_task_with_fileset lint-all-shell-files project:shell.lint SHELL_FILES
+
+#----------------------------------------
+# Blog Entry Files
+project.register_fileset BLOG_ENTRIES
+project.find_files_for_fileset BLOG_ENTRIES "${BLOG_DIR}"  -type f -name '*.md.part'
+
+project.register_task_with_fileset list-blog-entries project.list-files BLOG_ENTRIES
+
+#----------------------------------------
+# HTML Template Files
+project.register_fileset HTML_TEMPLATE_FILES
+project.add_files_to_fileset HTML_TEMPLATE_FILES site.html.template
+
+project.register_task_with_fileset list-html-template-files project.list-files HTML_TEMPLATE_FILES
+
+#----------------------------------------
+# CSS Files
+project.register_fileset CSS_FILES
+project.add_files_to_fileset CSS_FILES style.css
+
+project.register_task_with_fileset list-css-files project.list-files CSS_FILES
+
+#----------------------------------------
+# Site Generation Commands
+function generate() {
+    project.output_only_if_not_quiet "Running site generation..."
+    ./gen.sh
+}
+project.register_task generate
+
+mycmd.defer_at_startup mycmd.init_bin tmux
+mycmd.defer_at_startup mycmd.init_bin curl
+function preview() {
+    # TODO When myproject can support task dependencies, use that
+    project.execute_tasks generate
+
+    if [[ -v TMUX ]]; then
+        project.output_only_if_not_quiet "Starting a Web Server In Tmux"
+        mycmd.bin_execute tmux new-window -n preview-http -d -c "${MYPROJECT_BASE_DIR}" 'python3 -m http.server 8080'
+
+        project.output_only_if_not_quiet "Waiting for server to start..."
+        mycmd.bin_execute curl --silent --head -X GET --retry 20 --retry-connrefused --retry-delay 1 http://localhost:8080
+
+        open http://localhost:8080
+    fi
+}
+project.register_task preview
+
+mycmd.defer_at_startup mycmd.init_bin find
+function clean() {
+    mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type f -name '*.html' -delete || true
+}
+project.register_task clean
+
+project.register_default_task generate
