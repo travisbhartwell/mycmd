@@ -157,8 +157,8 @@ function mycmd_launcher.command_group_version() {
     local -r command_group_path="${1}"
     local relative_path
     if ! relative_path="$(mycmd.path_relative_to_mycmd_base_with_command_group "${command_group_path}")"; then
-       mycmd.log "Error getting relative path for command group at '${command_group_path}'."
-       return 1
+        mycmd.log "Error getting relative path for command group at '${command_group_path}'."
+        return 1
     fi
     readonly relative_path
 

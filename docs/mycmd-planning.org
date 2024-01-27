@@ -1,0 +1,29 @@
+#+title: Mycmd Planning
+
+* Milestones
+** Separate Install vs From Development Check Out
+To make development easier especially when making sweeping changes, especially now that I'm relying on the task runner.
+
+*** TODO project tasks defined for managing tags
+
+*** TODO project tasks defined for managing worktrees
+
+** Able to Port Scripts and Installation from Work Over
+
+** Initial MVP Release for Others to Use With Manual Installation Instructions
+
+** MyCmd 1.0
+
+* Bugs
+** Syntax or other errors when sourcing aren't caught
+
+* Task List
+** TODO Investigate mise plugins for installing MyCmd
+** TODO Update version functions to add tag information
+
+* Standards
+** For strings that do not have variables in them, use single quotes
+
+* MyCmd MyProject Tasks
+** TODO Refactor once command-group like functionality is implemented in =mycmd project=
+** TODO Add =fzf= or other fuzzy finder functionality to select tags for appropriate tasks

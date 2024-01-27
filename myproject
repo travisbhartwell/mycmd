@@ -5,6 +5,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 project.load_task_library "shell"
+project.load_task_library "git"
 
 # shellcheck disable=SC2154
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
@@ -17,6 +18,9 @@ readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
 readonly VENDOR_WORKING_DIR="${MYPROJECT_BASE_DIR}/vendor/.working"
 readonly TMP_WORKING_DIR="${MYPROJECT_BASE_DIR}/tmp"
 
+WORKTREES_PARENT_DIR="$(cd "$(dirname "${MYPROJECT_BASE_DIR}")" &>/dev/null && pwd -P)"
+readonly WORKTREES_PARENT_DIR
+
 mycmd.trace "Set the following variables:"
 mycmd.trace "- BIN_DIR: ${BIN_DIR}"
 mycmd.trace "- TESTING_BASE: ${TESTING_BASE}"
@@ -27,6 +31,7 @@ mycmd.trace "- VENDOR_DIR: ${VENDOR_DIR}"
 mycmd.trace "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
 mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
 mycmd.trace "- TMP_WORKING_DIR: ${TMP_WORKING_DIR}"
+mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 
 #----------------------------------------
 # Project File Sets
@@ -283,6 +288,369 @@ project.register_task_with_fileset format project:shell.format ALL_FILES
 #----------------------------------------
 # Code Lint
 project.register_task_with_fileset lint project:shell.lint ALL_FILES
+
+#----------------------------------------
+# Calling in Development Version
+function mycmd-devel() {
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${BIN_DIR}"/mycmd "${@}"
+}
+project.register_task mycmd-devel
+
+#----------------------------------------
+# Snapshot Management
+function _get_tag_name_from_parts() {
+    local -r tag_prefix="${1}"
+    local -r sequence_number="${2}"
+
+    local date_string
+    if ! date_string="$(date '+%Y-%m-%d')"; then
+        mycmd.log "Unexpected error getting the date string"
+        return 1
+    fi
+    readonly date_string
+
+    echo "${tag_prefix}-r${sequence_number}-${date_string}"
+}
+
+function _get_next_tag_name_from_previous() {
+    local -r current_tag="${1}"
+    local -r tag_prefix="${2}"
+
+    local current_sequence="${current_tag##"${tag_prefix}"-r}"
+    current_sequence="${current_sequence%%-*}"
+    readonly current_sequence
+
+    local -ir next_sequence=$((current_sequence + 1))
+    _get_tag_name_from_parts "${tag_prefix}" "${next_sequence}"
+}
+
+# Local Snapshots
+# - used for testing changes locally
+# - tags are not pushed to github
+# - tag names are of the form 'local-snapshot-r0-2024-01-27'
+readonly LOCAL_SNAPSHOT_TAG_PREFIX="local-snapshot"
+
+function get_next_local_snapshot_tag_name_from_previous() {
+    _get_next_tag_name_from_previous "${1}" "${LOCAL_SNAPSHOT_TAG_PREFIX}"
+}
+
+function get_local_snapshot_tags() {
+    local -r tags_array_ref_name="${1}"
+    project:git.list_tags "${tags_array_ref_name}" "${LOCAL_SNAPSHOT_TAG_PREFIX}-*"
+}
+project.register_task list-local-snapshots get_local_snapshot_tags
+
+function get_latest_local_snapshot_tag() {
+    local -a existing_tags=()
+    get_local_snapshot_tags existing_tags
+
+    if (("${#existing_tags[@]}" == 0)); then
+        return 1
+    fi
+
+    echo "${existing_tags[0]}"
+}
+
+function get_new_local_snapshot_tag_name() {
+    local latest_local_snapshot_tag
+    if ! latest_local_snapshot_tag="$(get_latest_local_snapshot_tag)"; then
+        mycmd.trace "No local snapshot tags created"
+
+        _get_tag_name_from_parts "${LOCAL_SNAPSHOT_TAG_PREFIX}" 0
+        return 0
+    fi
+    readonly latest_local_snapshot_tag
+
+    _get_next_tag_name_from_previous "${latest_local_snapshot_tag}" "${LOCAL_SNAPSHOT_TAG_PREFIX}"
+}
+
+function create_local_snapshot() {
+    local commit
+    if (($# == 0)); then
+        commit="HEAD"
+    else
+        commit="${1}"
+    fi
+    readonly commit
+
+    if project:git.commit_is_tagged_matching_pattern "${commit}" "${LOCAL_SNAPSHOT_TAG_PREFIX}-r.*"; then
+        mycmd.log "Commit '${commit}' already has a snapshot defined."
+        return 1
+    fi
+
+    local new_snapshot_tag_name
+    if ! new_snapshot_tag_name="$(get_new_local_snapshot_tag_name)"; then
+        mycmd.log "Error getting new snapshot tag name."
+        return 1
+    fi
+    readonly new_snapshot_tag_name
+
+    if ! project:git.create_lightweight_tag "${new_snapshot_tag_name}" "${commit}"; then
+        mycmd.log "Error creating tag '${new_snapshot_tag_name}' at '${commit}'."
+        return 1
+    fi
+
+    project.output_only_if_not_quiet "Created new local snapshot '${new_snapshot_tag_name}'."
+
+    return 0
+}
+project.register_task create-local-snapshot create_local_snapshot
+
+# Development Snapshots
+# - used for wider in-development testing
+# - tags are pushed to github
+# - tag names are of the form 'snapshot-r0-2024-01-27'
+# - sequence numbers (r0 in this example) are independent of the local snapshot numbers
+readonly DEVELOPMENT_SNAPSHOT_TAG_PREFIX='snapshot'
+
+function get_next_development_snapshot_tag_name_from_previous() {
+    _get_next_tag_name_from_previous "${1}" "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}"
+}
+
+function get_development_snapshot_tags() {
+    local -r tags_array_ref_name="${1}"
+    project:git.list_tags "${tags_array_ref_name}" "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}-*"
+}
+project.register_task list-development-snapshots get_development_snapshot_tags
+
+function get_latest_development_snapshot_tag() {
+    local -a existing_tags=()
+    get_development_snapshot_tags existing_tags
+
+    if (("${#existing_tags[@]}" == 0)); then
+        return 1
+    fi
+
+    echo "${existing_tags[0]}"
+}
+
+function get_new_development_snapshot_tag_name() {
+    local latest_development_snapshot_tag
+    if ! latest_development_snapshot_tag="$(get_latest_development_snapshot_tag)"; then
+        mycmd.trace "No development snapshot tags created"
+
+        _get_tag_name_from_parts "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}" 0
+        return 0
+    fi
+    readonly latest_development_snapshot_tag
+
+    mycmd.output "Latest development tag: ${latest_development_snapshot_tag}"
+
+    _get_next_tag_name_from_previous "${latest_development_snapshot_tag}" "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}"
+}
+
+function get_previous_snapshot_tag() {
+    local current_tag="${1}"
+
+    local -a all_tags=()
+    if [[ "${current_tag}" = "${LOCAL_SNAPSHOT_TAG_PREFIX}"-* ]]; then
+        get_local_snapshot_tags all_tags
+    elif [[ "${current_tag}" = "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}"-* ]]; then
+        get_development_snapshot_tags all_tags
+    else
+        mycmd.log "Unexpected tag format of current tag: '${current_tag}'."
+    fi
+
+    local -i index
+    local -i tag_count="${#all_tags[@]}"
+    local -i previous_tag_index
+
+    for ((index = 0; index < tag_count; index++)); do
+        if [[ "${current_tag}" = "${all_tags[${index}]}" ]]; then
+            previous_tag_index=$((index + 1))
+
+            if ((previous_tag_index == tag_count)); then
+                mycmd.log "Current tag '${current_tag}' is the oldest tag"
+                return 1
+            fi
+
+            echo "${all_tags[${previous_tag_index}]}"
+            return 0
+        fi
+    done
+
+    mycmd.log "Tag '${current_tag}' not found."
+    return 1
+}
+
+mycmd.defer_at_startup mycmd.init_bin gum
+function promote_local_snapshot_to_development() {
+    if (($# == 0)); then
+        mycmd.log "Missing snapshot to promote."
+        return 1
+    fi
+
+    local -r local_snapshot_tag="${1}"
+
+    local new_development_snapshot_tag
+    if ! new_development_snapshot_tag="$(get_new_development_snapshot_tag_name)"; then
+        mycmd.log "Unexpected error getting new development snapshot tag name."
+        return 1
+    fi
+    readonly new_development_snapshot_tag
+
+    local -a tag_messages=()
+    local summary_line
+    if ! summary_line="$(mycmd.bin_execute gum input --placeholder "Summary of Snapshot")"; then
+        mycmd.log "Error getting summary line."
+        return 1
+    fi
+    tag_messages+=("${summary_line}")
+    tag_messages+=("Created from local snapshot tag '${local_snapshot_tag}'.")
+
+    if ! project:git.create_annotated_tag "${local_snapshot_tag}" "${new_development_snapshot_tag}" tag_messages; then
+        mycmd.log "Error creating annotated tag"
+        return 1
+    fi
+
+    if ! project:git.push_changes_with_annotated_tags; then
+        mycmd.log "Error pushing changes"
+        return 1
+    fi
+
+    project.output_only_if_not_quiet "Created and pushed new development snapshot '${new_development_snapshot_tag}'."
+}
+project.register_task promote-local-snapshot-to-development promote_local_snapshot_to_development
+
+function promote_latest_local_snapshot_tag_to_development(){
+    local latest_local_snapshot
+    if ! latest_local_snapshot="$(get_latest_local_snapshot_tag)"; then
+        mycmd.log "No local snapshot tags defined yet."
+        return 1
+    fi
+    readonly latest_local_snapshot
+
+    promote_local_snapshot_to_development "${latest_local_snapshot}"
+}
+project.register_task promote-latest-local-snapshot-to-development promote_latest_local_snapshot_tag_to_development
+
+# ----------------------------------------
+# Worktree management
+readonly SNAPSHOT_WORKTREE="${WORKTREES_PARENT_DIR}/snapshot"
+readonly SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE="${WORKTREES_PARENT_DIR}/.last-used-snapshot-tag"
+readonly SNAPSHOT_WORKTREE_CURRENT_TAG_FILE="${WORKTREES_PARENT_DIR}/.current-snapshot-tag"
+
+function get_snapshot_worktree_current_tag() {
+    if [[ -e "${SNAPSHOT_WORKTREE_CURRENT_TAG_FILE}" ]]; then
+        cat "${SNAPSHOT_WORKTREE_CURRENT_TAG_FILE}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+function update_snapshot_worktree_current_tag_file() {
+    local -r tag="${1}"
+
+    echo "${tag}" >"${SNAPSHOT_WORKTREE_CURRENT_TAG_FILE}"
+}
+
+function get_snapshot_worktree_last_used_tag() {
+    if [[ -e "${SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE}" ]]; then
+        cat "${SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+function update_snapshot_worktree_last_used_tag_file() {
+    local -r tag="${1}"
+
+    echo "${tag}" >"${SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE}"
+}
+
+function update_snapshot_worktree_to_snapshot() {
+    local -r tag="${1}"
+    local do_force
+    if (($# > 1)); then
+        do_force="${2}"
+    fi
+    readonly do_force
+
+    if [[ -d "${SNAPSHOT_WORKTREE}" ]]; then
+        local current_worktree_tag
+        if ! current_worktree_tag="$(get_snapshot_worktree_current_tag)"; then
+            mycmd.log "Unexpected error reading current snapshot worktree current tag file."
+            return 1
+        fi
+        readonly current_worktree_tag
+
+        if [[ "${current_worktree_tag}" = "${tag}" ]]; then
+            if [[ "${do_force}" = "true" ]]; then
+                mycmd.trace "Snapshot worktree is already at '${tag}'."
+            else
+                mycmd.output "Snapshot worktree is already at '${tag}'."
+                return 0
+            fi
+        fi
+
+        update_snapshot_worktree_last_used_tag_file "${current_worktree_tag}"
+        project:git.update_worktree_to_commitish "${SNAPSHOT_WORKTREE}" "${tag}"
+        update_snapshot_worktree_current_tag_file "${tag}"
+    else
+        project:git.add_worktree_at_detached_commit "${SNAPSHOT_WORKTREE}" "${tag}"
+        update_snapshot_worktree_current_tag_file "${tag}"
+    fi
+}
+project.register_task update-snapshot-worktree-to-snapshot update_snapshot_worktree_to_snapshot
+
+function rollback_snapshot_worktree_to_last_used_snapshot() {
+    local last_used_tag
+    if ! last_used_tag="$(get_snapshot_worktree_last_used_tag)"; then
+        mycmd.log "No last used tag file found at '${SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE}'."
+        return 1
+    fi
+    readonly last_used_tag
+
+    update_snapshot_worktree_to_snapshot "${last_used_tag}"
+}
+project.register_task rollback-snapshot-worktree-to-last-used-snapshot rollback_snapshot_worktree_to_last_used_snapshot
+
+function rollback_snapshot_worktree_to_previous_snapshot_in_sequence() {
+    local current_worktree_tag
+    if ! current_worktree_tag="$(get_snapshot_worktree_current_tag)"; then
+        mycmd.log "Error reading current snapshot worktree current tag file."
+        return 1
+    fi
+    readonly current_worktree_tag
+
+    local prior_snapshot_tag
+    if ! prior_snapshot_tag="$(get_previous_snapshot_tag "${current_worktree_tag}")"; then
+        return 1
+    fi
+    readonly prior_snapshot_tag
+
+    update_snapshot_worktree_to_snapshot "${prior_snapshot_tag}"
+}
+project.register_task rollback-snapshot-worktree-to-previous-snapshot-in-sequence rollback_snapshot_worktree_to_previous_snapshot_in_sequence
+
+function update_snapshot_worktree_to_latest_local_snapshot() {
+    local latest_local_snapshot
+    if ! latest_local_snapshot="$(get_latest_local_snapshot_tag)"; then
+        mycmd.log "No local snapshot tags defined yet."
+        return 1
+    fi
+    readonly latest_local_snapshot
+
+    update_snapshot_worktree_to_snapshot "${latest_local_snapshot}" "${@}"
+}
+project.register_task update-snapshot-worktree-to-latest-local-snapshot update_snapshot_worktree_to_latest_local_snapshot
+
+function update_snapshot_worktree_to_latest_development_snapshot_tag() {
+    local latest_development_snapshot
+    if ! latest_development_snapshot="$(get_latest_development_snapshot_tag)"; then
+        mycmd.log "No development snapshot tags defined yet."
+        return 1
+    fi
+    readonly latest_development_snapshot
+
+    update_snapshot_worktree_to_snapshot "${latest_development_snapshot}" "${@}"
+}
+project.register_task update-snapshot-worktree-to-latest-development-snapshot update_snapshot_worktree_to_latest_development_snapshot
 
 #----------------------------------------
 # Run everything
