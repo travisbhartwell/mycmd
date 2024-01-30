@@ -9,6 +9,7 @@ project.load_task_library "git"
 
 # shellcheck disable=SC2154
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
+readonly SUPPORT_DIR="${MYPROJECT_BASE_DIR}/support"
 readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
 readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
 readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
@@ -23,6 +24,7 @@ readonly WORKTREES_PARENT_DIR
 
 mycmd.trace "Set the following variables:"
 mycmd.trace "- BIN_DIR: ${BIN_DIR}"
+mycmd.trace "- SUPPORT_DIR: ${SUPPORT_DIR}"
 mycmd.trace "- TESTING_BASE: ${TESTING_BASE}"
 mycmd.trace "- TEST_FILES_BASE: ${TEST_FILES_BASE}"
 mycmd.trace "- TEST_USER_BASE: ${TEST_USER_BASE}"
@@ -37,7 +39,7 @@ mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 # Project File Sets
 # All Files
 project.register_fileset ALL_FILES
-project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
+project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SUPPORT_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
 # shellcheck disable=SC2154
 project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
 project.register_task_with_fileset list-all-files project.list-files ALL_FILES
@@ -515,7 +517,7 @@ function promote_local_snapshot_to_development() {
 }
 project.register_task promote-local-snapshot-to-development promote_local_snapshot_to_development
 
-function promote_latest_local_snapshot_tag_to_development(){
+function promote_latest_local_snapshot_tag_to_development() {
     local latest_local_snapshot
     if ! latest_local_snapshot="$(get_latest_local_snapshot_tag)"; then
         mycmd.log "No local snapshot tags defined yet."
@@ -640,7 +642,9 @@ function update_snapshot_worktree_to_latest_local_snapshot() {
 }
 project.register_task update-snapshot-worktree-to-latest-local-snapshot update_snapshot_worktree_to_latest_local_snapshot
 
-function update_snapshot_worktree_to_latest_development_snapshot_tag() {
+function update_snapshot_worktree_to_latest_development_snapshot() {
+    project:git.fetch_tags
+
     local latest_development_snapshot
     if ! latest_development_snapshot="$(get_latest_development_snapshot_tag)"; then
         mycmd.log "No development snapshot tags defined yet."
