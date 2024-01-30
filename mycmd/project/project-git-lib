@@ -172,4 +172,12 @@ function project:git.update_worktree_to_commitish() {
     fi
 }
 
+function project:git.fetch_tags() {
+    if project.is_verbose_enabled; then
+        project:git._execute_git fetch --tags
+    else
+        project:git._execute_git fetch --tags --quiet
+    fi
+}
+
 mycmd.trace "The MyCmd Project Command Group Git support library has been sourced."
