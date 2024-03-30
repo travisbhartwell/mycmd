@@ -2,65 +2,81 @@
 
 RS=""
 
-export TITLE='MyCmd: A Development Blog'
-export CONTENT='
-<p><a href="blog">The MyCmd Development blog</a>.</p>
-'
-export ROOT='.'
-export BLOG='blog'
+sources_root="$(dirname "$0")"
+site_template="$sources_root/site.html.template"
 
-# Homepage
-< site.html.template \
-  envsubst \
-  > index.html
+cd "$sources_root" || exit 1
 
-cd blog || exit 1
-export ROOT='..'
-export BLOG='./'
+# Clean before we start
 
-posts=''
+find "$sources_root" -type f -name '*.html' -delete
+find "$sources_root" -type f -name 'page-list*' -delete
 
-without_date() {
-  cut -d'-' -f 4-
-}
+# Generate pages
 
-get_date() {
-  cut -d'-' -f 1,2,3
-}
+{
+  find . -type f -name '*.md' >tmp
+  while IFS= read -r content
+  do
+    path="$(dirname "$content")"
+    TITLE="$(basename "$content" | cut -d '.' -f 1)"
+    date="$(expr "$TITLE" : '\([[:digit:]]*-[[:digit:]]*-[[:digit:]]*\)')"
 
-drop_ext() {
-  rev | cut -d'.' -f 2- | rev
-}
+    if [ -n "$date" ]
+    then
+      TITLE="$date $(echo "$TITLE" | cut -d '-' -f 4- | sed 's/-/ /g')"
+    else
+      TITLE="$(echo "$TITLE" | sed 's/-/ /g')"
+    fi
 
-add_ext() {
-  xargs printf "%s.$1"
-}
+    filename="$(basename "$content" .md | tr '[:upper:]' '[:lower:]')"
+    case "$filename" in
+      *.*) dest="$(echo "$filename" | cut -d '.' -f 2-).html" ;;
+      *)   mkdir -p "$path/$filename"
+           dest="$filename/index.html" ;;
+    esac
 
-kebab_to_space() {
-  sed 's/-/ /g'
-}
+    CONTENT="$(pandoc --from commonmark --to html5 "$content")"
+    ROOT="$(dirname "$path/$dest" | sed -E 's/\/[^\/]+/\/../g')"
 
-# Posts, sorted for latest at the top.
-for post in *.md.part; do
-  dest="$(echo "$post" | drop_ext | drop_ext | add_ext html)"
-  date="$(echo "$post" | get_date)"
-
-  TITLE="$(echo "$dest" | without_date | drop_ext | kebab_to_space)"
-  export TITLE
-  CONTENT="$(pandoc --from commonmark --to html5 "$post")"
-  export CONTENT
-
-  < ../site.html.template \
+    export TITLE
+    export CONTENT
+    export ROOT
     envsubst \
-    > "$dest"
+      <"$site_template" \
+      >"$path/$dest"
 
-  posts="$posts\n$dest$RS$date$RS$TITLE"
-done
+    echo "$(echo "$dest" | sed 's/index.html$//')$RS$TITLE" >> "$path/page-list"
+  done <tmp
+  rm tmp
+}
 
-export TITLE='MyCmd: A Development Blog'
-CONTENT="$(echo "$posts" | sort -r | awk -F "$RS" 'NF { print("<p><a href=\""$1"\">"$2,$3"</a></p>") }')"
-export CONTENT
+# Generate page lists
 
-< ../site.html.template \
-  envsubst \
-  > index.html
+{
+  find . -type f -name page-list >tmp
+  while IFS= read -r list
+  do
+    path="$(dirname "$list")"
+    dest=index.html
+
+    if [ -f "$path/$dest" ]
+    then
+      dest=page-list.html
+    fi
+
+    TITLE='Page List'
+    CONTENT="<ul>$(sort -r "$list" | awk -F "$RS" 'NF { print("<li><a href=\""$1"\">"$2"</a></li>") }')</ul>"
+    ROOT="$(dirname "$path/$dest" | sed -E 's/\/[^\/]+/\/../g')"
+
+    export TITLE
+    export CONTENT
+    export ROOT
+    envsubst \
+      <"$site_template" \
+      >"$path/$dest"
+
+    rm "$list"
+  done <tmp
+  rm tmp
+}

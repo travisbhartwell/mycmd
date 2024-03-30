@@ -88,4 +88,26 @@ function clean() {
 }
 project.register_task clean
 
+function archive-output() {
+    local -r parent_dir="${1}"
+    local -r archive_name="${2}"
+    local -r dest_dir="${parent_dir}/${archive_name}"
+
+    # TODO When myproject can support task dependencies, use that
+    project.execute_tasks clean generate
+
+    if [[ ! -d "${dest_dir}" ]]; then
+        mkdir -p "${dest_dir}"
+    fi
+
+    cp index.html style.css "${dest_dir}"
+
+    if [[ ! -d "${dest_dir}/blog" ]]; then
+        mkdir -p "${dest_dir}/blog"
+    fi
+
+    cp ./blog/*.html "${dest_dir}/blog"
+}
+project.register_task archive-output
+
 project.register_default_task generate
