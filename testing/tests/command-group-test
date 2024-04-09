@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test directory."
+    exit 1
+fi
+
+if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+# TODO: Change back to mycmd after content of mycmd-ng has been moved back
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd-ng" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd lib directory."
+    exit 1
+fi
+
+function test_mycmd_command_group_lib_is_loaded() {
+    assertTrue 'MyCmd Lib Environment Support Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
+}
+
+function test_base_mycmd_command_group() {
+    # shellcheck disable=SC2034
+    local -A mycmd_command_group
+    mycmd:command_group.get_command_group mycmd mycmd_command_group
+    assertEquals "mycmd" "$(mycmd:command_group.get_name mycmd_command_group)"
+    assertEquals "mycmd" "$(mycmd:command_group.get_fully_qualified_name mycmd_command_group)"
+    assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
+    assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:command_group.get_source_directory mycmd_command_group)"
+    assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:command_group.get_source_file mycmd_command_group)"
+    assertFalse 'There is no local override source directory defined' \
+        'mycmd:command_group.get_local_override_source_directory mycmd_command_group'
+    assertFalse 'There is no local override source file defined' \
+        'mycmd:command_group.get_local_override_source_file mycmd_command_group'
+    assertEquals "MyCmd Command Group mycmd" "$(mycmd:command_group.get_short_description mycmd_command_group)"
+    assertFalse 'There is no long description defined' \
+        'mycmd:command_group.get_long_description mycmd_command_group'
+    assertEquals "Unknown" "$(mycmd:command_group.get_version mycmd_command_group)"
+}
+
+function oneTimeSetUp() {
+    # shellcheck source=../../mycmd-ng/mycmd-command-group-lib
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-command-group-lib"
+
+    # TODO: This will be added by default in the future
+    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["mycmd"]="${MYCMD_LIB_DIRECTORY}"
+    _MYCMD_COMMAND_GROUP_SOURCE_FILES["mycmd"]="${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+}
+
+# shellcheck source=../vendor/shunit2
+. "${TEST_VENDOR_DIRECTORY}/shunit2"

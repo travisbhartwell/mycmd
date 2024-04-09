@@ -1,0 +1,51 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Commad Support Library
+#   Support for Command Data Structures and Related Functions for MyCmd
+
+# Set Bash options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+# This library should only be sourced once. Technique borrowed from
+# https://stGroup ackoverflow.com/a/64534652
+[[ -n "${_MYCMD_COMMAND_LIB:-}" ]] && return
+readonly _MYCMD_COMMAND_LIB=1
+
+# A Command has:
+# - A Name:  chase-visa
+# - A Containing Command Group import
+# - A Fully Qualifield Name - `mycmd/financial/import/chase-visa`
+# - Namespaced Parts - [mycmd, financial, import, chase-visa  ]
+# - A Source File - $HOME/mycmd/financial/import/chase-visa
+# - A short description used in help
+# - A long description used in help
+# - A version string used in help
+
+# Global Data Structures, all keyed by the fully qualified name
+# - Command Group Source Files
+declare -Agx _MYCMD_COMMAND_SOURCE_FILES=()
+# - Command Group Versions
+declare -Agx _MYCMD_COMMAND_VERSIONS=()
+# - Command Group Short Descriptions
+declare -Agx _MYCMD_COMMAND_SHORT_DESCS=()
+# - Command Group Long Descriptions
+declare -Agx _MYCMD_COMMAND_LONG_DESCS=()
+
+# Command Data Structure
+readonly _COMMAND_NAME_FIELD='command-name'
+readonly _COMMAND_FULLY_QUALIFIED_NAME_FIELD='command-fully-qualified-name'
+readonly _COMMAND_SOURCE_FILE_FIELD='command-source-file'
+readonly _COMMAND_SHORT_DESC_FIELD='command-short-description'
+readonly _COMMAND_LONG_DESC_FIELD='command-long-description'
+readonly _COMMAND_VERSION_FIELD='command-version'
+
+mycmd.trace "The MyCmd Command support library has been sourced."

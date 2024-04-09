@@ -1,0 +1,284 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+
+# MyCmd Commad Group Support Library
+#   Support for Command Group Data Structures and Related Functions for MyCmd
+
+# Set Bash options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+# This library should only be sourced once. Technique borrowed from
+# https://stackoverflow.com/a/64534652
+[[ -n "${_MYCMD_COMMAND_GROUP_LIB:-}" ]] && return
+readonly _MYCMD_COMMAND_GROUP_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_COMMAND_GROUP_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_COMMAND_GROUP_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
+source "${_MYCMD_LIB_DIR}/mycmd-environment-lib"
+
+# Other Dependencies:
+# - TODO: Platform and Platform Executable Support
+# - TODO: GNU Realpath (for relative path functions)
+
+# A Command Group has:
+# - A Name: import
+# - A Fully Qualifield Name - `mycmd/financial/import`
+# - Namespaced Parts - [mycmd, financial, import]
+# - A Source Directory - $HOME/mycmd/financial/import/
+# - An optional local override directory
+# - A Source File - $HOME/mycmd/financial/import/import-lib
+# - An optional local override library
+# - Any number of commands
+# - Any number of child command groups
+# - A short description used in help
+# - A long description used in help
+# - A version string used in help
+
+# Global Data Structures, all keyed by the fully qualified name
+# - Command Group Source Directories
+declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES=()
+# - Command Group Source Files
+declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_FILES=()
+# - Command Group Local Override Directories
+declare -Agx _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES=()
+# - Command Group Local Override Source Files
+declare -Agx _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES=()
+# - Command Group Short Descriptions
+declare -Agx _MYCMD_COMMAND_GROUP_SHORT_DESCS=()
+# - Command Group Long Descriptions
+declare -Agx _MYCMD_COMMAND_GROUP_LONG_DESCS=()
+# - Command Group Versions
+declare -Agx _MYCMD_COMMAND_GROUP_VERSIONS=()
+
+# Command Group Data Structure
+readonly _COMMAND_GROUP_NAME_FIELD='command-group-name'
+readonly _COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD='command-group-fully-qualified-name'
+readonly _COMMAND_GROUP_SOURCE_DIRECTORY_FIELD='command-group-source-directory'
+readonly _COMMAND_GROUP_SOURCE_FILE_FIELD='command-group-source-file'
+readonly _COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD='command-group-local-override-source-directory'
+readonly _COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD='command-group-local-override-file'
+readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
+readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
+readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
+
+# Input: Absolute Path of a Directory
+function mycmd:command_group.directory_contains_command_group() {
+    local -r dir="${1}"
+
+    if [[ ! -d "${dir}" ]]; then
+        mycmd.debug "Directory '${dir}' does not exist."
+        return 1
+    fi
+
+    local name
+    if ! name="$(basename "${dir}")"; then
+        mycmd.debug "Error getting basename of '${dir}'."
+        return 1
+    fi
+    readonly name
+
+    local -r source_file_name="${dir}/${name}-lib"
+    if [[ ! -f "${source_file_name}" ]]; then
+        mycmd.debug "Expected command group library file '${source_file_name}' does not exist."
+        return 1
+    fi
+
+    return 0
+}
+
+function mycmd:command_group._dump_assoc_array() {
+    declare -Agx  | grep "${1}"
+}
+
+function mycmd:command_group._dump_source_data() {
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SOURCE_FILES
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SHORT_DESCS
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LONG_DESCS
+    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_VERSIONS
+}
+
+function mycmd:command_group.get_command_group() {
+    local -r command_group_fq_name="${1}"
+    local -n command_group_struct_ref="${2}"
+
+    if [[ ! -v  _MYCMD_COMMAND_GROUP_SOURCE_FILES[${command_group_fq_name}] ]]; then
+        mycmd.log "Unknown command group: '${command_group_fq_name}'."
+        return 1
+    fi
+
+    mycmd.trace "Returning Command Group definition:"
+    command_group_struct_ref["${_COMMAND_GROUP_NAME_FIELD}"]="$(basename "${command_group_fq_name}")"
+    mycmd.trace "- ${_COMMAND_GROUP_NAME_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_NAME_FIELD}"]}"
+
+    command_group_struct_ref["${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}"]="${command_group_fq_name}"
+    mycmd.trace "- ${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}"]}"
+
+    command_group_struct_ref["${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${command_group_fq_name}"]}"
+    mycmd.trace "- ${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}"]}"
+
+    command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_FILES["${command_group_fq_name}"]}"
+    mycmd.trace "- ${_COMMAND_GROUP_SOURCE_FILE_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]}"
+
+    if [[ -v _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES[${command_group_fq_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES["${command_group_fq_name}"]}"
+        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}"]}"
+    else
+        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES[${command_group_fq_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES["${command_group_fq_name}"]}"
+        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}"]}"
+    else
+        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_COMMAND_GROUP_SHORT_DESCS[${command_group_fq_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_SHORT_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_SHORT_DESCS["${command_group_fq_name}"]}"
+        mycmd.trace "- ${_COMMAND_GROUP_SHORT_DESC_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SHORT_DESC_FIELD}"]}"
+    else
+        mycmd.trace "- ${_COMMAND_GROUP_SHORT_DESC_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_COMMAND_GROUP_LONG_DESCS[${command_group_fq_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_LONG_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_LONG_DESCS["${command_group_fq_name}"]}"
+        mycmd.trace "- ${_COMMAND_GROUP_LONG_DESC_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_LONG_DESC_FIELD}"]}"
+    else
+        mycmd.trace "- ${_COMMAND_GROUP_LONG_DESC_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_COMMAND_GROUP_VERSIONS[${command_group_fq_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_VERSION_FIELD}"]="${_MYCMD_COMMAND_GROUP_VERSIONS["${command_group_fq_name}"]}"
+        mycmd.trace "- ${_COMMAND_GROUP_VERSION_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_VERSION_FIELD}"]}"
+    else
+        mycmd.trace "- ${_COMMAND_GROUP_VERSION_FIELD}: No value set."
+    fi
+}
+
+function mycmd:command_group._get_required_field_from_command_group_struct() {
+    local -r field_name="${1}"
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${2}"
+
+    echo "${command_group_struct_ref["${field_name}"]}"
+}
+
+function mycmd:command_group._get_optional_field_from_command_group_struct() {
+    local -r field_name="${1}"
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${2}"
+
+    if [[ -v command_group_struct_ref["${field_name}"] ]]; then
+        echo "${command_group_struct_ref["${field_name}"]}"
+        return 0
+    else
+        local command_group_fq_name
+        command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+        readonly command_group_fq_name
+        mycmd.trace "No value for '${field_name}' defined for command group '${command_group_fq_name}'."
+        return 1
+    fi
+}
+
+function mycmd:command_group.get_name() {
+    mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_fully_qualified_name() {
+    mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_namespaced_parts_as_string() {
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
+    readonly fully_qualified_name
+
+    local -r namespaced_parts="${fully_qualified_name//\// }"
+    echo "${namespaced_parts}"
+}
+
+function mycmd:command_group.get_source_directory() {
+     mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_source_file() {
+      mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_SOURCE_FILE_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_local_override_source_directory() {
+    mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_local_override_source_file() {
+    mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_short_description() {
+    local short_description
+
+    if short_description="$(mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_SHORT_DESC_FIELD}" \
+        "${@}")"; then
+        readonly short_description
+        echo "${short_description}"
+        return 0
+    else
+        local namespaced_parts
+        namespaced_parts="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
+        readonly namespaced_parts
+        short_description="MyCmd Command Group ${namespaced_parts}"
+        echo "${short_description}"
+        return 0
+    fi
+}
+
+function mycmd:command_group.get_long_description() {
+    mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_LONG_DESC_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_version() {
+    local version
+
+    if version="$(mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_VERSION_FIELD}" \
+        "${@}")"; then
+        echo "${version}"
+        return 0
+    else
+        echo "Unknown"
+        return 0
+    fi
+}
+
+mycmd.trace "The MyCmd Command Group support library has been sourced."
