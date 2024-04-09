@@ -1,0 +1,109 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Library Output Support Library
+#   Support for Output Functions for MyCmd
+
+# Set Bash options for safety
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# This file should only be sourced and not executed directly, so exit with error
+# with execution is attempted. Technique borrowed from
+# https://stackoverflow.com/a/28776166
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+# This library should only be sourced once. Technique borrowed from
+# https://stackoverflow.com/a/64534652
+[[ -n "${_MYCMD_OUTPUT_LIB:-}" ]] && return
+readonly _MYCMD_OUTPUT_LIB=1
+
+# ------------------------------------------------------------------------------
+# Basic Logging and Output Functions
+#
+#   These are defined as early as possible to enable to be used through-out this
+#   file. See the Additional Logging Support section below for additional
+#   functionality.
+#
+#   In general, use these functions for any output that the user may see, and use
+#   echo for interal implementation use for functions that are meant to be called
+#   in sub-shells to capture output.
+
+# These file descriptors are set up to make output easier
+exec {_MYCMD_OUTPUT_FD}>&1
+readonly _MYCMD_OUTPUT_FD
+export _MYCMD_OUTPUT_FD
+
+# mycmd.output
+#   Convenience for runtime output to stdout. Provided for symmetry in output
+#   functions.
+function mycmd._output() {
+    local -r output_fd="${1}"
+    shift
+
+    printf '%b\n' "$*" >&"${output_fd}"
+}
+
+# mycmd.output
+#   Convenience for runtime output to stdout. Provided for symmetry in output
+#   functions.
+function mycmd.output() {
+    mycmd._output "${_MYCMD_OUTPUT_FD}" "$*"
+}
+
+function mycmd._output_with_timestamp() {
+    local -r output_fd="${1}"
+    shift
+
+    printf '[%(%F %T)T] %b\n' -1 "$*" 1>&"${output_fd}"
+}
+
+# mycmd.output_with_timestamp
+#   Convenience for runtime output to stdout, with each line prefixed by the
+#   current timestamp.
+function mycmd.output_with_timestamp() {
+    mycmd._output_with_timestamp "${_MYCMD_OUTPUT_FD}" "$*"
+}
+
+exec {_MYCMD_LOG_FD}>&2
+readonly _MYCMD_LOG_FD
+export _MYCMD_LOG_FD
+
+# mycmd.log
+#   Convenience for runtime logging to stderr.
+function mycmd.log() {
+    mycmd._output_with_timestamp "${_MYCMD_LOG_FD}" "$*"
+}
+
+# mycmd.debug
+#   Optionally log when MYCMD_DEBUG is set. Useful for debugging output.
+function mycmd.debug() {
+    if [[ -n "${MYCMD_DEBUG-}" ]]; then
+        mycmd.log "[DEBUG] $*"
+    fi
+}
+
+# mycmd.trace
+#   Optionally log when MYCMD_TRACE is set. Useful for tracing script execution.
+function mycmd.trace() {
+    if [[ -n "${MYCMD_TRACE-}" ]]; then
+        mycmd.log "[TRACE] $*"
+    fi
+}
+
+# mycmd.err_exit
+#   Output an error message to stderr and exit with a non-zero exit code.
+#
+#   $1 - Exit code to use
+#   Remainder - Error message
+function mycmd.err_exit() {
+    local -r exit_code=$1
+    shift
+
+    mycmd.log "${*}"
+    exit "${exit_code}"
+}
+
+mycmd.trace "The MyCmd Library Output support library has been sourced."
