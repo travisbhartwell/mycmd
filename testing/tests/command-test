@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test directory."
+    exit 1
+fi
+
+if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+# TODO: Change back to mycmd after content of mycmd-ng has been moved back
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd-ng" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd lib directory."
+    exit 1
+fi
+
+function test_mycmd_command_lib_is_loaded() {
+    assertTrue 'MyCmd Lib Command Support Lib is loaded' '[ -v _MYCMD_COMMAND_LIB ]'
+}
+
+function test_test-command() {
+    # shellcheck disable=SC2034
+    local -A command
+    mycmd:command.get_command "mycmd/test-command" command
+    assertEquals "test-command" "$(mycmd:command.get_name command)"
+    assertEquals "mycmd/test-command" "$(mycmd:command.get_fully_qualified_name command)"
+    assertEquals "mycmd test-command" "$(mycmd:command.get_namespaced_parts_as_string command)"
+    assertEquals "mycmd" "$(mycmd:command.get_fully_qualified_command_group_name command)"
+    assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file command)"
+    assertEquals "MyCmd Command mycmd test-command" "$(mycmd:command.get_short_description command)"
+    assertFalse 'There is no long description defined' \
+        'mycmd:command.get_long_description command'
+    assertEquals "Unknown" "$(mycmd:command.get_version command)"
+}
+
+function oneTimeSetUp() {
+    # shellcheck source=../../mycmd-ng/mycmd-command-lib
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-command-lib"
+
+    # TODO: This will be handled by loading mechanisms in the future
+    _MYCMD_COMMAND_SOURCE_FILES["mycmd/test-command"]="${MYCMD_USER_BASE_DIR}/test-command"
+}
+
+# shellcheck source=../vendor/shunit2
+. "${TEST_VENDOR_DIRECTORY}/shunit2"

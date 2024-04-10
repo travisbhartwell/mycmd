@@ -19,7 +19,7 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd-ng" &>/dev/null && 
 fi
 
 function test_mycmd_command_group_lib_is_loaded() {
-    assertTrue 'MyCmd Lib Environment Support Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
+    assertTrue 'MyCmd Lib Command Group Support Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
 }
 
 function test_base_mycmd_command_group() {
