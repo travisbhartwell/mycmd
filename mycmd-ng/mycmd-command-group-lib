@@ -249,16 +249,16 @@ function mycmd:command_group.get_short_description() {
         "${_COMMAND_GROUP_SHORT_DESC_FIELD}" \
         "${@}")"; then
         readonly short_description
-        echo "${short_description}"
-        return 0
     else
         local namespaced_parts
         namespaced_parts="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
         readonly namespaced_parts
         short_description="MyCmd Command Group ${namespaced_parts}"
-        echo "${short_description}"
-        return 0
+        readonly short_description
     fi
+
+    echo "${short_description}"
+    return 0
 }
 
 function mycmd:command_group.get_long_description() {

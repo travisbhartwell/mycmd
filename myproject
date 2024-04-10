@@ -239,9 +239,10 @@ function execute-test() {
 
     local result=0
     mycmd.log "Executing test file: ${test_file}"
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
-        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
-        MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
         "${test_file}" || result=$?
 
