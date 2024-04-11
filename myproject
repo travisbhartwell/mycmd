@@ -18,6 +18,7 @@ readonly VENDOR_DIR="${MYPROJECT_BASE_DIR}/vendor"
 readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
 readonly VENDOR_WORKING_DIR="${MYPROJECT_BASE_DIR}/vendor/.working"
 readonly TMP_WORKING_DIR="${MYPROJECT_BASE_DIR}/tmp"
+readonly DOCS_DIR="${MYPROJECT_BASE_DIR}/docs"
 
 WORKTREES_PARENT_DIR="$(cd "$(dirname "${MYPROJECT_BASE_DIR}")" &>/dev/null && pwd -P)"
 readonly WORKTREES_PARENT_DIR
@@ -33,6 +34,7 @@ mycmd.trace "- VENDOR_DIR: ${VENDOR_DIR}"
 mycmd.trace "- TEST_VENDOR_DIR: ${TEST_VENDOR_DIR}"
 mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
 mycmd.trace "- TMP_WORKING_DIR: ${TMP_WORKING_DIR}"
+mycmd.trace "- DOCS_DIR: ${DOCS_DIR}"
 mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 
 #----------------------------------------
@@ -151,8 +153,49 @@ function list-mycmd-lib-functions() {
     grep -E '^[[:space:]]*function' "${mycmd_lib}" \
         | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
         | sort -u
-}
 project.register_task list-mycmd-lib-functions
+}
+
+mycmd.init_bin grep
+function catalog-mycmd-lib-function-call-tree() {
+    local -a functions
+
+    readarray -t functions < <(list-mycmd-lib-functions || true)
+
+    local fn
+    local fn_pattern
+    local match_line
+    local line_number
+    local -a data=()
+
+    project.output_only_if_not_quiet "Cataloging function from mycmd-lib across all implementation files."
+
+    for fn in "${functions[@]}"; do
+        project.verbose "Searching for function '${fn}'."
+        fn_pattern="${fn/./\\.}"
+
+        while read -r match_line; do
+            line_number="${match_line%%:*}"
+            data+=("${fn},${line_number}")
+        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" mycmd/mycmd-lib \
+                | mycmd.bin_execute grep -P -v "^[[:digit:]]*:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
+
+    done
+
+    local -r output_file="${DOCS_DIR}/fn-callers.csv"
+
+    echo "function,line" >"${output_file}"
+
+    (
+        local line
+        for line in "${data[@]}"; do
+            echo "${line}"
+        done
+    ) | sort -t, -k1,2 >>"${output_file}"
+
+    project.output_only_if_not_quiet "Wrote results to ${output_file}."
+}
+project.register_task catalog-mycmd-lib-function-call-tree
 
 mycmd.init_bin grep
 function catalog-mycmd-lib-function-callers() {
