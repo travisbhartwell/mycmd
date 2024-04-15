@@ -1,0 +1,129 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Library Loading Base Support Library
+#   Support for Basic Loading Shell Libraries and Protecting Functions for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_LOADING_LIB:-}" ]] && return
+readonly _MYCMD_LOADING_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_LOADING_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LOADING_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+
+if [[ ! -v _MYCMD_LOADING_BASE_LIB ]]; then
+    # shellcheck source=./mycmd-loading-base-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+fi
+
+mycmd._load_mycmd_lib_support_lib "output"
+mycmd._load_mycmd_lib_support_lib "environment"
+mycmd._load_mycmd_lib_support_lib "event-lifecycle"
+
+# -------------------------------------------------------------------------------
+
+# mycmd.source_lib_by_path_if_found
+#   Source the library if it exists.
+function mycmd.source_lib_by_path_if_found() {
+    local -r library_full_path="${1}"
+    shift
+
+    if mycmd._source_lib_by_path_if_found "${library_full_path}" "${@}"; then
+        mycmd.trace "Library '${library_full_path}' successfully loaded, running startup deferreds."
+        # Run any remaining deferreds for the startup for the library
+        mycmd.run_startup_deferreds "${library_full_path}"
+
+        return 0
+    else
+        mycmd.trace "Library '${library_full_path}' not found."
+        return 1
+    fi
+}
+
+function mycmd.load_mycmd_lib_support_lib() {
+    local -r support_lib_name="${1}"
+    local -r support_lib_file="${_MYCMD_LIB_DIR}/mycmd-${support_lib_name}-lib"
+
+    mycmd.source_lib_by_path_if_found "${support_lib_file}"
+}
+
+function mycmd._source_mycmd_lib() {
+    local -r lib_relative_path="${1}"
+    shift
+    local -r lib_name="${1}"
+    shift
+
+    mycmd.trace "Attempting to load '${lib_name}' from '${lib_relative_path}'."
+
+    # shellcheck disable=SC2154
+    local lib_dir="${MYCMD_SYSTEM_BASE_DIR}/${lib_relative_path}"
+    local lib_script="${lib_dir}/${lib_name}"
+    # shellcheck disable=SC2154
+    local local_lib_dir="${MYCMD_USER_BASE_DIR}/${lib_relative_path}"
+    local local_lib_script="${local_lib_dir}/${lib_name}"
+
+    if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
+        # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
+        local local_lib_name="${lib_name/%-lib/-local-lib}"
+        local local_lib_override="${local_lib_dir}/${local_lib_name}"
+        mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}"
+    elif ! mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}"; then
+        mycmd.log "Cannot find library '${lib_name}' in system or user directory."
+        return 1
+    fi
+
+    return 0
+}
+
+# mycmd.source_mycmd_lib
+#   Explicitly source a MyCmd library and its dependencies by providing the
+#   directory name of the MyCmd library relative to either first
+#   MYCMD_SYSTEM_BASE_DIR or, secondly, MYCMD_USER_BASE_DIR.
+#
+#   For example, to source the library in ~/mycmd/requests/service1, call this
+#   like this:
+#
+#   mycmd.source_mycmd_lib "requests/service1"
+function mycmd.source_mycmd_lib() {
+    local -r library_path="$1"
+    shift
+
+    local dir_parts
+    # shellcheck disable=SC2162
+    IFS="/" read -a dir_parts <<<"${library_path}"
+    readonly dir_parts
+
+    local lib_dir=""
+
+    local dir
+    for dir in "${dir_parts[@]}"; do
+        lib_dir="${lib_dir-}${lib_dir:+/}${dir}"
+
+        if ! mycmd._source_mycmd_lib "${lib_dir}" "${dir}-lib"; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+# mycmd.source_mycmd_local_lib
+function mycmd.source_mycmd_local_lib() {
+    local -r local_lib="${MYCMD_USER_BASE_DIR}/mycmd-local-lib"
+
+    mycmd.source_lib_by_path_if_found "${local_lib}" || true
+}
+
+mycmd.trace "The MyCmd Loading support library has been sourced."

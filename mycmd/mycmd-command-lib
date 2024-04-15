@@ -22,8 +22,16 @@ fi
 
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
-source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
-source "${_MYCMD_LIB_DIR}/mycmd-environment-lib"
+
+if [[ ! -v _MYCMD_LOADING_LIB ]]; then
+    # shellcheck source=./mycmd-loading-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
+fi
+
+mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "environment"
+mycmd.load_mycmd_lib_support_lib "event-lifecycle"
+mycmd.load_mycmd_lib_support_lib "platform-support"
 
 # A Command has:
 # - A Name:  chase-visa

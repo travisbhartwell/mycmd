@@ -30,14 +30,16 @@ readonly _MYCMD_LIB_DIR
 # Source Support Libraries
 
 # Basic Library Loading
-# shellcheck source=./mycmd-loading-base-lib
-source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+if [[ ! -v _MYCMD_LOADING_LIB ]]; then
+    # shellcheck source=./mycmd-loading-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
+fi
 
 # Once the Loading Base library is loaded, we can use its functionality to load everything else
-mycmd._load_mycmd_lib_support_lib "output"
-mycmd._load_mycmd_lib_support_lib "environment"
-mycmd._load_mycmd_lib_support_lib "event-lifecycle"
-mycmd._load_mycmd_lib_support_lib "platform-support"
+mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "environment"
+mycmd.load_mycmd_lib_support_lib "event-lifecycle"
+mycmd.load_mycmd_lib_support_lib "platform-support"
 
 # ------------------------------------------------------------------------------
 # Finalization and Clean Up

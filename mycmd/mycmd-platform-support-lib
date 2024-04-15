@@ -23,8 +23,10 @@ fi
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
 
-# shellcheck source=./mycmd-loading-base-lib
-source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+if [[ ! -v _MYCMD_LOADING_BASE_LIB ]]; then
+    # shellcheck source=./mycmd-loading-base-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+fi
 
 mycmd._load_mycmd_lib_support_lib "output"
 mycmd._load_mycmd_lib_support_lib "function-calling"
