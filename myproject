@@ -56,6 +56,11 @@ project.register_fileset TEST_FILES
 project.find_files_for_fileset TEST_FILES "${TEST_FILES_BASE}" -type f -name '*-test'
 project.register_task_with_fileset list-test-files project.list-files TEST_FILES
 
+# MyCmd Lib and Support Libraries Only
+project.register_fileset MYCMD_LIB_FILES
+project.find_files_for_fileset MYCMD_LIB_FILES "${SYSTEM_BASE}" -maxdepth 1 -name "*-lib"
+project.register_task_with_fileset list-mycmd-lib-files project.list-files MYCMD_LIB_FILES
+
 #----------------------------------------
 # Vendored Code Management
 function _update_vendored_file_for_vendor_base_dir() {
@@ -148,23 +153,51 @@ project.register_task update-shunit2
 # Code Metrics
 mycmd.defer_at_startup mycmd.init_bin sed
 function list-mycmd-lib-functions() {
-    local -r mycmd_lib="${SYSTEM_BASE}/mycmd-lib"
+    local -n fileset="${1}"
 
-    grep -E '^[[:space:]]*function' "${mycmd_lib}" \
+    grep -E '^[[:space:]]*function' "${fileset[@]}" \
         | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
         | sort -u
-project.register_task list-mycmd-lib-functions
 }
+project.register_task_with_fileset list-mycmd-lib-functions list-mycmd-lib-functions MYCMD_LIB_FILES
+
+mycmd.defer_at_startup mycmd.init_bin sed
+mycmd.defer_at_startup mycmd.init_bin grep
+function list-mycmd-lib-functions-with-source-file() {
+    local -n fileset="${1}"
+
+    mycmd.bin_execute grep -H -E '^[[:space:]]*function' "${fileset[@]}" \
+        | mycmd.bin_execute sed -r -n 's/^([^:]+):.*function (.*)\(\) \{/\1,\2/p' \
+        | sort -u
+}
+project.register_task_with_fileset list-mycmd-lib-functions-with-source-file list-mycmd-lib-functions-with-source-file MYCMD_LIB_FILES
+
+mycmd.defer_at_startup mycmd.init_bin index-shell-functions
+function generate-shell-function-index() {
+    local -n fileset="${1}"
+
+    # TODO: Handle subdirectories
+    local src_file
+    for src_file in "${fileset[@]}"; do
+        # shellcheck disable=SC2155
+        local dest_file="${TMP_WORKING_DIR}/$(basename "${src_file}").csv"
+        project.verbose "Generating index for ${src_file} to ${dest_file}"
+        mycmd.bin_execute index-shell-functions "${src_file}" "${dest_file}"
+    done
+}
+project.register_task_with_fileset index-mycmd-lib generate-shell-function-index MYCMD_LIB_FILES
 
 mycmd.init_bin grep
 function catalog-mycmd-lib-function-call-tree() {
+    local -n fileset="${1}"
     local -a functions
 
-    readarray -t functions < <(list-mycmd-lib-functions || true)
+    readarray -t functions < <(project.execute_tasks list-mycmd-lib-functions || true)
 
     local fn
     local fn_pattern
     local match_line
+    local file
     local line_number
     local -a data=()
 
@@ -175,16 +208,16 @@ function catalog-mycmd-lib-function-call-tree() {
         fn_pattern="${fn/./\\.}"
 
         while read -r match_line; do
-            line_number="${match_line%%:*}"
-            data+=("${fn},${line_number}")
-        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" mycmd/mycmd-lib \
-                | mycmd.bin_execute grep -P -v "^[[:digit:]]*:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
-
+            file="$(echo "${match_line}" | cut -d: -f1)"
+            line_number="$(echo "${match_line}" | cut -d: -f2)"
+            data+=("${fn},${file},${line_number}")
+        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${fileset[@]}" \
+            | mycmd.bin_execute grep -P -v "^[^:]+:[[:digit:]]+:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
     done
 
-    local -r output_file="${DOCS_DIR}/fn-callers.csv"
+    local -r output_file="${TMP_WORKING_DIR}/fn-callers.csv"
 
-    echo "function,line" >"${output_file}"
+    echo "function,file,line" >"${output_file}"
 
     (
         local line
@@ -195,14 +228,14 @@ function catalog-mycmd-lib-function-call-tree() {
 
     project.output_only_if_not_quiet "Wrote results to ${output_file}."
 }
-project.register_task catalog-mycmd-lib-function-call-tree
+project.register_task_with_fileset catalog-mycmd-lib-function-call-tree catalog-mycmd-lib-function-call-tree MYCMD_LIB_FILES
 
 mycmd.init_bin grep
 function catalog-mycmd-lib-function-callers() {
     local -n implementation_fileset="${1}"
     local -a functions
 
-    readarray -t functions < <(list-mycmd-lib-functions || true)
+    readarray -t functions < <(project.execute_tasks list-mycmd-lib-functions || true)
 
     local fn
     local fn_pattern

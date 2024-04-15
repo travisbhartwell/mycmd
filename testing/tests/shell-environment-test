@@ -1,4 +1,0 @@
-# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
-# shellcheck shell=bash
-
-echo "This is a test."

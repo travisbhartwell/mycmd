@@ -1,21 +1,16 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
 
-# MyCmd Commad Group Support Library
+# MyCmd Command Group Support Library
 #   Support for Command Group Data Structures and Related Functions for MyCmd
 
-# Set Bash options for safety
 set -o nounset -o errexit -o errtrace -o pipefail
 
-# This file should only be sourced and not executed directly, so exit with error
-# with execution is attempted. Technique borrowed from
-# https://stackoverflow.com/a/28776166
 (return 0 >/dev/null 2>&1) || {
     echo >&2 "$0 is a library only meant to be sourced."
     exit 1
 }
 
-# This library should only be sourced once. Technique borrowed from
-# https://stackoverflow.com/a/64534652
 [[ -n "${_MYCMD_COMMAND_GROUP_LIB:-}" ]] && return
 readonly _MYCMD_COMMAND_GROUP_LIB=1
 
@@ -101,7 +96,7 @@ function mycmd:command_group.directory_contains_command_group() {
 }
 
 function mycmd:command_group._dump_assoc_array() {
-    declare -Agx  | grep "${1}"
+    declare -Agx | grep "${1}"
 }
 
 function mycmd:command_group._dump_source_data() {
@@ -118,7 +113,7 @@ function mycmd:command_group.get_command_group() {
     local -r command_group_fq_name="${1}"
     local -n command_group_struct_ref="${2}"
 
-    if [[ ! -v  _MYCMD_COMMAND_GROUP_SOURCE_FILES[${command_group_fq_name}] ]]; then
+    if [[ ! -v _MYCMD_COMMAND_GROUP_SOURCE_FILES[${command_group_fq_name}] ]]; then
         mycmd.log "Unknown command group: '${command_group_fq_name}'."
         return 1
     fi
@@ -219,13 +214,13 @@ function mycmd:command_group.get_namespaced_parts_as_string() {
 }
 
 function mycmd:command_group.get_source_directory() {
-     mycmd:command_group._get_required_field_from_command_group_struct \
+    mycmd:command_group._get_required_field_from_command_group_struct \
         "${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}" \
         "${@}"
 }
 
 function mycmd:command_group.get_source_file() {
-      mycmd:command_group._get_required_field_from_command_group_struct \
+    mycmd:command_group._get_required_field_from_command_group_struct \
         "${_COMMAND_GROUP_SOURCE_FILE_FIELD}" \
         "${@}"
 }
