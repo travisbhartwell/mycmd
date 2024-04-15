@@ -1,0 +1,164 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Event Lifecycle Support Library
+#   Support for Lifecycle Event Handling for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_EVENT_LIFECYCLE_LIB:-}" ]] && return
+readonly _MYCMD_EVENT_LIFECYCLE_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_EVENT_LIFECYCLE_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_EVENT_LIFECYCLE_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+
+# shellcheck source=./mycmd-loading-base-lib
+source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+mycmd._load_mycmd_lib_support_lib "output"
+mycmd._load_mycmd_lib_support_lib "event-base"
+
+# ------------------------------------------------------------------------------
+# Lifecycle Event Handling Support
+
+# mycmd._dispatch_with_calling_file
+#   Higher order function that passes the full pathname of the shell file that called the
+#   function that called mycmd._dispatch_with_calling_file as the first parameter of the
+#   function.
+function mycmd._dispatch_with_calling_file() {
+    mycmd._dispatch_with_calling_file_up_frames 2 "${@}"
+}
+
+function mycmd._dispatch_with_calling_file_up_frames() {
+    local -r frames="${1}"
+    shift
+    local -r fn="${1}"
+    shift
+
+    local calling_file
+    # stack frame 0 - who called me
+    # stack frame 1 - who called that
+    # etc
+    read -r _ _ calling_file <<<"$(caller "${frames}" || true)"
+    # TODO: Do I need to get an abspath?
+    readonly calling_file
+    mycmd.trace "Dispatching with calling file '${calling_file}'"
+
+    "${fn}" "${calling_file}" "${@}"
+}
+
+function mycmd._get_file_startup_event_name() {
+    local -r calling_file="${1}"
+    local -r event_name="${1}:mycmd_startup"
+
+    echo "${event_name}"
+}
+
+function mycmd._defer_at_startup() {
+    local -r calling_file="${1}"
+    shift
+
+    local event_name
+    if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
+        mycmd.log "Error getting file startup event name."
+        return 1
+    fi
+    readonly event_name
+
+    mycmd.event on "${event_name}" "${@}"
+}
+
+# mycmd.defer_at_startup
+#  Called with a command to call at the end of evaluating the library.
+#
+#  These commands are explicitly called by the explicit call to
+#  mycmd.run_startup_deferreds at the end of this file.
+function mycmd.defer_at_startup() {
+    mycmd._dispatch_with_calling_file mycmd._defer_at_startup "${@}"
+}
+
+# mycmd.run_startup_deferreds
+#   Supports two calling mechanism: one by the library explicitly, like from
+#   this file. Or another on behalf of another file.
+#
+#   A quirk of how mycmd._dispatch_with_calling_file works allows us to be
+#   recursive here
+# shellcheck disable=SC2120
+function mycmd.run_startup_deferreds() {
+    if (($# < 1)); then
+        mycmd._dispatch_with_calling_file "${FUNCNAME[0]}"
+        return $?
+    fi
+
+    local -r calling_file="${1}"
+
+    local event_name
+    if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
+        mycmd.log "Error getting file startup event name"
+        return 1
+    fi
+    readonly event_name
+
+    if mycmd.event has "${event_name}"; then
+        mycmd.trace "Calling deferred startup events for ${calling_file}."
+        mycmd.event fire "${event_name}"
+    fi
+}
+
+# -------------------------------------------------------------------------------
+# Library clean up commands support
+#   Basic clean up and error handling commands
+readonly _MYCMD_EXIT_EVENT="mycmd_exit"
+
+function mycmd.defer_at_exit() {
+    mycmd.event on "${_MYCMD_EXIT_EVENT}" "${@}"
+}
+
+function mycmd._print_stack_trace() {
+    mycmd.trace "Running ${FUNCNAME[0]}, with args '$*'"
+
+    # Disable the trap
+    trap - ERR
+
+    # Method borrowed from https://raimonster.com/scripting-field-guide/#org3417a0c
+    local return_code=$1
+
+    ((return_code == 0)) && return 0
+
+    mycmd.log "\nThe command ${BASH_COMMAND} triggered a stack trace."
+
+    local -i i
+    local -i j
+
+    for i in $(seq 1 $((${#FUNCNAME[@]} - 2))); do
+        j=$((i + 1))
+        mycmd.log "\t ${BASH_SOURCE[${i}]}: ${FUNCNAME[${i}]}() called in ${BASH_SOURCE[${j}]}:${BASH_LINENO[${i}]}"
+    done
+}
+
+function mycmd._run_at_exit_deferreds() {
+    # Disable the trap handler, including ERR here just in case, as this should be run last
+    trap - SIGINT SIGTERM ERR EXIT
+
+    if mycmd.event has "${_MYCMD_EXIT_EVENT}"; then
+        mycmd.trace "Calling deferred at exit events."
+        mycmd.event fire "${_MYCMD_EXIT_EVENT}"
+    fi
+
+    mycmd.trace "All at exit deferreds execution completed."
+}
+
+trap 'mycmd._print_stack_trace $?' ERR
+trap mycmd._run_at_exit_deferreds SIGINT SIGTERM EXIT
+
+mycmd.trace "The MyCmd Event Lifecycle support library has been sourced."

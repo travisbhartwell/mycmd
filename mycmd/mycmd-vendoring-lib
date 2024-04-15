@@ -1,0 +1,46 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Library Vendoring Support Library
+#   Support for Loading Vendored Shell Libraries for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_VENDORING_LIB:-}" ]] && return
+readonly _MYCMD_VENDORING_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_VENDORING_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_VENDORING_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+
+# shellcheck source=./mycmd-loading-base-lib
+source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+mycmd._load_mycmd_lib_support_lib "output"
+mycmd._load_mycmd_lib_support_lib "environment"
+
+# ------------------------------------------------------------------------------
+# Vendor Library Support
+function mycmd.load_vendor_library() {
+    local -r vendor_library="${1}"
+    # shellcheck disable=SC2154
+    local -r vendor_library_path="${MYCMD_VENDOR_DIR}/${vendor_library}"
+
+    mycmd.trace "Attempting to load vendored library '${vendor_library}'."
+
+    if ! mycmd._source_lib_by_path_if_found "${vendor_library_path}"; then
+        mycmd.log "Vendored library '${vendor_library}' not found."
+        return 1
+    fi
+}
+
+mycmd.trace "The MyCmd Vendoring Library support library has been sourced."

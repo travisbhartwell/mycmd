@@ -17,12 +17,12 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd
     exit 1
 fi
 
-function test_mycmd_lib_is_loaded() {
-    assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
+function test_mycmd_base_loading_lib_is_loaded() {
+    assertTrue 'MyCmd Loading Base Lib is loaded' '[ -v _MYCMD_LOADING_BASE_LIB ]'
 }
 
 function test_function_redefinition_fails() {
-    local -r fn_string='function mycmd.is_linux() { echo "Hello"; }'
+    local -r fn_string='function mycmd.output() { echo "Hello"; }'
 
     local ret_val=0
     eval "${fn_string}" &>/dev/null || ret_val=$?
@@ -46,9 +46,8 @@ function test_log_unproected_functions() {
 }
 
 function oneTimeSetUp() {
-    echo "Executing oneTimeSetup"
-
-    . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+    # shellcheck source=../../mycmd/mycmd-loading-base-lib
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-loading-base-lib"
 }
 
 # shellcheck source=../vendor/shunit2

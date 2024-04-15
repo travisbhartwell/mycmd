@@ -1,0 +1,200 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Library Platform Support Library
+#   Support for Platform Support Functions for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_PLATFORM_SUPPORT_LIB:-}" ]] && return
+readonly _MYCMD_PLATFORM_SUPPORT_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_PLATFORM_SUPPORT_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_PLATFORM_SUPPORT_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+
+# shellcheck source=./mycmd-loading-base-lib
+source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
+
+mycmd._load_mycmd_lib_support_lib "output"
+mycmd._load_mycmd_lib_support_lib "function-calling"
+
+# -------------------------------------------------------------------------------
+# MyCmd Operating System Support
+#   Common variables set according to OS being run on.
+_MYCMD_OS="$(uname -s)"
+readonly _MYCMD_OS
+
+function mycmd.is_mac_os() {
+    [[ "${_MYCMD_OS}" == "Darwin" ]]
+}
+
+function mycmd.is_linux() {
+    [[ "${_MYCMD_OS}" == "Linux" ]]
+}
+
+# ------------------------------------------------------------------------------
+# Convenience methods for locating common utilities cross platform
+
+# MYCMD_BIN
+#   An associative array used for dependencies that are in different
+#   locations and/or names depending on the platform or host a script is
+#   being run on.
+#
+#     Keys:  command names
+#     Value: the path of the given command
+declare -gAx MYCMD_BIN
+
+# mycmd._locate_bin
+#   If already defined in MYCMD_BIN, return that. Otherwise, attempt to find the given command on the PATH.
+#   If found, return the full path.
+function mycmd._locate_bin() {
+    local -r command=$1
+    local command_path
+
+    if [[ -v MYCMD_BIN["${command}"] ]]; then
+        command_path="${MYCMD_BIN[${command}]}"
+    elif ! command_path=$(command -v "${command}" 2>/dev/null); then
+        return 1
+    fi
+
+    echo "${command_path}"
+}
+
+function mycmd.init_bin_homebrew() {
+    local -r exit_on_failure=$1
+    local -r command=$2
+    local -r exe_name=$3
+    local -r long_name=$4
+    local -r homebrew_package=$5
+
+    local exe_path
+    if exe_path=$(mycmd._locate_bin "${exe_name}"); then
+        MYCMD_BIN[${command}]="${exe_path}"
+        return 0
+    elif [[ "${exit_on_failure}" = "true" ]]; then
+        mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
+    else
+        return 1
+    fi
+}
+
+# mycmd.init_bin_no_exit
+#  If not already set, attempt to set MYCMD_BIN for the given command name.
+#
+#  This version just returns 1 if the command isn't found, intending for the use case
+#  of graceful fallbacks to Bash builtins or other implementations where optional dependencies
+#  are missing.
+function mycmd.init_bin_no_exit() {
+    mycmd._init_bin false "${@}"
+}
+
+# mycmd.init_bin
+#  If not already set, attempt to set MYCMD_BIN for the given command name.
+#
+#  It is intended that when this function is callled, the command is a required
+#  dependency and thus this will exit with an error if the command cannot be found.
+function mycmd.init_bin() {
+    mycmd._init_bin true "${@}"
+}
+
+# mycmd._init_bin
+#  Common functionality for mycmd.init_bin and mycmd.init_bin_no_exit. Will
+#  first call mycmd_local.init_bin, if the user has defined mycmd-local-lib,
+#  and use the value from there as an override.
+#
+#  Common commands like sed, which require a different name if using GNU set installed
+#  from HomeBrew on Mac OS, are included here.
+function mycmd._init_bin() {
+    local -r exit_on_failure=$1
+    local -r command=$2
+
+    mycmd.call_if_function_exists mycmd_local.init_bin "$@"
+
+    [[ -v MYCMD_BIN["${command}"] ]] && {
+        mycmd.debug "'${command}' already defined at '${MYCMD_BIN[${command}]}'"
+        return 0
+    }
+
+    local found_command=0
+
+    local command_path
+
+    case "${command}+${_MYCMD_OS}" in
+        "awk+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" awk gawk "GNU awk" gawk || found_command=$?
+            ;;
+        "find+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" find gfind "GNU find" findutils || found_command=$?
+            ;;
+        "realpath+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" realpath grealpath "GNU realpath" coreutils || found_command=$?
+            ;;
+        "grep+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" grep ggrep "GNU grep" grep || found_command=$?
+            ;;
+        "sed+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" sed gsed "GNU Sed" "gnu-sed" || found_command=$?
+            ;;
+        "stat+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" sed gstat "GNU Stat" coreutils || found_command=$?
+            ;;
+        "wc+Darwin")
+            mycmd.init_bin_homebrew "${exit_on_failure}" wc gwc "GNU wc" coreutils || found_command=$?
+            ;;
+        "sha1sum+Darwin")
+            local shasum_path
+            # shasum is the implementation that ships with mac OS. SHA1 is the default algorithm so it is
+            # a drop in for most cases
+            if shasum_path=$(mycmd._locate_bin shasum); then
+                MYCMD_BIN[${command}]="${shasum_path}"
+            else
+                found_command=1
+            fi
+            ;;
+        *)
+            if command_path=$(mycmd._locate_bin "${command}"); then
+                MYCMD_BIN[${command}]="${command_path}"
+            else
+                found_command=1
+            fi
+            ;;
+    esac
+
+    if ((found_command == 0)); then
+        return 0
+    fi
+
+    if [[ "${exit_on_failure}" = "true" ]]; then
+        mycmd.err_exit 1 "Unable to locate ${command}."
+    else
+        return 1
+    fi
+}
+
+function mycmd.bin_execute() {
+    local -r command="${1}"
+    shift
+
+    local command_path
+    if ! command_path=$(mycmd._locate_bin "${command}"); then
+        mycmd.log "Could not find command '${command}'."
+        return 1
+    fi
+    readonly command_path
+
+    "${command_path}" "${@}"
+}
+
+# ------------------------------------------------------------------------------
+mycmd.trace "The MyCmd Platform Support support library has been sourced."

@@ -1,0 +1,137 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Library Loading Base Support Library
+#   Support for Basic Loading Shell Libraries and Protecting Functions for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_LOADING_BASE_LIB:-}" ]] && return
+readonly _MYCMD_LOADING_BASE_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_LOADING_BASE_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LOADING_BASE_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+
+# shellcheck source=./mycmd-output-lib
+source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
+
+# ------------------------------------------------------------------------------
+# Library Protection
+function mycmd.capture_unprotected_functions() {
+    local -n array_ref="${1}"
+    # shellcheck disable=SC2034
+    readarray -t array_ref < <(declare -F \
+        | grep -v "^declare \-fr" \
+        | cut -d' ' -f3 \
+        | sort -u \
+        || true)
+}
+
+function mycmd._capture_unprotected_functions_except_pattern() {
+    # shellcheck disable=SC2178
+    local -n array_ref="${1}"
+    local -r except_pattern="${2}"
+
+    # shellcheck disable=SC2034
+    readarray -t array_ref < <(declare -F \
+        | grep -v "^declare \-fr" \
+        | cut -d' ' -f3 \
+        | sort -u \
+        | grep -v "${except_pattern}" \
+        || true)
+}
+
+declare -a _mycmd_lib_functions_before=()
+# Make sure we protect any already defined MyCmd functions
+mycmd._capture_unprotected_functions_except_pattern _mycmd_lib_functions_before "^mycmd."
+
+function mycmd.protect_library_functions() {
+    local -n before_functions="${1}"
+    local -n after_functions="${2}"
+    local -A seen_functions=()
+
+    # First add the existing functions to an associative array
+    local f
+    for f in "${before_functions[@]}"; do
+        seen_functions["${f}"]=1
+    done
+
+    for f in "${after_functions[@]}"; do
+        if [[ ! -v seen_functions["${f}"] ]]; then
+            mycmd.trace "Marking function '${f}' read-only."
+            readonly -f "${f}"
+        else
+            mycmd.trace "Skipping marking pre-existing function '${f}' read-only."
+        fi
+    done
+}
+
+function mycmd._protect_mycmd_lib() {
+    # shellcheck disable=SC2034
+    local -a mycmd_lib_functions_after
+    mycmd.capture_unprotected_functions mycmd_lib_functions_after
+
+    mycmd.trace "Manually marking 'mycmd.capture_unprotected_functions' as read-only."
+    readonly -f mycmd.capture_unprotected_functions
+
+    mycmd.protect_library_functions _mycmd_lib_functions_before mycmd_lib_functions_after
+
+    unset -f _mycmd_lib_functions_before
+}
+
+# ------------------------------------------------------------------------------
+# General Library Loading
+
+# mycmd._source_lib_by_path_if_found
+#  Loads the specified library by full path, if it exists. This is not the full version
+#  to enable loading libraries that are required for the full version.
+function mycmd._source_lib_by_path_if_found() {
+    local -r library_full_path="${1}"
+    shift
+
+    if [[ -e "${library_full_path}" ]]; then
+        # shellcheck disable=2034
+        local -a existing_functions=()
+        mycmd.capture_unprotected_functions existing_functions
+
+        # shellcheck source=/dev/null
+        if ! source "${library_full_path}" "${@}"; then
+            mycmd.log "Error while sourcing '${library_full_path}'."
+            return 1
+        else
+            mycmd.trace "Finished sourcing '${library_full_path}'."
+        fi
+
+        # shellcheck disable=2034
+        local -a current_functions=()
+        mycmd.capture_unprotected_functions current_functions
+        mycmd.protect_library_functions existing_functions current_functions
+
+        return 0
+    else
+        mycmd.trace "Library '${library_full_path}' not found."
+        return 1
+    fi
+}
+
+function mycmd._load_mycmd_lib_support_lib() {
+    local -r support_lib_name="${1}"
+    local -r support_lib_file="${_MYCMD_LIB_DIR}/mycmd-${support_lib_name}-lib"
+
+    mycmd._source_lib_by_path_if_found "${support_lib_file}"
+}
+
+mycmd._protect_mycmd_lib
+
+mycmd.trace "The MyCmd Loading Base support library has been sourced."

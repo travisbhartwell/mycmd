@@ -12,8 +12,7 @@ if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd
     exit 1
 fi
 
-# TODO: Change back to mycmd after content of mycmd-ng has been moved back
-if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd-ng" &>/dev/null && pwd -P); then
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching MyCmd lib directory."
     exit 1
 fi
@@ -38,7 +37,7 @@ function test_test-command() {
 }
 
 function oneTimeSetUp() {
-    # shellcheck source=../../mycmd-ng/mycmd-command-lib
+    # shellcheck source=../../mycmd/mycmd-command-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-lib"
 
     # TODO: This will be handled by loading mechanisms in the future
