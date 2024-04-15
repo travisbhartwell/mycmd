@@ -14,8 +14,9 @@ set -o nounset -o errexit -o errtrace -o pipefail
 [[ -n "${_MYCMD_LOADING_BASE_LIB:-}" ]] && return
 readonly _MYCMD_LOADING_BASE_LIB=1
 
+readonly _MYCMD_LOADING_BASE_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+
 if [[ ! -v _MYCMD_LIB_DIR ]]; then
-    readonly _MYCMD_LOADING_BASE_LIB_SELF_FILE="${BASH_SOURCE[0]}"
     _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LOADING_BASE_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
     readonly _MYCMD_LIB_DIR
 fi
@@ -23,8 +24,10 @@ fi
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
 
-# shellcheck source=./mycmd-output-lib
-source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
+if [[ ! -v _MYCMD_OUTPUT_LIB ]]; then
+    # shellcheck source=./mycmd-output-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
+fi
 
 # ------------------------------------------------------------------------------
 # Library Protection
@@ -92,6 +95,7 @@ function mycmd._protect_mycmd_lib() {
 
 # ------------------------------------------------------------------------------
 # General Library Loading
+declare -Agx _MYCMD_LOADED_FILES=()
 
 # mycmd._source_lib_by_path_if_found
 #  Loads the specified library by full path, if it exists. This is not the full version
@@ -99,6 +103,11 @@ function mycmd._protect_mycmd_lib() {
 function mycmd._source_lib_by_path_if_found() {
     local -r library_full_path="${1}"
     shift
+
+    if [[ -v _MYCMD_LOADED_FILES["${library_full_path}"] ]]; then
+        mycmd.trace "Already loaded '${library_full_path}'."
+        return 0
+    fi
 
     if [[ -e "${library_full_path}" ]]; then
         # shellcheck disable=2034
@@ -109,9 +118,10 @@ function mycmd._source_lib_by_path_if_found() {
         if ! source "${library_full_path}" "${@}"; then
             mycmd.log "Error while sourcing '${library_full_path}'."
             return 1
-        else
-            mycmd.trace "Finished sourcing '${library_full_path}'."
         fi
+
+        _MYCMD_LOADED_FILES["${library_full_path}"]=1
+        mycmd.trace "Finished sourcing '${library_full_path}'."
 
         # shellcheck disable=2034
         local -a current_functions=()
@@ -133,5 +143,9 @@ function mycmd._load_mycmd_lib_support_lib() {
 }
 
 mycmd._protect_mycmd_lib
+
+# Manually add files already loaded
+_MYCMD_LOADED_FILES["${_MYCMD_LOADING_BASE_LIB_SELF_FILE}"]=1
+_MYCMD_LOADED_FILES["${_MYCMD_LIB_DIR}/mycmd-output-lib"]=1
 
 mycmd.trace "The MyCmd Loading Base support library has been sourced."

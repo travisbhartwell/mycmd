@@ -55,6 +55,10 @@ function test_mycmd_platform_support_lib_is_loaded() {
     assertTrue 'MyCmd Platform Support Lib is loaded' '[ -v _MYCMD_PLATFORM_SUPPORT_LIB ]'
 }
 
+function test_mycmd_loading_lib_is_loaded() {
+    assertTrue 'MyCmd Loading Support Lib is loaded' '[ -v _MYCMD_LOADING_LIB ]'
+}
+
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"

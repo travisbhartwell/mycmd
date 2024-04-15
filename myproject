@@ -349,16 +349,21 @@ project.register_task_with_fileset execute-all-tests execute-all-tests TEST_FILE
 # Benchmarking
 mycmd.defer_at_startup mycmd.init_bin hyperfine
 function execute-benchmark() {
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${MYCMD_SYSTEM_BASE_DIR:-${SYSTEM_BASE}}" \
-        MYCMD_USER_BASE_DIR="${MYCMD_USER_BASE_DIR:-${TEST_USER_BASE}}" \
-        MYCMD_VENDOR_DIR="${MYCMD_VENDOR_DIR:-${VENDOR_DIR}}" \
+    local -r output_csv="${1}"
+    shift
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
         hyperfine \
-        --warmup 3 \
+        --warmup 5 \
+        --export-csv "${output_csv}" \
         -- "${@}"
 }
-project.register_task benchmark-help execute-benchmark 'mycmd project --help'
-project.register_task benchmark-list-project-tasks execute-benchmark 'mycmd project list-tasks'
+project.register_task benchmark-help execute-benchmark "${TMP_WORKING_DIR}/project-help-benchmark.csv" 'mycmd project --help'
+project.register_task benchmark-list-project-tasks execute-benchmark "${TMP_WORKING_DIR}/project-list-tasks-benchmark.csv" 'mycmd project list-tasks'
+project.register_task benchmark-mycmd execute-benchmark "${TMP_WORKING_DIR}/mycmd-benchmark.csv" "${BIN_DIR}/mycmd"
 
 #----------------------------------------
 # Code formatting

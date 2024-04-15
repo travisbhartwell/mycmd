@@ -17,8 +17,8 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd
     exit 1
 fi
 
-function test_mycmd_lib_is_loaded() {
-    assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
+function test_mycmd_platform_support_lib_is_loaded() {
+    assertTrue 'MyCmd Platform Support Lib is loaded' '[ -v _MYCMD_PLATFORM_SUPPORT_LIB ]'
 }
 
 function test_init_bin_works() {
@@ -55,7 +55,8 @@ function test_init_bin__exits() {
 }
 
 function oneTimeSetUp() {
-    . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+    # shellcheck source=../../mycmd/mycmd-platform-support-lib
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-platform-support-lib"
 }
 
 # shellcheck source=../vendor/shunit2
