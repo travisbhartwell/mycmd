@@ -1,19 +1,24 @@
 <!doctype html>
-<html>
+<html lang="en" data-theme="light">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="${ROOT}/pico.min.css" />
     <title>${TITLE}</title>
-    <link rel='stylesheet' href='${ROOT}/style.css' type='text/css'>
+    <meta name="description" content="${TITLE}" />
   </head>
+
   <body>
-    <div>
-      <header><h1>${TITLE}</h1></header>
-      <hr>
-      <main>${CONTENT}</main>
-      <hr>
-      <footer>
-        <p><a href='${ROOT}'>Home</a> | <a href='${BLOG}'>Blog</a></p>
-        <em>Authored by Travis B. Hartwell</em>
-      </footer>
-    </div>
+    <header class="container"><h1>${TITLE}</h1></header>
+
+    <main class="container">
+      ${CONTENT}
+    </main>
+
+    <footer class="container">
+      <p><a href='${ROOT}'>Home</a> | <a href='${BLOG}'>Blog</a></p>
+      <em>Authored by Travis B. Hartwell</em>
+    </footer>
   </body>
 </html>

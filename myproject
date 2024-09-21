@@ -6,10 +6,15 @@ set -o nounset -o errexit -o errtrace -o pipefail
 
 project.load_task_library "shell"
 
+#----------------------------------------
+# Project Variables
 # shellcheck disable=SC2154
 readonly BLOG_DIR="${MYPROJECT_BASE_DIR}/blog"
+# shellcheck disable=SC2154
+readonly WORKING_DIR="${MYPROJECT_BASE_DIR}/.working"
 mycmd.trace "The following variables are set:"
 mycmd.trace "- BLOG_DIR: ${BLOG_DIR}"
+mycmd.trace "- WORKING_DIR: ${WORKING_DIR}"
 
 #----------------------------------------
 # Project File Sets
@@ -38,7 +43,7 @@ project.register_task_with_fileset lint-all-shell-files project:shell.lint SHELL
 #----------------------------------------
 # Blog Entry Files
 project.register_fileset BLOG_ENTRIES
-project.find_files_for_fileset BLOG_ENTRIES "${BLOG_DIR}"  -type f -name '*.md.part'
+project.find_files_for_fileset BLOG_ENTRIES "${BLOG_DIR}" -type f -name '*.md.part'
 
 project.register_task_with_fileset list-blog-entries project.list-files BLOG_ENTRIES
 
@@ -55,6 +60,83 @@ project.register_fileset CSS_FILES
 project.add_files_to_fileset CSS_FILES style.css
 
 project.register_task_with_fileset list-css-files project.list-files CSS_FILES
+
+#----------------------------------------
+# Updating PicoCSS
+#
+# Based on https://picocss.com/docs
+readonly PICO_CSS_GITHUB_URL=git@github.com:picocss/pico.git
+# shellcheck disable=SC2154
+readonly PICO_CSS_FULL_PATH="${MYPROJECT_BASE_DIR}/pico.min.css"
+readonly PICO_CSS_DOWNLOAD_BASE="https://github.com/picocss/pico/archive/refs/tags"
+
+mycmd.trace "Additional variables set:"
+mycmd.trace "- PICO_CSS_GITHUB_URL:    ${PICO_CSS_GITHUB_URL}"
+mycmd.trace "- PICO_CSS_FULL_PATH:     ${PICO_CSS_FULL_PATH}"
+mycmd.trace "- PICO_CSS_DOWNLOAD_BASE: ${PICO_CSS_DOWNLOAD_BASE}"
+
+mycmd.defer_at_startup mycmd.init_bin git
+mycmd.defer_at_startup mycmd.init_bin sed
+function get_latest_release() {
+    mycmd.bin_execute git ls-remote --tags --sort="-version:refname" "${PICO_CSS_GITHUB_URL}" \
+        | head -n1 \
+        | mycmd.bin_execute sed -r -n 's/.*refs\/tags\/v(.*)/\1/p'
+}
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function get_current_used_picocss_version() {
+    if [[ ! -e "${PICO_CSS_FULL_PATH}" ]]; then
+        echo "missing"
+        return 0
+    fi
+
+    mycmd.bin_execute sed -r -n 's/.*Pico CSS .* v([^ ]+).*/\1/p' "${PICO_CSS_FULL_PATH}"
+}
+
+mycmd.defer_at_startup mycmd.init_bin curl
+function update-pico-css-if-needed() {
+    local latest
+    if ! latest=$(get_latest_release); then
+        mycmd.log "Error getting latest release from GitHub"
+        return 1
+    fi
+    readonly latest
+
+    local current
+    if ! current=$(get_current_used_picocss_version); then
+        mycmd.log "Error getting currently used Pico CSS release"
+        return 1
+    fi
+    readonly current
+
+    if [[ "${latest}" = "${current}" ]]; then
+        project.output_only_if_not_quiet "Already at the latest version"
+        return 0
+    fi
+
+    cd "${WORKING_DIR}"
+    local -r tarball="v${latest}.tar.gz"
+    local -r download_url="${PICO_CSS_DOWNLOAD_BASE}/${tarball}"
+    project.verbose "Downloading PicoCSS from ${download_url}."
+
+    if ! curl -O -sSL "${download_url}"; then
+        mycmd.log "Error downloading latest PicoCSS version ${latest} from ${download_url}."
+        return 1
+    fi
+
+    if ! tar xf "${tarball}"; then
+        mycmd.log "Error extracting tarball from ${WORKING_DIR}/${tarball}."
+        return 1
+    fi
+
+    local -r src_path="${WORKING_DIR}/pico-${latest}/css/pico.min.css"
+
+    if ! cp "${src_path}" "${CSS_DIR}"; then
+        mycmd.log "Error copying updated CSS file"
+        return 1
+    fi
+}
+project.register_task update-pico-css-if-needed
 
 #----------------------------------------
 # Site Generation Commands

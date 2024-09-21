@@ -1,9 +1,0 @@
-/* Layout */
-body { display: grid; place-items: center; min-height: 80vh; }
-body > div { min-width: 60ch; max-width: 80ch; }
-header, footer { text-align: center; }
-
-/* Theme */
-body { color: #321; background-color: #edc; }
-
-a { color: #642; text-decoration: none; font-weight: bolder; }
