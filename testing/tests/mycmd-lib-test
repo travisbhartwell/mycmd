@@ -59,6 +59,10 @@ function test_mycmd_loading_lib_is_loaded() {
     assertTrue 'MyCmd Loading Support Lib is loaded' '[ -v _MYCMD_LOADING_LIB ]'
 }
 
+function test_mycmd_pathname_lib_is_loaded() {
+    assertTrue 'MyCmd Pathname Support Lib is loaded' '[ -v _MYCMD_PATHNAME_LIB ]'
+}
+
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"

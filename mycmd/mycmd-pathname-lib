@@ -1,0 +1,100 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Pathname Support Library
+#   Support for handling pathnames for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_PATHNAME_LIB:-}" ]] && return
+readonly _MYCMD_PATHNAME_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_PATHNAME_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_PATHNAME_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+
+if [[ ! -v _MYCMD_LOADING_LIB ]]; then
+    # shellcheck source=./mycmd-loading-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
+fi
+
+mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "environment"
+mycmd.load_mycmd_lib_support_lib "event-lifecycle"
+mycmd.load_mycmd_lib_support_lib "platform-support"
+
+function mycmd:pathname.is_valid_absolute_path() {
+    [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -e "${1}" ]]
+}
+
+function mycmd:pathname.is_valid_absolute_path_of_directory() {
+    [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -d "${1}" ]]
+}
+
+mycmd.init_bin realpath
+function mycmd:pathname.path_relative_to_directory() {
+    local -r full_path="${1}"
+    local -r base_path="${2}"
+
+    if ! mycmd:pathname.is_valid_absolute_path "${full_path}"; then
+        mycmd.debug "'${full_path}' is not a valid absolute path."
+        return 1
+    fi
+
+    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${base_path}"; then
+        mycmd.debug "'${base_path}' is not a valid absolute path of a directory."
+        return 1
+    fi
+
+    local relative_path
+    if ! relative_path="$(mycmd.bin_execute realpath --relative-to="${base_path}" "${full_path}")"; then
+        mycmd.debug "Error getting relative path for '${full_path}' relative to '${base_path}'."
+        return 1
+    fi
+    readonly relative_path
+
+    # If the relative path starts with .., it is not a descendant
+    if [[ "${relative_path}" = ..* ]]; then
+        return 1
+    else
+        echo "${relative_path}"
+        return 0
+    fi
+}
+
+function mycmd:pathname.is_path_relative_to_directory() {
+    mycmd:pathname.path_relative_to_directory "${@}" >/dev/null
+}
+
+function mycmd:pathname.is_child_of_mycmd_path_directory() {
+    local -r full_path="${1}"
+
+    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${full_path}"; then
+        mycmd.debug "'${full_path}' is not a valid absolute path of directory."
+        return 1
+    fi
+
+    local base
+    # TODO: Switch to iterating over array of base paths
+    # shellcheck disable=SC2154
+    for base in "${MYCMD_SYSTEM_BASE_DIR}" "${MYCMD_USER_BASE_DIR}"; do
+        if mycmd:pathname.is_path_relative_to_directory "${full_path}" "${base}"; then
+            return 0
+        fi
+    done
+
+    # No matches
+    return 1
+}
+
+mycmd.trace "The MyCmd Pathname support library has been sourced."

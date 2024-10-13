@@ -97,6 +97,12 @@ function mycmd._protect_mycmd_lib() {
 # General Library Loading
 declare -Agx _MYCMD_LOADED_FILES=()
 
+function mycmd._file_has_been_loaded() {
+    local -r library_full_path="${1}"
+
+    [[ -v _MYCMD_LOADED_FILES["${library_full_path}"] ]]
+}
+
 # mycmd._source_lib_by_path_if_found
 #  Loads the specified library by full path, if it exists. This is not the full version
 #  to enable loading libraries that are required for the full version.
@@ -104,7 +110,7 @@ function mycmd._source_lib_by_path_if_found() {
     local -r library_full_path="${1}"
     shift
 
-    if [[ -v _MYCMD_LOADED_FILES["${library_full_path}"] ]]; then
+    if mycmd._file_has_been_loaded "${library_full_path}"; then
         mycmd.trace "Already loaded '${library_full_path}'."
         return 0
     fi

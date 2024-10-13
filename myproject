@@ -44,22 +44,30 @@ project.register_fileset ALL_FILES
 project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SUPPORT_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
 # shellcheck disable=SC2154
 project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
-project.register_task_with_fileset list-all-files project.list-files ALL_FILES
+project.register_task_with_fileset list-all-files \
+    project.list-files \
+    ALL_FILES
 
 # Implementation Files Only
 project.register_fileset IMPLEMENTATION_FILES
 project.find_files_for_fileset IMPLEMENTATION_FILES "${BIN_DIR}" "${SYSTEM_BASE}" -type f
-project.register_task_with_fileset list-implementation-files project.list-files IMPLEMENTATION_FILES
+project.register_task_with_fileset list-implementation-files \
+    project.list-files \
+    IMPLEMENTATION_FILES
 
 # Test Files Only
 project.register_fileset TEST_FILES
 project.find_files_for_fileset TEST_FILES "${TEST_FILES_BASE}" -type f -name '*-test'
-project.register_task_with_fileset list-test-files project.list-files TEST_FILES
+project.register_task_with_fileset list-test-files \
+    project.list-files \
+    TEST_FILES
 
 # MyCmd Lib and Support Libraries Only
 project.register_fileset MYCMD_LIB_FILES
 project.find_files_for_fileset MYCMD_LIB_FILES "${SYSTEM_BASE}" -maxdepth 1 -name "*-lib"
-project.register_task_with_fileset list-mycmd-lib-files project.list-files MYCMD_LIB_FILES
+project.register_task_with_fileset list-mycmd-lib-files \
+    project.list-files \
+    MYCMD_LIB_FILES
 
 #----------------------------------------
 # Vendored Code Management
@@ -159,7 +167,9 @@ function list-mycmd-lib-functions() {
         | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
         | sort -u
 }
-project.register_task_with_fileset list-mycmd-lib-functions list-mycmd-lib-functions MYCMD_LIB_FILES
+project.register_task_with_fileset list-mycmd-lib-functions \
+    list-mycmd-lib-functions \
+    MYCMD_LIB_FILES
 
 mycmd.defer_at_startup mycmd.init_bin sed
 mycmd.defer_at_startup mycmd.init_bin grep
@@ -185,7 +195,9 @@ function generate-shell-function-index() {
         mycmd.bin_execute index-shell-functions "${src_file}" "${dest_file}"
     done
 }
-project.register_task_with_fileset index-mycmd-lib generate-shell-function-index MYCMD_LIB_FILES
+project.register_task_with_fileset index-mycmd-lib \
+    generate-shell-function-index \
+    MYCMD_LIB_FILES
 
 mycmd.init_bin grep
 function catalog-mycmd-lib-function-call-tree() {
@@ -228,7 +240,9 @@ function catalog-mycmd-lib-function-call-tree() {
 
     project.output_only_if_not_quiet "Wrote results to ${output_file}."
 }
-project.register_task_with_fileset catalog-mycmd-lib-function-call-tree catalog-mycmd-lib-function-call-tree MYCMD_LIB_FILES
+project.register_task_with_fileset catalog-mycmd-lib-function-call-tree \
+    catalog-mycmd-lib-function-call-tree \
+    MYCMD_LIB_FILES
 
 mycmd.init_bin grep
 function catalog-mycmd-lib-function-callers() {
@@ -269,7 +283,9 @@ function catalog-mycmd-lib-function-callers() {
 
     project.output_only_if_not_quiet "Wrote results to ${output_file}."
 }
-project.register_task_with_fileset catalog-mycmd-lib-function-callers catalog-mycmd-lib-function-callers IMPLEMENTATION_FILES
+project.register_task_with_fileset catalog-mycmd-lib-function-callers \
+    catalog-mycmd-lib-function-callers \
+    IMPLEMENTATION_FILES
 
 function count_source_lines() {
     local -n fileset="${1}"
@@ -277,9 +293,18 @@ function count_source_lines() {
     project.output_only_if_not_quiet "Counting source lines in fileset '${!fileset}'."
     wc -l "${fileset[@]}" | sort -nr
 }
-project.register_task_with_fileset count-all-source-lines count_source_lines ALL_FILES
-project.register_task_with_fileset count-implementation-source-lines count_source_lines IMPLEMENTATION_FILES
-project.register_task_with_fileset count-test-source-lines count_source_lines TEST_FILES
+project.register_task_with_fileset count-all-source-lines \
+    count_source_lines \
+    ALL_FILES
+project.register_task_with_fileset count-implementation-source-lines \
+    count_source_lines \
+    IMPLEMENTATION_FILES
+project.register_task_with_fileset count-test-source-lines \
+    count_source_lines \
+    TEST_FILES
+project.register_task_with_fileset count-mycmd-lib-source-lines \
+    count_source_lines \
+    MYCMD_LIB_FILES
 
 #----------------------------------------
 # Test execution
@@ -342,8 +367,9 @@ function execute-all-tests() {
 
     summarize_test_results results
 }
-
-project.register_task_with_fileset execute-all-tests execute-all-tests TEST_FILES
+project.register_task_with_fileset execute-all-tests \
+    execute-all-tests \
+    TEST_FILES
 
 #----------------------------------------
 # Benchmarking
@@ -361,17 +387,30 @@ function execute-benchmark() {
         --export-csv "${output_csv}" \
         -- "${@}"
 }
-project.register_task benchmark-help execute-benchmark "${TMP_WORKING_DIR}/project-help-benchmark.csv" 'mycmd project --help'
-project.register_task benchmark-list-project-tasks execute-benchmark "${TMP_WORKING_DIR}/project-list-tasks-benchmark.csv" 'mycmd project list-tasks'
-project.register_task benchmark-mycmd execute-benchmark "${TMP_WORKING_DIR}/mycmd-benchmark.csv" "${BIN_DIR}/mycmd"
+project.register_task benchmark-help \
+    execute-benchmark \
+    "${TMP_WORKING_DIR}/project-help-benchmark.csv" \
+    'mycmd project --help'
+project.register_task benchmark-list-project-tasks \
+    execute-benchmark \
+    "${TMP_WORKING_DIR}/project-list-tasks-benchmark.csv" \
+    'mycmd project list-tasks'
+project.register_task benchmark-mycmd \
+    execute-benchmark \
+    "${TMP_WORKING_DIR}/mycmd-benchmark.csv" \
+    "${BIN_DIR}/mycmd"
 
 #----------------------------------------
 # Code formatting
-project.register_task_with_fileset format project:shell.format ALL_FILES
+project.register_task_with_fileset format \
+    project:shell.format \
+    ALL_FILES
 
 #----------------------------------------
 # Code Lint
-project.register_task_with_fileset lint project:shell.lint ALL_FILES
+project.register_task_with_fileset lint \
+    project:shell.lint \
+    ALL_FILES
 
 #----------------------------------------
 # Calling in Development Version
@@ -382,6 +421,16 @@ function mycmd-devel() {
         "${BIN_DIR}"/mycmd "${@}"
 }
 project.register_task mycmd-devel
+
+function test-command-directly() {
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${TEST_USER_BASE}/test-command" \
+        "${@}"
+}
+project.register_task test-command-directly
 
 #----------------------------------------
 # Snapshot Management
@@ -425,7 +474,8 @@ function get_local_snapshot_tags() {
     local -r tags_array_ref_name="${1}"
     project:git.list_tags "${tags_array_ref_name}" "${LOCAL_SNAPSHOT_TAG_PREFIX}-*"
 }
-project.register_task list-local-snapshots get_local_snapshot_tags
+project.register_task list-local-snapshots \
+    get_local_snapshot_tags
 
 function get_latest_local_snapshot_tag() {
     local -a existing_tags=()
@@ -481,7 +531,8 @@ function create_local_snapshot() {
 
     return 0
 }
-project.register_task create-local-snapshot create_local_snapshot
+project.register_task create-local-snapshot \
+    create_local_snapshot
 
 # Development Snapshots
 # - used for wider in-development testing
@@ -498,7 +549,8 @@ function get_development_snapshot_tags() {
     local -r tags_array_ref_name="${1}"
     project:git.list_tags "${tags_array_ref_name}" "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}-*"
 }
-project.register_task list-development-snapshots get_development_snapshot_tags
+project.register_task list-development-snapshots \
+    get_development_snapshot_tags
 
 function get_latest_development_snapshot_tag() {
     local -a existing_tags=()
@@ -597,7 +649,8 @@ function promote_local_snapshot_to_development() {
 
     project.output_only_if_not_quiet "Created and pushed new development snapshot '${new_development_snapshot_tag}'."
 }
-project.register_task promote-local-snapshot-to-development promote_local_snapshot_to_development
+project.register_task promote-local-snapshot-to-development \
+    promote_local_snapshot_to_development
 
 function promote_latest_local_snapshot_tag_to_development() {
     local latest_local_snapshot
@@ -609,7 +662,8 @@ function promote_latest_local_snapshot_tag_to_development() {
 
     promote_local_snapshot_to_development "${latest_local_snapshot}"
 }
-project.register_task promote-latest-local-snapshot-to-development promote_latest_local_snapshot_tag_to_development
+project.register_task promote-latest-local-snapshot-to-development \
+    promote_latest_local_snapshot_tag_to_development
 
 # ----------------------------------------
 # Worktree management
@@ -680,7 +734,8 @@ function update_snapshot_worktree_to_snapshot() {
         update_snapshot_worktree_current_tag_file "${tag}"
     fi
 }
-project.register_task update-snapshot-worktree-to-snapshot update_snapshot_worktree_to_snapshot
+project.register_task update-snapshot-worktree-to-snapshot \
+    update_snapshot_worktree_to_snapshot
 
 function rollback_snapshot_worktree_to_last_used_snapshot() {
     local last_used_tag
@@ -692,7 +747,8 @@ function rollback_snapshot_worktree_to_last_used_snapshot() {
 
     update_snapshot_worktree_to_snapshot "${last_used_tag}"
 }
-project.register_task rollback-snapshot-worktree-to-last-used-snapshot rollback_snapshot_worktree_to_last_used_snapshot
+project.register_task rollback-snapshot-worktree-to-last-used-snapshot \
+    rollback_snapshot_worktree_to_last_used_snapshot
 
 function rollback_snapshot_worktree_to_previous_snapshot_in_sequence() {
     local current_worktree_tag
@@ -710,7 +766,8 @@ function rollback_snapshot_worktree_to_previous_snapshot_in_sequence() {
 
     update_snapshot_worktree_to_snapshot "${prior_snapshot_tag}"
 }
-project.register_task rollback-snapshot-worktree-to-previous-snapshot-in-sequence rollback_snapshot_worktree_to_previous_snapshot_in_sequence
+project.register_task rollback-snapshot-worktree-to-previous-snapshot-in-sequence \
+    rollback_snapshot_worktree_to_previous_snapshot_in_sequence
 
 function update_snapshot_worktree_to_latest_local_snapshot() {
     local latest_local_snapshot
@@ -722,7 +779,8 @@ function update_snapshot_worktree_to_latest_local_snapshot() {
 
     update_snapshot_worktree_to_snapshot "${latest_local_snapshot}" "${@}"
 }
-project.register_task update-snapshot-worktree-to-latest-local-snapshot update_snapshot_worktree_to_latest_local_snapshot
+project.register_task update-snapshot-worktree-to-latest-local-snapshot \
+    update_snapshot_worktree_to_latest_local_snapshot
 
 function update_snapshot_worktree_to_latest_development_snapshot() {
     project:git.fetch_tags
@@ -736,7 +794,8 @@ function update_snapshot_worktree_to_latest_development_snapshot() {
 
     update_snapshot_worktree_to_snapshot "${latest_development_snapshot}" "${@}"
 }
-project.register_task update-snapshot-worktree-to-latest-development-snapshot update_snapshot_worktree_to_latest_development_snapshot
+project.register_task update-snapshot-worktree-to-latest-development-snapshot \
+    update_snapshot_worktree_to_latest_development_snapshot
 
 #----------------------------------------
 # Run everything

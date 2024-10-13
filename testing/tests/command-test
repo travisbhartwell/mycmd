@@ -21,8 +21,8 @@ function test_mycmd_command_lib_is_loaded() {
     assertTrue 'MyCmd Lib Command Support Lib is loaded' '[ -v _MYCMD_COMMAND_LIB ]'
 }
 
+# shellcheck disable=SC2034,SC2154,SC2312
 function test_test-command() {
-    # shellcheck disable=SC2034
     local -A command
     mycmd:command.get_command "mycmd/test-command" command
     assertEquals "test-command" "$(mycmd:command.get_name command)"
