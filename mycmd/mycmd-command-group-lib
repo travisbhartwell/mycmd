@@ -28,13 +28,11 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
-mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "environment"
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
+mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "platform-support"
-
-# Other Dependencies:
-# - TODO: GNU Realpath (for relative path functions)
+mycmd.load_mycmd_lib_support_lib "pathname"
 
 # A Command Group has:
 # - A Name: import
@@ -77,23 +75,31 @@ readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
 readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
 readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
 
-# Input: Absolute Path of a Directory
 function mycmd:command_group.directory_contains_command_group() {
-    local -r dir="${1}"
+    # A directory is a command group if:
+    # - it is valid directory
+    # - it is a child of one of the top-level MyCmd directories on the path
+    # - it has a file named <command-group>/<command-group>-lib matching the directory
+    local -r potential_command_group="${1}"
 
-    if [[ ! -d "${dir}" ]]; then
-        mycmd.debug "Directory '${dir}' does not exist."
+    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${potential_command_group}"; then
+        mycmd.debug "${potential_command_group} is not a valid absolute path of a directory."
+        return 1
+    fi
+
+    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${potential_command_group}"; then
+        mycmd.debug "${potential_command_group} is not a descendant of any of the MyCmd base directories."
         return 1
     fi
 
     local name
-    if ! name="$(basename "${dir}")"; then
-        mycmd.debug "Error getting basename of '${dir}'."
+    if ! name="$(basename "${potential_command_group}")"; then
+        mycmd.debug "Error getting basename of '${potential_command_group}'."
         return 1
     fi
     readonly name
 
-    local -r source_file_name="${dir}/${name}-lib"
+    local -r source_file_name="${potential_command_group}/${name}-lib"
     if [[ ! -f "${source_file_name}" ]]; then
         mycmd.debug "Expected command group library file '${source_file_name}' does not exist."
         return 1
@@ -209,6 +215,32 @@ function mycmd:command_group.get_fully_qualified_name() {
     mycmd:command_group._get_required_field_from_command_group_struct \
         "${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}" \
         "${@}"
+}
+
+function mycmd:command_group.get_parent_tree() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+    local -n parent_tree_ref="${2}"
+
+    parent_tree_ref=()
+
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
+    readonly fully_qualified_name
+
+    local namespaced_parts
+    # shellcheck disable=SC2162
+    IFS="/" read -a namespaced_parts <<<"${fully_qualified_name}"
+    readonly namespaced_parts
+
+    local command_group_name=""
+    local part
+
+    for part in "${namespaced_parts[@]}"; do
+        command_group_name="${command_group_name}${command_group_name:+/}${part}"
+
+        parent_tree_ref+=("${command_group_name}")
+    done
 }
 
 function mycmd:command_group.get_namespaced_parts_as_string() {

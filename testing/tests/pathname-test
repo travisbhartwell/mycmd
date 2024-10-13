@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test directory."
+    exit 1
+fi
+
+if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd lib directory."
+    exit 1
+fi
+
+function test_mycmd_pathname_lib_is_loaded() {
+    assertTrue 'MyCmd Pathname Support Lib is loaded' '[ -v _MYCMD_PATHNAME_LIB ]'
+}
+
+# shellcheck disable=SC2016
+function test_is_valid_absolute_path() {
+    assertFalse '../../mycmd/mycmd-pathname-lib is not absolute' \
+        'mycmd:pathname.is_valid_absolute_path ../../mycmd/mycmd-pathname-lib'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
+        'mycmd:pathname.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing is absolute, but doesn't exist" \
+        'mycmd:pathname.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
+
+    assertTrue "${MYCMD_LIB_DIRECTORY}/mycmd-lib is absolute and exists" \
+        'mycmd:pathname.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+}
+
+# shellcheck disable=SC2016
+function test_mycmd_pathname_lib_is_loaded() {
+    assertFalse '../../mycmd is not an absolute path' \
+        'mycmd:pathname.is_valid_absolute_path_of_directory ../../mycmd'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not an absolute path" \
+        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing is absolute, but doesn't exist" \
+        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/non-existing"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is absolute and exists, but not a directory" \
+        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+
+    assertTrue "${MYCMD_LIB_DIRECTORY} is absolute and exists and a directory" \
+        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}"'
+}
+
+# shellcheck disable=SC2016,SC2312
+function test_path_relative_to_directory() {
+    assertFalse '../../mycmd is not an absolute path' \
+        'mycmd:pathname.path_relative_to_directory ../../mycmd "${MYCMD_LIB_DIRECTORY}"'
+
+    assertFalse '${MYCMD_LIB_DIRECTORY}/non-existing does not exist' \
+        'mycmd:pathname.path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/non-existing" "${MYCMD_LIB_DIRECTORY}"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not an absolute path" \
+        'mycmd:pathname.path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
+        'mycmd:pathname.path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/non-existing"'
+
+    assertFalse "${TEST_DIRECTORY} is not relative to ${MYCMD_LIB_DIRECTORY}" \
+        'mycmd:pathname.path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
+
+    assertEquals "project" \
+        "$(mycmd:pathname.path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}")"
+}
+
+# shellcheck disable=SC2016
+function test_is_path_relative_to_directory() {
+    assertFalse '../../mycmd is not an absolute path' \
+        'mycmd:pathname.is_path_relative_to_directory ../../mycmd "${MYCMD_LIB_DIRECTORY}"'
+
+    assertFalse '${MYCMD_LIB_DIRECTORY}/non-existing does not exist' \
+        'mycmd:pathname.is_path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/non-existing" "${MYCMD_LIB_DIRECTORY}"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not an absolute path" \
+        'mycmd:pathname.is_path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
+        'mycmd:pathname.is_path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/non-existing"'
+
+    assertFalse "${TEST_DIRECTORY} is not relative to ${MYCMD_LIB_DIRECTORY}" \
+        'mycmd:pathname.is_path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
+
+    assertTrue "${MYCMD_LIB_DIRECTORY}/project is relative to ${MYCMD_LIB_DIRECTORY}" \
+        'mycmd:pathname.is_path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}"'
+}
+
+function oneTimeSetUp() {
+    # shellcheck source=../../mycmd/mycmd-pathname-lib
+    . "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"
+}
+
+# shellcheck source=../vendor/shunit2
+. "${TEST_VENDOR_DIRECTORY}/shunit2"

@@ -1,7 +1,7 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-# MyCmd Commad Support Library
+# MyCmd Command Support Library
 #   Support for Command Data Structures and Related Functions for MyCmd
 
 set -o nounset -o errexit -o errtrace -o pipefail
@@ -28,10 +28,12 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
-mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "environment"
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
+mycmd.load_mycmd_lib_support_lib "function-calling"
+mycmd.load_mycmd_lib_support_lib "loading-base"
 mycmd.load_mycmd_lib_support_lib "platform-support"
+mycmd.load_mycmd_lib_support_lib "output"
 
 # A Command has:
 # - A Name:  chase-visa
@@ -104,6 +106,22 @@ function mycmd:command.get_command() {
     else
         mycmd.trace "- ${_COMMAND_VERSION_FIELD}: No value set."
     fi
+}
+
+function mycmd:command.execute() {
+    # shellcheck disable=SC2178
+    local -n command_struct_ref="${1}"
+    shift
+
+    # Source the source file
+
+    # Get the containing command group
+
+    # Source the command group
+
+    # Validate that mycmd.main exists
+
+    # Call it and exit with the return value
 }
 
 function mycmd:command._get_required_field_from_command_struct() {
@@ -201,6 +219,17 @@ function mycmd:command.get_version() {
         echo "Unknown"
         return 0
     fi
+}
+
+function mycmd:command.is_source_loaded() {
+    local -n command_struct_ref="${1}"
+    local source_file
+    if ! source_file="$(mycmd:command.get_source_file "${@}")"; then
+        return 1
+    fi
+    readonly source_file
+
+    mycmd._file_has_been_loaded "${source_file}"
 }
 
 mycmd.trace "The MyCmd Command support library has been sourced."
