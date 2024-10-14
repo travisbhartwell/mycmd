@@ -1,0 +1,14 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_TEST_COMMAND_GROUP_LIB:-}" ]] && return
+readonly _TEST_COMMAND_GROUP_LIB=1
+
+mycmd.trace "The testing command group ibrary has been sourced."

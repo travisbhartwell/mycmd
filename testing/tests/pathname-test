@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
-# shellcheck shell=bash
+# shellcheck shell=bash disable=SC2317
 
 if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching test directory."
@@ -9,6 +9,11 @@ fi
 
 if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching test vendor directory."
+    exit 1
+fi
+
+if ! TEST_USER_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../user-base" && pwd -P); then
+    echo >&2 "Error fetching test user base directory."
     exit 1
 fi
 
@@ -94,6 +99,27 @@ function test_is_path_relative_to_directory() {
 
     assertTrue "${MYCMD_LIB_DIRECTORY}/project is relative to ${MYCMD_LIB_DIRECTORY}" \
         'mycmd:pathname.is_path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}"'
+}
+
+# shellcheck disable=SC2016
+function test_is_child_of_mycmd_path_directory() {
+    assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib is not an absolute path to a directory" \
+        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
+        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/non-existing"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
+        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+
+    assertFalse "/tmp is not a child of a MyCmd path directory" \
+        'mycmd:pathname.is_child_of_mycmd_path_directory /tmp'
+
+    assertTrue "${MYCMD_LIB_DIRECTORY}/project is a child of a MyCmd path directory" \
+        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/project"'
+
+    assertTrue "${TEST_USER_LIB_DIRECTORY}/test-command-group is a child of a MyCmd path directory" \
+        'mycmd:pathname.is_child_of_mycmd_path_directory "${TEST_USER_LIB_DIRECTORY}/test-command-group"'
 }
 
 function oneTimeSetUp() {
