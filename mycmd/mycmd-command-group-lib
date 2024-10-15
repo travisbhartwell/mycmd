@@ -67,6 +67,21 @@ readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
 readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
 readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
 
+function mycmd:command_group.source_file_path_for_directory() {
+    local -r potential_command_group="${1}"
+
+    local name
+    if ! name="$(basename "${potential_command_group}")"; then
+        mycmd.debug "Error getting basename of '${potential_command_group}'."
+        return 1
+    fi
+    readonly name
+
+    local -r source_file_name="${potential_command_group}/${name}-lib"
+    echo "${source_file_name}"
+    return 0
+}
+
 function mycmd:command_group.directory_contains_command_group() {
     # A directory is a command group if:
     # - it is valid directory
@@ -84,19 +99,49 @@ function mycmd:command_group.directory_contains_command_group() {
         return 1
     fi
 
-    local name
-    if ! name="$(basename "${potential_command_group}")"; then
-        mycmd.debug "Error getting basename of '${potential_command_group}'."
+    local source_file_path
+    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${potential_command_group}")"; then
+        mycmd.debug "Error getting source file name for command group library '${potential_command_group}'."
         return 1
     fi
-    readonly name
+    readonly source_file_path
 
-    local -r source_file_name="${potential_command_group}/${name}-lib"
-    if [[ ! -f "${source_file_name}" ]]; then
-        mycmd.debug "Expected command group library file '${source_file_name}' does not exist."
+    if [[ ! -f "${source_file_path}" ]]; then
+        mycmd.debug "Expected command group library file '${source_file_path}' does not exist."
         return 1
     fi
 
+    return 0
+}
+
+function mycmd:command_group.load_command_group() {
+    local -r potential_command_group="${1}"
+
+    if ! mycmd:command_group.directory_contains_command_group "${potential_command_group}"; then
+        mycmd.debug "Directory ${potential_command_group} does not contain a command group."
+        return 1
+    fi
+
+    local fully_qualified_name
+    if ! fully_qualified_name="$(mycmd:pathname.fully_qualified_name_for_path "${potential_command_group}")"; then
+        mycmd.debug "Error getting fully qualified name for ${potential_command_group}."
+        return 1
+    fi
+    readonly fully_qualified_name
+
+    # TODO: Check to see if the command group is already loaded
+
+    local source_file_path
+    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${potential_command_group}")"; then
+        mycmd.debug "Error getting source file name for command group library '${potential_command_group}'."
+        return 1
+    fi
+    readonly source_file_path
+
+    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${potential_command_group}"
+    _MYCMD_COMMAND_GROUP_SOURCE_FILES["${fully_qualified_name}"]="${source_file_path}"
+
+    # TODO: Load the command group file to get the help and version information
     return 0
 }
 
