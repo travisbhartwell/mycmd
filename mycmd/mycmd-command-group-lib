@@ -39,9 +39,7 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 # - A Fully Qualifield Name - `mycmd/financial/import`
 # - Namespaced Parts - [mycmd, financial, import]
 # - A Source Directory - $HOME/mycmd/financial/import/
-# - An optional local override directory
 # - A Source File - $HOME/mycmd/financial/import/import-lib
-# - An optional local override library
 # - Any number of commands
 # - Any number of child command groups
 # - A short description used in help
@@ -53,10 +51,6 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES=()
 # - Command Group Source Files
 declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_FILES=()
-# - Command Group Local Override Directories
-declare -Agx _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES=()
-# - Command Group Local Override Source Files
-declare -Agx _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES=()
 # - Command Group Short Descriptions
 declare -Agx _MYCMD_COMMAND_GROUP_SHORT_DESCS=()
 # - Command Group Long Descriptions
@@ -69,8 +63,6 @@ readonly _COMMAND_GROUP_NAME_FIELD='command-group-name'
 readonly _COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD='command-group-fully-qualified-name'
 readonly _COMMAND_GROUP_SOURCE_DIRECTORY_FIELD='command-group-source-directory'
 readonly _COMMAND_GROUP_SOURCE_FILE_FIELD='command-group-source-file'
-readonly _COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD='command-group-local-override-source-directory'
-readonly _COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD='command-group-local-override-file'
 readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
 readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
 readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
@@ -115,9 +107,6 @@ function mycmd:command_group._dump_assoc_array() {
 function mycmd:command_group._dump_source_data() {
     mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES
     mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SOURCE_FILES
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SHORT_DESCS
     mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LONG_DESCS
     mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_VERSIONS
 }
@@ -143,20 +132,6 @@ function mycmd:command_group.get_command_group() {
 
     command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_FILES["${command_group_fq_name}"]}"
     mycmd.trace "- ${_COMMAND_GROUP_SOURCE_FILE_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]}"
-
-    if [[ -v _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES[${command_group_fq_name}] ]]; then
-        command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_DIRECTORIES["${command_group_fq_name}"]}"
-        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}"]}"
-    else
-        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}: No value set."
-    fi
-
-    if [[ -v _MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES[${command_group_fq_name}] ]]; then
-        command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILES["${command_group_fq_name}"]}"
-        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}"]}"
-    else
-        mycmd.trace "- ${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}: No value set."
-    fi
 
     if [[ -v _MYCMD_COMMAND_GROUP_SHORT_DESCS[${command_group_fq_name}] ]]; then
         command_group_struct_ref["${_COMMAND_GROUP_SHORT_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_SHORT_DESCS["${command_group_fq_name}"]}"
@@ -261,18 +236,6 @@ function mycmd:command_group.get_source_directory() {
 function mycmd:command_group.get_source_file() {
     mycmd:command_group._get_required_field_from_command_group_struct \
         "${_COMMAND_GROUP_SOURCE_FILE_FIELD}" \
-        "${@}"
-}
-
-function mycmd:command_group.get_local_override_source_directory() {
-    mycmd:command_group._get_optional_field_from_command_group_struct \
-        "${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_DIRECTORY_FIELD}" \
-        "${@}"
-}
-
-function mycmd:command_group.get_local_override_source_file() {
-    mycmd:command_group._get_optional_field_from_command_group_struct \
-        "${_COMMAND_GROUP_LOCAL_OVERRIDE_SOURCE_FILE_FIELD}" \
         "${@}"
 }
 
