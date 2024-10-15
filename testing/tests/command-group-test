@@ -28,6 +28,9 @@ function test_mycmd_command_group_lib_is_loaded() {
 
 # shellcheck disable=SC2312
 function test_directory_is_command_group() {
+    assertTrue "Directory '${MYCMD_LIB_DIRECTORY}' is a command group" \
+        "mycmd:command_group.directory_contains_command_group ${MYCMD_LIB_DIRECTORY}"
+
     assertTrue "Directory '${MYCMD_LIB_DIRECTORY}/shell' is a command group" \
         "mycmd:command_group.directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/shell"
 
@@ -37,6 +40,9 @@ function test_directory_is_command_group() {
 
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_base_mycmd_command_group() {
+    assertTrue 'mycmd can be loaded as a command group' \
+        'mycmd:command_group.load_command_group "${MYCMD_LIB_DIRECTORY}"'
+
     local -A mycmd_command_group
     mycmd:command_group.get_command_group mycmd mycmd_command_group
     assertEquals "mycmd" "$(mycmd:command_group.get_name mycmd_command_group)"
@@ -56,40 +62,36 @@ function test_base_mycmd_command_group() {
 }
 
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
-function test_shell_complete_command_group() {
-    local -A shell_complete_command_group
-    mycmd:command_group.get_command_group "mycmd/shell/complete" shell_complete_command_group
-    assertEquals "complete" "$(mycmd:command_group.get_name shell_complete_command_group)"
-    assertEquals "mycmd/shell/complete" "$(mycmd:command_group.get_fully_qualified_name shell_complete_command_group)"
-    assertEquals "mycmd shell complete" "$(mycmd:command_group.get_namespaced_parts_as_string shell_complete_command_group)"
-    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/complete" "$(mycmd:command_group.get_source_directory shell_complete_command_group)"
-    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/complete/complete-lib" "$(mycmd:command_group.get_source_file shell_complete_command_group)"
-    assertEquals "MyCmd Command Group mycmd shell complete" "$(mycmd:command_group.get_short_description shell_complete_command_group)"
+function test_shell_extended_command_group() {
+    assertTrue "${MYCMD_LIB_DIRECTORY}/shell can be loaded as a command group" \
+        'mycmd:command_group.load_command_group "${MYCMD_LIB_DIRECTORY}/shell"'
+
+    assertTrue "${TEST_USER_LIB_DIRECTORY}/shell/extended can be loaded as a command group" \
+        'mycmd:command_group.load_command_group "${TEST_USER_LIB_DIRECTORY}/shell/extended"'
+
+    local -A shell_extended_command_group
+    mycmd:command_group.get_command_group "mycmd/shell/extended" shell_extended_command_group
+    assertEquals "extended" "$(mycmd:command_group.get_name shell_extended_command_group)"
+    assertEquals "mycmd/shell/extended" "$(mycmd:command_group.get_fully_qualified_name shell_extended_command_group)"
+    assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
+    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:command_group.get_source_directory shell_extended_command_group)"
+    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:command_group.get_source_file shell_extended_command_group)"
+    assertEquals "MyCmd Command Group mycmd shell extended" "$(mycmd:command_group.get_short_description shell_extended_command_group)"
     assertFalse 'There is no long description defined' \
-        'mycmd:command_group.get_long_description shell_complete_command_group'
-    assertEquals "Unknown" "$(mycmd:command_group.get_version shell_complete_command_group)"
+        'mycmd:command_group.get_long_description shell_extended_command_group'
+    assertEquals "Unknown" "$(mycmd:command_group.get_version shell_extended_command_group)"
 
     local -a parent_tree
-    mycmd:command_group.get_parent_tree shell_complete_command_group parent_tree
+    mycmd:command_group.get_parent_tree shell_extended_command_group parent_tree
     assertTrue 'parent_tree has three elements' '(( "${#parent_tree[@]}" == 3 ))'
     assertSame 'first element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
     assertSame 'second element in parent tree is "mycmd/shell"' "${parent_tree[1]}" "mycmd/shell"
-    assertSame 'third element in parent tree is "mycmd/shell/complete"' "${parent_tree[2]}" "mycmd/shell/complete"
+    assertSame 'third element in parent tree is "mycmd/shell/extended"' "${parent_tree[2]}" "mycmd/shell/extended"
 }
 
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-command-group-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-group-lib"
-
-    # TODO: This will be added by default in the future
-    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["mycmd"]="${MYCMD_LIB_DIRECTORY}"
-    _MYCMD_COMMAND_GROUP_SOURCE_FILES["mycmd"]="${MYCMD_LIB_DIRECTORY}/mycmd-lib"
-
-    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["mycmd/shell"]="${MYCMD_LIB_DIRECTORY}/shell"
-    _MYCMD_COMMAND_GROUP_SOURCE_FILES["mycmd/shell"]="${MYCMD_LIB_DIRECTORY}/shell/shell-lib"
-
-    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["mycmd/shell/complete"]="${TEST_USER_LIB_DIRECTORY}/shell/complete"
-    _MYCMD_COMMAND_GROUP_SOURCE_FILES["mycmd/shell/complete"]="${TEST_USER_LIB_DIRECTORY}/shell/complete/complete-lib"
 }
 
 # shellcheck source=../vendor/shunit2

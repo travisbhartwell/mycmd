@@ -122,6 +122,30 @@ function test_is_child_of_mycmd_path_directory() {
         'mycmd:pathname.is_child_of_mycmd_path_directory "${TEST_USER_LIB_DIRECTORY}/test-command-group"'
 }
 
+# shellcheck disable=SC2016,SC2312
+function test_fully_qualified_name_for_path() {
+    assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib is not an absolute path to a directory" \
+        'mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
+        'mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
+        'mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+
+    assertFalse "/tmp is not a child of a MyCmd path directory" \
+        'mycmd:pathname.fully_qualified_name_for_path /tmp'
+
+    assertEquals "mycmd/project" \
+        "$(mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/project")"
+
+    assertEquals "mycmd/test-command-group" \
+        "$(mycmd:pathname.fully_qualified_name_for_path "${TEST_USER_LIB_DIRECTORY}/test-command-group")"
+
+    assertEquals "mycmd" \
+        "$(mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
+}
+
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-pathname-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"

@@ -76,9 +76,10 @@ function mycmd:pathname.is_path_relative_to_directory() {
     mycmd:pathname.path_relative_to_directory "${@}" >/dev/null
 }
 
-function mycmd:pathname.is_child_of_mycmd_path_directory() {
+function mycmd:pathname.fully_qualified_name_for_path() {
     local -r full_path="${1}"
 
+    # TODO: Should this function care if it is a directory or not?
     if ! mycmd:pathname.is_valid_absolute_path_of_directory "${full_path}"; then
         mycmd.debug "'${full_path}' is not a valid absolute path of directory."
         return 1
@@ -88,13 +89,32 @@ function mycmd:pathname.is_child_of_mycmd_path_directory() {
     # TODO: Switch to iterating over array of base paths
     # shellcheck disable=SC2154
     for base in "${MYCMD_SYSTEM_BASE_DIR}" "${MYCMD_USER_BASE_DIR}"; do
-        if mycmd:pathname.is_path_relative_to_directory "${full_path}" "${base}"; then
+        local relative_path
+
+        if relative_path=$(mycmd:pathname.path_relative_to_directory "${full_path}" "${base}"); then
+            if [[ "${relative_path}" = "." ]]; then
+                echo "mycmd"
+            else
+                echo "mycmd/${relative_path}"
+            fi
+
             return 0
         fi
     done
 
     # No matches
     return 1
+}
+
+function mycmd:pathname.is_child_of_mycmd_path_directory() {
+    local -r full_path="${1}"
+
+    if ! mycmd:pathname.fully_qualified_name_for_path "${full_path}" >/dev/null; then
+        mycmd.debug "'${full_path}' is not a child of any of the MyCmd base directories."
+        return 1
+    fi
+
+    return 0
 }
 
 mycmd.trace "The MyCmd Pathname support library has been sourced."
