@@ -28,11 +28,8 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
-mycmd.load_mycmd_lib_support_lib "environment"
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
 mycmd.load_mycmd_lib_support_lib "function-calling"
-mycmd.load_mycmd_lib_support_lib "loading-base"
-mycmd.load_mycmd_lib_support_lib "platform-support"
 mycmd.load_mycmd_lib_support_lib "output"
 
 # A Command has:
