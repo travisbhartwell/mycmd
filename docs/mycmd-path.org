@@ -1,0 +1,30 @@
+#+title: MyCmd Path
+
+* MyCmd Directories
+
+- =MYCMD_SYSTEM_BASE_DIR=: This is the =mycmd= directory in the base MyCmd installation.
+
+- =MYCMD_USER_BASE_DIR=: The directory in the user's home directory where the user's command groups and commands are, typically =$HOME/mycmd=.
+
+* MyCmd Search Path
+
+MyCmd searches for command groups and commands in a search path. The directories in the search path are the top-level directories that MyCmd starts to search in. MyCmd searches the search path in order, with things earlier in the search path loaded first.
+
+The search path mechanism is in place to enable installing additional command groups and tools written using MyCmd.
+
+If not otherwise configured, =MYCMD_SYSTEM_BASE_DIR= and =MYCMD_USER_BASE_DIR= are the only directories on the MyCmd search path.
+
+* Configuring the Search Path
+
+Eventually, there will be a mechanism provided to easily add directories to the search path. For now, you can set the =MYCMD_SEARCH_PATH= environment variable. Similar to the regular system path variable, =PATH=, it is a string separated by =:='s.
+
+* Conventions
+
+MyCmd enforces the following conditions on the search path:
+
+- When MyCmd starts, it parses the =MYCMD_SEARCH_PATH= variable, if set, and from that sets =_MYCMD_SEARCH_PATH= as an array, enforcing the following conditions:
+  - The =MYCMD_SYSTEM_BASE_DIR= is always the first directory on the search path, to ensure the base MyCmd is not overridden.
+  - The =MYCMD_USER_BASE_DIR= is always the last directory on the search path.
+  - Makes sure each directory is only on the search path once.
+  - Converts each directory to an absolute pathname.
+  - Discards any path entries that do not exist.
