@@ -22,7 +22,6 @@ fi
 
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
-
 if [[ ! -v _MYCMD_OUTPUT_LIB ]]; then
     # shellcheck source=./mycmd-output-lib
     source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
@@ -56,5 +55,66 @@ if [[ ! -d "${MYCMD_VENDOR_DIR}" ]]; then
     mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_VENDOR_DIR, '${MYCMD_VENDOR_DIR}' does not exist."
 fi
 mycmd.trace "MYCMD_VENDOR_DIR:      ${MYCMD_VENDOR_DIR}"
+
+# ------------------------------------------------------------------------------
+# Set up the MyCmd Search Path
+declare -agx _MYCMD_SEARCH_PATH=()
+
+function mycmd:environment._get_absolute_path() {
+    local -r potential_path="${1}"
+
+    local abs_path
+    if ! abs_path=$(cd "${potential_path}" &>/dev/null && pwd -P); then
+        mycmd.debug "Error getting absolute path of ${potential_path}"
+        return 1
+    fi
+    readonly abs_path
+
+    echo "${abs_path}"
+
+    return 0
+}
+
+function mycmd:environment.set_mycmd_search_path() {
+    local -a potential_paths=()
+
+    potential_paths+=("${MYCMD_SYSTEM_BASE_DIR}")
+
+    if [[ -z "${MYCMD_SEARCH_PATH-}" ]]; then
+        mycmd.trace "No custom MyCmd search path set."
+    else
+        local p, abs_p
+        OLD_IFS="${IFS}"
+        IFS=":"
+        for p in ${MYCMD_SEARCH_PATH}; do
+            if abs_p="$(mycmd:environment._get_absolute_path "${p}")"; then
+                potential_paths+=("${abs_p}")
+            else
+                mycmd.trace "Directory '${p}' does not exist, not adding to path."
+            fi
+        done
+        IFS="${OLD_IFS}"
+    fi
+
+    potential_paths+=("${MYCMD_USER_BASE_DIR}")
+
+    _MYCMD_SEARCH_PATH=()
+
+    local -A seen_paths=()
+    local p
+    for p in "${potential_paths[@]}"; do
+        if [[ ! -v seen_paths["${p}"] ]]; then
+            mycmd.trace "Adding path '${p}' to the MyCmd Search Path"
+            seen_paths["${p}"]=1
+            _MYCMD_SEARCH_PATH+=("${p}")
+        fi
+    done
+
+    if [[ ! -v _MYCMD_TESTING ]]; then
+        readonly _MYCMD_SEARCH_PATH
+    fi
+}
+
+mycmd:environment.set_mycmd_search_path
 
 mycmd.trace "The MyCmd Library Environment support library has been sourced."
