@@ -96,11 +96,12 @@ function mycmd:environment.set_mycmd_search_path() {
         IFS="${OLD_IFS}"
     fi
 
-    potential_paths+=("${MYCMD_USER_BASE_DIR}")
-
     _MYCMD_SEARCH_PATH=()
 
     local -A seen_paths=()
+    # Pre-add the user search path to ensure it is last
+    seen_paths["${MYCMD_USER_BASE_DIR}"]=1
+
     local p
     for p in "${potential_paths[@]}"; do
         if [[ ! -v seen_paths["${p}"] ]]; then
@@ -109,6 +110,8 @@ function mycmd:environment.set_mycmd_search_path() {
             _MYCMD_SEARCH_PATH+=("${p}")
         fi
     done
+
+    _MYCMD_SEARCH_PATH+=("${MYCMD_USER_BASE_DIR}")
 
     if [[ ! -v _MYCMD_TESTING ]]; then
         readonly _MYCMD_SEARCH_PATH
