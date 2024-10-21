@@ -115,4 +115,65 @@ function mycmd:pathname.is_child_of_mycmd_path_directory() {
     return 0
 }
 
+function mycmd:pathname.walk_path_for_directory() {
+    local -r absolute_path="${1}"
+    local -r callback="${2}"
+
+    local -a dirs=()
+    local -a files=()
+
+    # set nullglob if it wasn't originally set
+    shopt -q nullglob
+    local nullglob_set=$?
+    ((nullglob_set)) && shopt -s nullglob
+
+    local f
+    for f in "${absolute_path}"/*; do
+        # The current use case is to detect command groups, which are directories
+        # and commands, which are executable files, so optimizing for that.
+        # TODO: Add support for symlinks?
+        if [[ -d "${f}" ]]; then
+            dirs+=("${f}")
+        elif [[ -f "${f}" && -x "${f}" ]]; then
+            files+=("${f}")
+        fi
+    done
+
+    # unset nullglob if it wasn't originally set
+    ((nullglob_set)) && shopt -u nullglob
+
+    if (("${#dirs[@]}" > 0 || "${#files[@]}" > 0)); then
+        if ! "${callback}" "${absolute_path}" dirs files; then
+            mycmd.debug "Error in callback for ${absolute_path}."
+        fi
+    fi
+
+    local dir
+    for dir in "${dirs[@]}"; do
+        mycmd:pathname.walk_path_for_directory "${dir}" "${callback}"
+    done
+
+    return 0
+}
+
+function mycmd:pathname.walk_path() {
+    # TODO: Verify this argument fits the pattern of a fully qualified path
+    local -r fully_qualifed_name="${1}"
+    local -r callback="${2}"
+
+    local base
+    local full_path
+    for base in "${_MYCMD_SEARCH_PATH[@]}"; do
+        if [[ "${fully_qualifed_name}" = "mycmd" ]]; then
+            full_path="${base}"
+        else
+            full_path="${base}/${fully_qualifed_name}"
+        fi
+
+        if [[ -d "${full_path}" ]]; then
+            mycmd:pathname.walk_path_for_directory "${full_path}" "${callback}"
+        fi
+    done
+}
+
 mycmd.trace "The MyCmd Pathname support library has been sourced."

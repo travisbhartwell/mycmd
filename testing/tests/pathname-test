@@ -22,6 +22,11 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd
     exit 1
 fi
 
+if ! MYCMD_TMP_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../tmp" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd tmp directory."
+    exit 1
+fi
+
 function test_mycmd_pathname_lib_is_loaded() {
     assertTrue 'MyCmd Pathname Support Lib is loaded' '[ -v _MYCMD_PATHNAME_LIB ]'
 }
@@ -144,6 +149,36 @@ function test_fully_qualified_name_for_path() {
 
     assertEquals "mycmd" \
         "$(mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
+}
+
+function callback() {
+    if [[ ! -v MYCMD_TEST_LOGGING ]]; then
+        return 0
+    fi
+
+    local -r full_path="${1}"
+    local -n dirs_ref="${2}"
+    local -n files_ref="${3}"
+
+    echo "Received callback for ${full_path}." >>"${MYCMD_TMP_DIRECTORY}"/callback.log
+    echo "Found ${#dirs_ref[@]} directories and ${#files_ref[@]} files." >>"${MYCMD_TMP_DIRECTORY}"/callback.log
+
+    local d
+    for d in "${dirs_ref[@]}"; do
+        echo "Directory: ${d}" >>"${MYCMD_TMP_DIRECTORY}"/callback.log
+    done
+
+    local f
+    for f in "${files_ref[@]}"; do
+        echo "File: ${f}" >>"${MYCMD_TMP_DIRECTORY}"/callback.log
+    done
+
+    return 0
+}
+
+function test_walk_path() {
+    assertTrue 'walk_path runs successfully' \
+        'mycmd:pathname.walk_path "mycmd" callback'
 }
 
 function oneTimeSetUp() {
