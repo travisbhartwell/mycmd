@@ -151,16 +151,25 @@ function test_fully_qualified_name_for_path() {
         "$(mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
 }
 
+declare -Agx walk_path_dir_counts=()
+declare -Agx walk_path_file_counts=()
+
+# shellcheck disable=SC2016
 function callback() {
+    local -r full_path="${1}"
+    local -r fully_qualifed_name="${2}"
+    local -n dirs_ref="${3}"
+    local -n files_ref="${4}"
+
+    local -r key="${full_path}:${fully_qualifed_name}"
+    walk_path_dir_counts["${key}"]=${#dirs_ref[@]}
+    walk_path_file_counts["${key}"]=${#files_ref[@]}
+
     if [[ ! -v MYCMD_TEST_LOGGING ]]; then
         return 0
     fi
 
-    local -r full_path="${1}"
-    local -n dirs_ref="${2}"
-    local -n files_ref="${3}"
-
-    echo "Received callback for ${full_path}." >>"${MYCMD_TMP_DIRECTORY}"/callback.log
+    echo "Received callback for '${full_path}' with fully-qualified name '${fully_qualifed_name}'." >>"${MYCMD_TMP_DIRECTORY}"/callback.log
     echo "Found ${#dirs_ref[@]} directories and ${#files_ref[@]} files." >>"${MYCMD_TMP_DIRECTORY}"/callback.log
 
     local d
@@ -176,14 +185,53 @@ function callback() {
     return 0
 }
 
+# shellcheck disable=SC2016
 function test_walk_path() {
+    walk_path_dir_counts=()
+    walk_path_file_counts=()
+
     assertTrue 'walk_path runs successfully' \
         'mycmd:pathname.walk_path "mycmd" callback'
+
+    local key
+    for key in "${!TEST_WALK_PATH_DIR_COUNTS[@]}"; do
+        assertEquals "Directory count for ${key}" \
+            "${TEST_WALK_PATH_DIR_COUNTS[${key}]}" \
+            "${walk_path_dir_counts[${key}]}"
+    done
+
+    assertTrue 'The expected number of keys were found in directory counts' \
+        '[ "${#TEST_WALK_PATH_DIR_COUNTS[@]}" -eq "${#walk_path_dir_counts[@]}" ]'
+
+    for key in "${!TEST_WALK_PATH_FILE_COUNTS[@]}"; do
+        assertEquals "File count for ${key}" \
+            "${TEST_WALK_PATH_FILE_COUNTS[${key}]}" \
+            "${walk_path_file_counts[${key}]}"
+    done
+
+    assertTrue 'The expected number of keys were found in file counts' \
+        '[ "${#TEST_WALK_PATH_FILE_COUNTS[@]}" -eq "${#walk_path_file_counts[@]}" ]'
 }
 
+declare -Agx TEST_WALK_PATH_DIR_COUNTS=()
+declare -Agx TEST_WALK_PATH_FILE_COUNTS=()
+
+# shellcheck disable=SC2034
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-pathname-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"
+
+    # Hard-code values for tests
+    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=4
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=0
+    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=3
+    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=2
+    TEST_WALK_PATH_DIR_COUNTS["${TEST_USER_LIB_DIRECTORY}:mycmd"]=2
+    TEST_WALK_PATH_FILE_COUNTS["${TEST_USER_LIB_DIRECTORY}:mycmd"]=1
+    TEST_WALK_PATH_DIR_COUNTS["${TEST_USER_LIB_DIRECTORY}/shell:mycmd/shell"]=1
+    TEST_WALK_PATH_FILE_COUNTS["${TEST_USER_LIB_DIRECTORY}/shell:mycmd/shell"]=0
 }
 
 # shellcheck source=../vendor/shunit2

@@ -117,7 +117,8 @@ function mycmd:pathname.is_child_of_mycmd_path_directory() {
 
 function mycmd:pathname.walk_path_for_directory() {
     local -r absolute_path="${1}"
-    local -r callback="${2}"
+    local -r fully_qualifed_name="${2}"
+    local -r callback="${3}"
 
     local -a dirs=()
     local -a files=()
@@ -143,14 +144,20 @@ function mycmd:pathname.walk_path_for_directory() {
     ((nullglob_set)) && shopt -u nullglob
 
     if (("${#dirs[@]}" > 0 || "${#files[@]}" > 0)); then
-        if ! "${callback}" "${absolute_path}" dirs files; then
+        if ! "${callback}" "${absolute_path}" "${fully_qualifed_name}" dirs files; then
             mycmd.debug "Error in callback for ${absolute_path}."
         fi
     fi
 
     local dir
+    local dir_name
     for dir in "${dirs[@]}"; do
-        mycmd:pathname.walk_path_for_directory "${dir}" "${callback}"
+        if ! dir_name="$(basename "${dir}")"; then
+            mycmd.debug "Error getting basename of '${dir}'."
+            return 1
+        fi
+
+        mycmd:pathname.walk_path_for_directory "${dir}" "${fully_qualifed_name}/${dir_name}" "${callback}"
     done
 
     return 0
@@ -161,17 +168,17 @@ function mycmd:pathname.walk_path() {
     local -r fully_qualifed_name="${1}"
     local -r callback="${2}"
 
+    # Strip the leading mycmd from the fully qualified name
+    local realtive_path="${fully_qualifed_name#mycmd/}"
+    realtive_path="${fully_qualifed_name#mycmd}"
+
     local base
     local full_path
     for base in "${_MYCMD_SEARCH_PATH[@]}"; do
-        if [[ "${fully_qualifed_name}" = "mycmd" ]]; then
-            full_path="${base}"
-        else
-            full_path="${base}/${fully_qualifed_name}"
-        fi
+        full_path="${base}${relative_path:+/}${realtive_path}"
 
         if [[ -d "${full_path}" ]]; then
-            mycmd:pathname.walk_path_for_directory "${full_path}" "${callback}"
+            mycmd:pathname.walk_path_for_directory "${full_path}" "${fully_qualifed_name}" "${callback}"
         fi
     done
 }
