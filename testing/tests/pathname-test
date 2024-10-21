@@ -223,15 +223,31 @@ function oneTimeSetUp() {
 
     # Hard-code values for tests
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=4
-    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=13
+
+    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/create:mycmd/create"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/create:mycmd/create"]=1
+
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=0
-    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=3
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=4
+
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=0
-    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=2
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=6
+
+    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/shell:mycmd/shell"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/shell:mycmd/shell"]=1
+
     TEST_WALK_PATH_DIR_COUNTS["${TEST_USER_LIB_DIRECTORY}:mycmd"]=2
     TEST_WALK_PATH_FILE_COUNTS["${TEST_USER_LIB_DIRECTORY}:mycmd"]=1
+
     TEST_WALK_PATH_DIR_COUNTS["${TEST_USER_LIB_DIRECTORY}/shell:mycmd/shell"]=1
     TEST_WALK_PATH_FILE_COUNTS["${TEST_USER_LIB_DIRECTORY}/shell:mycmd/shell"]=0
+
+    TEST_WALK_PATH_DIR_COUNTS["${TEST_USER_LIB_DIRECTORY}/shell/extended:mycmd/shell/extended"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${TEST_USER_LIB_DIRECTORY}/shell/extended:mycmd/shell/extended"]=1
+
+    TEST_WALK_PATH_DIR_COUNTS["${TEST_USER_LIB_DIRECTORY}/test-command-group:mycmd/test-command-group"]=0
+    TEST_WALK_PATH_FILE_COUNTS["${TEST_USER_LIB_DIRECTORY}/test-command-group:mycmd/test-command-group"]=1
 }
 
 # shellcheck source=../vendor/shunit2

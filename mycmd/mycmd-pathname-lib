@@ -135,7 +135,7 @@ function mycmd:pathname.walk_path_for_directory() {
         # TODO: Add support for symlinks?
         if [[ -d "${f}" ]]; then
             dirs+=("${f}")
-        elif [[ -f "${f}" && -x "${f}" ]]; then
+        elif [[ -f "${f}" ]]; then
             files+=("${f}")
         fi
     done
