@@ -34,6 +34,10 @@ function test_mycmd_environment_lib_is_loaded() {
     assertTrue 'MyCmd Environment Support Lib is loaded' '[ -v _MYCMD_ENVIRONMENT_LIB ]'
 }
 
+function test_mycmd_search_path_is_not_set() {
+    assertTrue 'MYCMD_SEARCH_PATH is not set' '[ ! -v MYCMD_SEARCH_PATH ]'
+}
+
 # shellcheck disable=SC2312
 function test_get_absolute_path() {
     assertFalse '/non-existing does not exist' \

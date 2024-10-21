@@ -341,7 +341,8 @@ function execute-test() {
     local result=0
     mycmd.log "Executing test file: ${test_file}"
 
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+    /usr/bin/env -u MYCMD_SEARCH_PATH \
+        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
@@ -378,7 +379,8 @@ function execute-benchmark() {
     local -r output_csv="${1}"
     shift
 
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+    /usr/bin/env -u MYCMD_SEARCH_PATH \
+        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
@@ -415,7 +417,8 @@ project.register_task_with_fileset lint \
 #----------------------------------------
 # Calling in Development Version
 function mycmd-devel() {
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+    /usr/bin/env -u MYCMD_SEARCH_PATH \
+        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         PATH="${BIN_DIR}:${PATH}" \
         "${BIN_DIR}"/mycmd "${@}"
@@ -423,7 +426,8 @@ function mycmd-devel() {
 project.register_task mycmd-devel
 
 function test-command-directly() {
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+    /usr/bin/env -u MYCMD_SEARCH_PATH \
+        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
