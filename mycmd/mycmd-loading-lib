@@ -67,30 +67,25 @@ function mycmd._source_mycmd_lib() {
 
     mycmd.trace "Attempting to load '${lib_name}' from '${lib_relative_path}'."
 
+    local base_dir
     # shellcheck disable=SC2154
-    local lib_dir="${MYCMD_SYSTEM_BASE_DIR}/${lib_relative_path}"
-    local lib_script="${lib_dir}/${lib_name}"
-    # shellcheck disable=SC2154
-    local local_lib_dir="${MYCMD_USER_BASE_DIR}/${lib_relative_path}"
-    local local_lib_script="${local_lib_dir}/${lib_name}"
+    for base_dir in "${_MYCMD_SEARCH_PATH[@]}"; do
+        local lib_dir="${base_dir}/${lib_relative_path}"
+        local lib_script="${lib_dir}/${lib_name}"
 
-    if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
-        # If found, source the local overrides file from MYCMD_USER_BASE_DIR, if it exists
-        local local_lib_name="${lib_name/%-lib/-local-lib}"
-        local local_lib_override="${local_lib_dir}/${local_lib_name}"
-        mycmd.source_lib_by_path_if_found "${local_lib_override}" "${@}"
-    elif ! mycmd.source_lib_by_path_if_found "${local_lib_script}" "${@}"; then
-        mycmd.log "Cannot find library '${lib_name}' in system or user directory."
-        return 1
-    fi
+        if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
+            return 0
+        fi
+    done
 
-    return 0
+    mycmd.log "Cannot find library '${lib_name}' on MyCmd Search Path."
+    return 1
 }
 
 # mycmd.source_mycmd_lib
 #   Explicitly source a MyCmd library and its dependencies by providing the
-#   directory name of the MyCmd library relative to either first
-#   MYCMD_SYSTEM_BASE_DIR or, secondly, MYCMD_USER_BASE_DIR.
+#   directory name of the MyCmd library relative to each of the base directories 
+#   on the MyCmd Search Path.
 #
 #   For example, to source the library in ~/mycmd/requests/service1, call this
 #   like this:
@@ -121,6 +116,7 @@ function mycmd.source_mycmd_lib() {
 
 # mycmd.source_mycmd_local_lib
 function mycmd.source_mycmd_local_lib() {
+    # shellcheck disable=SC2154
     local -r local_lib="${MYCMD_USER_BASE_DIR}/mycmd-local-lib"
 
     mycmd.source_lib_by_path_if_found "${local_lib}" || true
