@@ -63,7 +63,7 @@ function test_set_mycmd_search_path_with_no_custom_search_path() {
 
 # shellcheck disable=SC2016,SC2034,SC2153,SC2154
 function test_set_mycmd_search_path_with_custom_search_path() {
-    MYCMD_SEARCH_PATH="${TEST_USER_LIB_DIRECTORY}/../additional-base:${MYCMD_LIB_DIRECTORY}:/non-existing"
+    MYCMD_SEARCH_PATH="${TEST_USER_LIB_DIRECTORY}:${TEST_USER_LIB_DIRECTORY}/../additional-base:${MYCMD_LIB_DIRECTORY}:/non-existing"
 
     assertTrue 'MYCMD_SEARCH_PATH is set' \
         '[ -v MYCMD_SEARCH_PATH ]'
