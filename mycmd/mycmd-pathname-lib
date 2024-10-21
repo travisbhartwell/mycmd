@@ -22,7 +22,6 @@ fi
 
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
-
 if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     # shellcheck source=./mycmd-loading-lib
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
@@ -86,9 +85,8 @@ function mycmd:pathname.fully_qualified_name_for_path() {
     fi
 
     local base
-    # TODO: Switch to iterating over array of base paths
     # shellcheck disable=SC2154
-    for base in "${MYCMD_SYSTEM_BASE_DIR}" "${MYCMD_USER_BASE_DIR}"; do
+    for base in "${_MYCMD_SEARCH_PATH[@]}"; do
         local relative_path
 
         if relative_path=$(mycmd:pathname.path_relative_to_directory "${full_path}" "${base}"); then
