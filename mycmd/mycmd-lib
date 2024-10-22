@@ -50,8 +50,9 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 function mycmd:discover_command_groups_and_commands_callback() {
     local -r full_path="${1}"
     local -r fully_qualifed_name="${2}"
+    # The directories are not currently used
     local -n _dirs_ref="${3}"
-    local -n _files_ref="${4}"
+    local -n files_ref="${4}"
 
     if mycmd:command_group.directory_contains_command_group "${full_path}"; then
         if ! mycmd:command_group.register_command_group "${full_path}"; then
@@ -60,7 +61,15 @@ function mycmd:discover_command_groups_and_commands_callback() {
         fi
     fi
 
-    # TODO: Load potential commands in the directory
+    local f
+    for f in "${files_ref[@]}"; do
+        if mycmd:command.file_is_command "${f}"; then
+            if ! mycmd:command.register_command "${f}"; then
+                mycmd.log "Error loading command '${f}'."
+                return 1
+            fi
+        fi
+    done
 }
 
 function mycmd:discover_command_groups_and_commands() {

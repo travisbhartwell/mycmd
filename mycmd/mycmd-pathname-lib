@@ -36,6 +36,10 @@ function mycmd:pathname.is_valid_absolute_path() {
     [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -e "${1}" ]]
 }
 
+function mycmd:pathname.is_valid_absolute_path_of_executable_file() {
+    [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -f "${1}" ]] && [[ -x "${1}" ]]
+}
+
 function mycmd:pathname.is_valid_absolute_path_of_directory() {
     [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -d "${1}" ]]
 }
@@ -78,9 +82,8 @@ function mycmd:pathname.is_path_relative_to_directory() {
 function mycmd:pathname.fully_qualified_name_for_path() {
     local -r full_path="${1}"
 
-    # TODO: Should this function care if it is a directory or not?
-    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${full_path}"; then
-        mycmd.debug "'${full_path}' is not a valid absolute path of directory."
+    if ! mycmd:pathname.is_valid_absolute_path "${full_path}"; then
+        mycmd.debug "'${full_path}' is not a valid absolute path."
         return 1
     fi
 

@@ -79,11 +79,17 @@ function test_mycmd_function_calling_lib_is_loaded() {
 # shellcheck disable=SC2016,SC2154
 function test_all_command_groups_are_loaded() {
     local -r command_group_count=7
-    assertTrue "There are ${command_group_count} command groups loaded in source directories" \
-        '(( ${#_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES[@]} == command_group_count ))'
+    assertSame "There are ${command_group_count} command groups loaded in source directories" \
+        "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES[@]}"
 
-    assertTrue "There are ${command_group_count} command groups loaded in source files" \
-        '(( ${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]} == command_group_count ))'
+    assertSame "There are ${command_group_count} command groups loaded in source files" \
+        "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]}"
+}
+
+# shellcheck disable=SC2016,SC2154
+function test_all_commands_are_loaded() {
+    assertSame "There are 6 commands loaded" \
+        6 "${#_MYCMD_COMMAND_SOURCE_FILES[@]}"
 }
 
 function oneTimeSetUp() {
