@@ -379,8 +379,7 @@ function execute-benchmark() {
     local -r output_csv="${1}"
     shift
 
-    /usr/bin/env -u MYCMD_SEARCH_PATH \
-        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
@@ -397,7 +396,7 @@ project.register_task benchmark-list-project-tasks \
     execute-benchmark \
     "${TMP_WORKING_DIR}/project-list-tasks-benchmark.csv" \
     'mycmd project list-tasks'
-project.register_task benchmark-mycmd \
+MYCMD_SEARCH_PATH=./tmp/mycmd project.register_task benchmark-mycmd \
     execute-benchmark \
     "${TMP_WORKING_DIR}/mycmd-benchmark.csv" \
     "${BIN_DIR}/mycmd"
@@ -417,8 +416,8 @@ project.register_task_with_fileset lint \
 #----------------------------------------
 # Calling in Development Version
 function mycmd-devel() {
-    /usr/bin/env -u MYCMD_SEARCH_PATH \
-        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+    # /usr/bin/env -u MYCMD_SEARCH_PATH \
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         PATH="${BIN_DIR}:${PATH}" \
         "${BIN_DIR}"/mycmd "${@}"
