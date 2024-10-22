@@ -112,7 +112,7 @@ function mycmd:command_group.directory_contains_command_group() {
     return 0
 }
 
-function mycmd:command_group.load_command_group() {
+function mycmd:command_group.register_command_group() {
     local -r potential_command_group="${1}"
 
     if ! mycmd:command_group.directory_contains_command_group "${potential_command_group}"; then
