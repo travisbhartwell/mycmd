@@ -124,9 +124,14 @@ function mycmd:pathname.walk_path_for_directory() {
     local -a files=()
 
     # set nullglob if it wasn't originally set
-    shopt -q nullglob
-    local nullglob_set=$?
-    ((nullglob_set)) && shopt -s nullglob
+    local nullglob_set
+    if shopt -q nullglob; then
+        nullglob_set=0
+    else
+        nullglob_set=1
+        shopt -s nullglob
+    fi
+    readonly nullglob_set
 
     local f
     for f in "${absolute_path}"/*; do
@@ -141,7 +146,9 @@ function mycmd:pathname.walk_path_for_directory() {
     done
 
     # unset nullglob if it wasn't originally set
-    ((nullglob_set)) && shopt -u nullglob
+    if ((nullglob_set == 1)); then
+        shopt -u nullglob
+    fi
 
     if (("${#dirs[@]}" > 0 || "${#files[@]}" > 0)); then
         if ! "${callback}" "${absolute_path}" "${fully_qualifed_name}" dirs files; then

@@ -19,8 +19,16 @@ fi
 
 # ------------------------------------------------------------------------------
 # Verify that MyCmb Lib and each of the Support Libraries are Loaded, Including Transitive Dependencies
+#
+# These tests are in order of:
+# - first, things that are directly loaded by mycmd-lib
+# - then, things that are loaded by the directly loaded libraries
 function test_mycmd_lib_is_loaded() {
     assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
+}
+
+function test_mycmd_loading_lib_is_loaded() {
+    assertTrue 'MyCmd Loading Support Lib is loaded' '[ -v _MYCMD_LOADING_LIB ]'
 }
 
 function test_mycmd_output_lib_is_loaded() {
@@ -31,36 +39,51 @@ function test_mycmd_environment_lib_is_loaded() {
     assertTrue 'MyCmd Environment Lib is loaded' '[ -v _MYCMD_ENVIRONMENT_LIB ]'
 }
 
-function test_mycmd_loading_base_lib_is_loaded() {
-    assertTrue 'MyCmd Loading Base Lib is loaded' '[ -v _MYCMD_LOADING_BASE_LIB ]'
-}
-
-function test_mycmd_vendoring_lib_is_loaded() {
-    assertTrue 'MyCmd Vendoring Lib is loaded' '[ -v _MYCMD_VENDORING_LIB ]'
-}
-
-function test_mycmd_event_base_lib_is_loaded() {
-    assertTrue 'MyCmd Event Base Lib is loaded' '[ -v _MYCMD_EVENT_BASE_LIB ]'
-}
-
 function test_mycmd_event_lifecycle_lib_is_loaded() {
     assertTrue 'MyCmd Event Lifecycle Lib is loaded' '[ -v _MYCMD_EVENT_LIFECYCLE_LIB ]'
-}
-
-function test_mycmd_function_calling_lib_is_loaded() {
-    assertTrue 'MyCmd Function Calling Lib is loaded' '[ -v _MYCMD_FUNCTION_CALLING_LIB ]'
 }
 
 function test_mycmd_platform_support_lib_is_loaded() {
     assertTrue 'MyCmd Platform Support Lib is loaded' '[ -v _MYCMD_PLATFORM_SUPPORT_LIB ]'
 }
 
-function test_mycmd_loading_lib_is_loaded() {
-    assertTrue 'MyCmd Loading Support Lib is loaded' '[ -v _MYCMD_LOADING_LIB ]'
-}
-
 function test_mycmd_pathname_lib_is_loaded() {
     assertTrue 'MyCmd Pathname Support Lib is loaded' '[ -v _MYCMD_PATHNAME_LIB ]'
+}
+
+function test_mycmd_command_group_lib_is_loaded() {
+    assertTrue 'MyCmd Command Group Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
+}
+
+function test_mycmd_command_lib_is_loaded() {
+    assertTrue 'MyCmd Command Lib is loaded' '[ -v _MYCMD_COMMAND_LIB ]'
+}
+
+# Transitive Dependencies
+function test_mycmd_loading_base_lib_is_loaded() {
+    assertTrue 'MyCmd Loading Base Lib is loaded' '[ -v _MYCMD_LOADING_BASE_LIB ]'
+}
+
+function test_mycmd_event_base_lib_is_loaded() {
+    assertTrue 'MyCmd Event Base Lib is loaded' '[ -v _MYCMD_EVENT_BASE_LIB ]'
+}
+
+function test_mycmd_vendoring_lib_is_loaded() {
+    assertTrue 'MyCmd Vendoring Lib is loaded' '[ -v _MYCMD_VENDORING_LIB ]'
+}
+
+function test_mycmd_function_calling_lib_is_loaded() {
+    assertTrue 'MyCmd Function Calling Lib is loaded' '[ -v _MYCMD_FUNCTION_CALLING_LIB ]'
+}
+
+# shellcheck disable=SC2016,SC2154
+function test_all_command_groups_are_loaded() {
+    local -r command_group_count=7
+    assertTrue "There are ${command_group_count} command groups loaded in source directories" \
+        '(( ${#_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES[@]} == command_group_count ))'
+
+    assertTrue "There are ${command_group_count} command groups loaded in source files" \
+        '(( ${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]} == command_group_count ))'
 }
 
 function oneTimeSetUp() {
