@@ -55,7 +55,7 @@ function mycmd:discover_command_groups_and_commands_callback() {
 
     if mycmd:command_group.directory_contains_command_group "${full_path}"; then
         if ! mycmd:command_group.load_command_group "${full_path}"; then
-            mycmd.error "Error loading command group '${fully_qualifed_name}' from '${full_path}'."
+            mycmd.log "Error loading command group '${fully_qualifed_name}' from '${full_path}'."
             return 1
         fi
     fi

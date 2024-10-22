@@ -83,7 +83,8 @@ function mycmd:environment.set_mycmd_search_path() {
     if [[ -z "${MYCMD_SEARCH_PATH-}" ]]; then
         mycmd.trace "No custom MyCmd search path set."
     else
-        local p, abs_p
+        local p
+        local abs_p
         OLD_IFS="${IFS}"
         IFS=":"
         for p in ${MYCMD_SEARCH_PATH}; do
