@@ -127,7 +127,15 @@ function mycmd:command_group.load_command_group() {
     fi
     readonly fully_qualified_name
 
-    # TODO: Check to see if the command group is already loaded
+    if [[ -v _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"] ]]; then
+        if [[ "${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]}" == "${potential_command_group}" ]]; then
+            mycmd.debug "Command group ${fully_qualified_name} has already been loaded."
+            return 0
+        else
+            mycmd.debug "Command group ${fully_qualified_name} has already been loaded, but with a different path: ${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]}"
+            return 1
+        fi
+    fi
 
     local source_file_path
     if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${potential_command_group}")"; then
