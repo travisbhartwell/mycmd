@@ -17,12 +17,38 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd
     exit 1
 fi
 
+if ! MYCMD_SUPPORT_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../support" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd support directory."
+    exit 1
+fi
+
 function test_mycmd_command_lib_is_loaded() {
     assertTrue 'MyCmd Lib Command Support Lib is loaded' '[ -v _MYCMD_COMMAND_LIB ]'
 }
 
-# shellcheck disable=SC2034,SC2154,SC2312
+# shellcheck disable=SC2016,SC2154
+function test_file_is_command() {
+    assertFalse "${TEST_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
+        'mycmd:command.file_is_command "${TEST_DIRECTORY}/../../mycmd/project/run"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is not executable and not a command" \
+        'mycmd:command.file_is_command "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+
+    assertFalse "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh is not on the search path and not a command" \
+        'mycmd:command.file_is_command "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh"'
+
+    assertTrue "${MYCMD_LIB_DIRECTORY}/project/run is a command" \
+        'mycmd:command.file_is_command "${MYCMD_LIB_DIRECTORY}/project/run"'
+
+    assertTrue "${MYCMD_USER_BASE_DIR}/test-command is a command" \
+        'mycmd:command.file_is_command "${MYCMD_USER_BASE_DIR}/test-command"'
+}
+
+# shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_test-command() {
+    assertTrue 'test-command can be loaded as a command' \
+        'mycmd:command.register_command "${MYCMD_USER_BASE_DIR}/test-command"'
+
     local -A command
     mycmd:command.get_command "mycmd/test-command" command
     assertEquals "test-command" "$(mycmd:command.get_name command)"
@@ -39,9 +65,6 @@ function test_test-command() {
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-command-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-lib"
-
-    # TODO: This will be handled by loading mechanisms in the future
-    _MYCMD_COMMAND_SOURCE_FILES["mycmd/test-command"]="${MYCMD_USER_BASE_DIR}/test-command"
 }
 
 # shellcheck source=../vendor/shunit2

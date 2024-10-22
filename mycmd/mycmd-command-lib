@@ -22,7 +22,6 @@ fi
 
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
-
 if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     # shellcheck source=./mycmd-loading-lib
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
@@ -31,6 +30,7 @@ fi
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
 mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "pathname"
 
 # A Command has:
 # - A Name:  chase-visa
@@ -60,6 +60,53 @@ readonly _COMMAND_SOURCE_FILE_FIELD='command-source-file'
 readonly _COMMAND_SHORT_DESC_FIELD='command-short-description'
 readonly _COMMAND_LONG_DESC_FIELD='command-long-description'
 readonly _COMMAND_VERSION_FIELD='command-version'
+
+function mycmd:command.file_is_command() {
+    local -r potential_command="${1}"
+
+    if ! mycmd:pathname.is_valid_absolute_path_of_executable_file "${potential_command}"; then
+        mycmd.debug "'${potential_command}' is not a valid absolute path of an executable file."
+        return 1
+    fi
+
+    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${potential_command}"; then
+        mycmd.debug "'${potential_command}' is not located on the MyCmd Search Path."
+        return 1
+    fi
+
+    return 0
+}
+
+function mycmd:command.register_command() {
+    local -r potential_command="${1}"
+
+    if ! mycmd:command.file_is_command "${potential_command}"; then
+        mycmd.debug "'${potential_command}' is not a valid command."
+        return 1
+    fi
+
+    local fully_qualifed_name
+    if ! fully_qualifed_name="$(mycmd:pathname.fully_qualified_name_for_path "${potential_command}")"; then
+        mycmd.debug "Error getting fully qualified name for '${potential_command}'."
+        return 1
+    fi
+    readonly fully_qualifed_name
+
+    if [[ -v _MYCMD_COMMAND_SOURCE_FILES[${fully_qualifed_name}] ]]; then
+        if [[ "${_MYCMD_COMMAND_SOURCE_FILES[${fully_qualifed_name}]}" != "${potential_command}" ]]; then
+            mycmd.debug "Command '${fully_qualifed_name}' has already been registered with a different source file."
+            return 1
+        else
+            mycmd.debug "Command '${fully_qualifed_name}' has already been registered."
+            return 0
+        fi
+    fi
+
+    # TODO - Validate enclosing command groups are registered
+    _MYCMD_COMMAND_SOURCE_FILES["${fully_qualifed_name}"]="${potential_command}"
+
+    return 0
+}
 
 function mycmd:command.get_command() {
     local -r command_fq_name="${1}"
