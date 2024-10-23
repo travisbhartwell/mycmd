@@ -81,10 +81,40 @@ function mycmd.discover_command_groups_and_commands() {
     mycmd:pathname.walk_path "mycmd" mycmd.discover_command_groups_and_commands_callback
 }
 
-mycmd.discover_command_groups_and_commands
+# ------------------------------------------------------------------------------
+# Displaying Help and Version Information
+function mycmd.print_command_group_version() {
+    local -r fully_qualified_name="${1}"
+    local -A command_group
+
+    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group; then
+        mycmd.log "Unknown command group: '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command_group.print_version command_group
+}
+
+function mycmd.print_command_group_help() {
+    local -r fully_qualified_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command_group
+
+    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group; then
+        mycmd.log "Unknown command group: '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command_group.print_version command_group
+    mycmd.output ""
+    mycmd:command_group.print_short_description command_group
+    mycmd.output ""
+    mycmd:command_group.print_long_description command_group
+}
 
 # ------------------------------------------------------------------------------
 # Finalization and Clean Up
+mycmd.discover_command_groups_and_commands
 mycmd._protect_mycmd_lib
 mycmd.run_startup_deferreds
 
