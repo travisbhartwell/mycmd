@@ -49,4 +49,10 @@ function mycmd.call_if_function_exists() {
     fi
 }
 
+function mycmd.is_called_by_function() {
+    local -r fn="${1}"
+
+    [[ "${FUNCNAME[*]}" =~ ${fn} ]]
+}
+
 mycmd.trace "The MyCmd Function Calling support library has been sourced."
