@@ -179,7 +179,7 @@ function mycmd:command_group.register_command_group() {
 
     if ! mycmd:command_group.directory_contains_command_group "${potential_command_group}"; then
         mycmd.debug "Directory ${potential_command_group} does not contain a command group."
-        return 1
+        return 0
     fi
 
     local fully_qualified_name

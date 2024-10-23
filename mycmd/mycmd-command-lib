@@ -82,7 +82,7 @@ function mycmd:command.register_command() {
 
     if ! mycmd:command.file_is_command "${potential_command}"; then
         mycmd.debug "'${potential_command}' is not a valid command."
-        return 1
+        return 0
     fi
 
     local fully_qualifed_name
