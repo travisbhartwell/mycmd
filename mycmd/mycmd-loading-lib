@@ -84,7 +84,7 @@ function mycmd._source_mycmd_lib() {
 
 # mycmd.source_mycmd_lib
 #   Explicitly source a MyCmd library and its dependencies by providing the
-#   directory name of the MyCmd library relative to each of the base directories 
+#   directory name of the MyCmd library relative to each of the base directories
 #   on the MyCmd Search Path.
 #
 #   For example, to source the library in ~/mycmd/requests/service1, call this

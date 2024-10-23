@@ -79,16 +79,25 @@ function test_mycmd_function_calling_lib_is_loaded() {
 # shellcheck disable=SC2016,SC2154
 function test_all_command_groups_are_loaded() {
     local -r command_group_count=7
-    assertSame "There are ${command_group_count} command groups loaded in source directories" \
+    assertEquals "There are ${command_group_count} command groups loaded in source directories" \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES[@]}"
 
-    assertSame "There are ${command_group_count} command groups loaded in source files" \
+    assertEquals "There are ${command_group_count} command groups loaded in source files" \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]}"
+
+    # Not all command groups have versions or short and long descriptions defined
+    local -r help_and_version_count=3
+    assertEquals "There are ${help_and_version_count} command groups with versions" \
+        "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_VERSIONS[@]}"
+    assertEquals "There are ${help_and_version_count} command groups with short descriptions" \
+        "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_SHORT_DESCS[@]}"
+    assertEquals "There are ${help_and_version_count} command groups with long descriptions" \
+        "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_LONG_DESCS[@]}"
 }
 
 # shellcheck disable=SC2016,SC2154
 function test_all_commands_are_loaded() {
-    assertSame "There are 6 commands loaded" \
+    assertEquals "There are 6 commands loaded" \
         6 "${#_MYCMD_COMMAND_SOURCE_FILES[@]}"
 }
 

@@ -396,7 +396,7 @@ project.register_task benchmark-list-project-tasks \
     execute-benchmark \
     "${TMP_WORKING_DIR}/project-list-tasks-benchmark.csv" \
     'mycmd project list-tasks'
-MYCMD_SEARCH_PATH=./tmp/mycmd project.register_task benchmark-mycmd \
+project.register_task benchmark-mycmd \
     execute-benchmark \
     "${TMP_WORKING_DIR}/mycmd-benchmark.csv" \
     "${BIN_DIR}/mycmd"

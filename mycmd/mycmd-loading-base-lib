@@ -23,7 +23,6 @@ fi
 
 # ------------------------------------------------------------------------------
 # Source Required Support Libraries
-
 if [[ ! -v _MYCMD_OUTPUT_LIB ]]; then
     # shellcheck source=./mycmd-output-lib
     source "${_MYCMD_LIB_DIR}/mycmd-output-lib"
