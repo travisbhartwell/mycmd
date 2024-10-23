@@ -450,9 +450,9 @@ function mycmd:command_group.get_child_command_groups() {
 
     # shellcheck disable=SC2034
     readarray -t child_command_groups_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" | 
-        grep -E "^${fully_qualified_name}/[^/]+" | 
-        LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
+            | grep -E "^${fully_qualified_name}/[^/]+$" \
+            | LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }
@@ -502,7 +502,10 @@ function mycmd:command_group.print_long_description() {
     local -n command_group_struct_ref="${1}"
 
     local long_description
-    long_description="$(mycmd:command_group.get_long_description "${!command_group_struct_ref}")"
+    if ! long_description="$(mycmd:command_group.get_long_description "${!command_group_struct_ref}")"; then
+        mycmd.debug "No long description provided"
+        return 0
+    fi
     readonly long_description
 
     mycmd.output "${long_description}"

@@ -35,6 +35,10 @@ function test_mycmd_output_lib_is_loaded() {
     assertTrue 'MyCmd Output Lib is loaded' '[ -v _MYCMD_OUTPUT_LIB ]'
 }
 
+function test_mycmd_formatted_output_lib_is_loaded() {
+    assertTrue 'MyCmd Formatted Output Lib is laoded' '[ -v _MYCMD_FORMATTED_OUTPUT_LIB ]'
+}
+
 function test_mycmd_environment_lib_is_loaded() {
     assertTrue 'MyCmd Environment Lib is loaded' '[ -v _MYCMD_ENVIRONMENT_LIB ]'
 }
