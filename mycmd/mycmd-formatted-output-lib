@@ -1,0 +1,117 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Library Formatted Output Support Library
+#   Support for Formatted Output Functions for MyCmd
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_FORMATTED_OUTPUT_LIB:-}" ]] && return
+readonly _MYCMD_FORMATTED_OUTPUT_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_COMMAND_GROUP_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_COMMAND_GROUP_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+if [[ ! -v _MYCMD_LOADING_LIB ]]; then
+    # shellcheck source=./mycmd-loading-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
+fi
+
+mycmd.load_mycmd_lib_support_lib "event-lifecycle"
+mycmd.load_mycmd_lib_support_lib "function-calling"
+mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "platform-support"
+mycmd.load_mycmd_lib_support_lib "vendoring"
+
+# ------------------------------------------------------------------------------
+# Wrap the ansi library
+if ! mycmd.load_vendor_library ansi; then
+    mycmd.log "Cannot load vendored library, ansi, providing no op pass through."
+
+    function mycmd.ansi() {
+        return 0
+    }
+else
+    function mycmd.ansi() {
+        local -r fn="ansi::${1}"
+        shift
+
+        mycmd.call_if_function_exists "${fn}" "${@}"
+    }
+fi
+
+# ------------------------------------------------------------------------------
+# Two Column Table Printing Commands
+mycmd.defer_at_startup mycmd.init_bin wc
+function mycmd:formatted_output._get_column_widths() {
+    local -n assoc_array="${1}"
+    local -ri padding="${2}"
+    local -ri min_key="${3}"
+    local -ri min_value="${4}"
+
+    local max_key_len
+    max_key_len=$(printf "%s\n" "${!assoc_array[@]}" | mycmd.bin_execute wc -L)
+    if ((max_key_len < min_key)); then
+        max_key_len=${min_key}
+    fi
+    readonly max_key_len
+
+    local max_value_len
+    max_value_len=$(printf "%s\n" "${assoc_array[@]}" | mycmd.bin_execute wc -L)
+    if ((max_value_len < min_value)); then
+        max_value_len=${min_value}
+    fi
+    readonly max_value_len
+
+    printf "%d %d\n" $((max_key_len + padding)) $((max_value_len + padding))
+}
+
+function mycmd:formatted_output.print_table() {
+    local -n data_ref="${1}"
+    local -r heading="${2}"
+    local -r key_heading="${3}"
+    local -r value_heading="${4}"
+
+    local key_width
+    local value_width
+    local total
+    local rule
+    local output_line
+    local key
+    local -a sorted_keys
+
+    if (("${#data_ref[@]}" > 0)); then
+        read -r key_width value_width <<< \
+            "$(mycmd:formatted_output._get_column_widths data_ref 5 ${#key_heading} ${#value_heading} || true)"
+
+        mycmd.trace "Key: ${key_width} Value: ${value_width}"
+
+        total=$((key_width + value_width + 1))
+        # shellcheck disable=SC2312
+        printf -v rule '=%.0s' $(seq 1 "${total}")
+
+        mycmd.output "\n${heading}\n"
+
+        printf -v output_line "%-${key_width}s %-${value_width}s" "${key_heading}" "${value_heading}"
+        mycmd.output "${output_line}\n${rule}"
+
+        readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort || true)
+
+        for key in "${sorted_keys[@]}"; do
+            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[${key}]}"
+            mycmd.output "${output_line}"
+        done
+    fi
+}
+
+mycmd.trace "The MyCmd Library Formatted Output support library has been sourced."

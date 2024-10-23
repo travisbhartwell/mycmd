@@ -26,6 +26,9 @@ readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
 readonly _MYCMD_LIB_DIR
 
+# TODO: Generate this more intelligently, including snapshot information
+readonly _MYCMD_VERSION=0.1
+
 # ------------------------------------------------------------------------------
 # Source Support Libraries
 
@@ -38,6 +41,7 @@ fi
 # Once the Loading Base library is loaded, we can use its functionality to load everything else
 # TODO: Minimize this list to only those that are directly called from mycmd-lib
 mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "formatted-output"
 mycmd.load_mycmd_lib_support_lib "environment"
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
 mycmd.load_mycmd_lib_support_lib "platform-support"
@@ -110,6 +114,37 @@ function mycmd.print_command_group_help() {
     mycmd:command_group.print_short_description command_group
     mycmd.output ""
     mycmd:command_group.print_long_description command_group
+
+    local -a child_command_groups
+    mycmd:command_group.get_child_command_groups command_group child_command_groups
+
+    if ((${#child_command_groups[@]} > 0)); then
+        local -A child_table=()
+
+        local child_fully_qualified_name
+        for child_fully_qualified_name in "${child_command_groups[@]}"; do
+            # shellcheck disable=SC2034
+            local -A child=()
+            if ! mycmd:command_group.get_command_group "${child_fully_qualified_name}" child; then
+                mycmd.debug "Error getting child command group '${child_fully_qualified_name}"
+                return 1
+            fi
+
+            local name
+            name="$(mycmd:command_group.get_name child)"
+
+            local short_descripption
+            short_descripption="$(mycmd:command_group.get_short_description child)"
+
+            # shellcheck disable=2034
+            child_table["${name}"]="${short_descripption}"
+        done
+
+        mycmd:formatted_output.print_table child_table \
+            "The following child command groups are defined:" \
+            "Group Name" \
+            "Description"
+    fi
 }
 
 # ------------------------------------------------------------------------------
