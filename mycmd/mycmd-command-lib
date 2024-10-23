@@ -69,9 +69,13 @@ function mycmd:command.file_is_command() {
         return 1
     fi
 
-    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${potential_command}"; then
-        mycmd.debug "'${potential_command}' is not located on the MyCmd Search Path."
-        return 1
+    if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
+        mycmd.trace "Skipping validation of file is on MyCmd Search path, assuming it is, as called from 'mycmd:pathname.walk_path'."
+    else
+        if ! mycmd:pathname.is_child_of_mycmd_path_directory "${potential_command}"; then
+            mycmd.debug "'${potential_command}' is not located on the MyCmd Search Path."
+            return 1
+        fi
     fi
 
     return 0
@@ -79,18 +83,12 @@ function mycmd:command.file_is_command() {
 
 function mycmd:command.register_command() {
     local -r potential_command="${1}"
+    local -r fully_qualifed_name="${2}"
 
     if ! mycmd:command.file_is_command "${potential_command}"; then
         mycmd.debug "'${potential_command}' is not a valid command."
         return 0
     fi
-
-    local fully_qualifed_name
-    if ! fully_qualifed_name="$(mycmd:pathname.fully_qualified_name_for_path "${potential_command}")"; then
-        mycmd.debug "Error getting fully qualified name for '${potential_command}'."
-        return 1
-    fi
-    readonly fully_qualifed_name
 
     if [[ -v _MYCMD_COMMAND_SOURCE_FILES[${fully_qualifed_name}] ]]; then
         if [[ "${_MYCMD_COMMAND_SOURCE_FILES[${fully_qualifed_name}]}" != "${potential_command}" ]]; then

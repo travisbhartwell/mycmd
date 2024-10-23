@@ -60,8 +60,17 @@ function mycmd:discover_command_groups_and_commands_callback() {
     fi
 
     local f
+    local file_fully_qualified_name
+    local file_name
     for f in "${files_ref[@]}"; do
-        if ! mycmd:command.register_command "${f}"; then
+        if ! file_name="$(basename "${f}")"; then
+            mycmd.debug "Error getting basename of '${f}'."
+            return 1
+        fi
+
+        file_fully_qualified_name="${fully_qualifed_name}/${file_name}"
+
+        if ! mycmd:command.register_command "${f}" "${file_fully_qualified_name}"; then
             mycmd.log "Error loading command '${f}'."
             return 1
         fi
