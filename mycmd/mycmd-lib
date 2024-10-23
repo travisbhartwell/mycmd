@@ -54,20 +54,16 @@ function mycmd:discover_command_groups_and_commands_callback() {
     local -n _dirs_ref="${3}"
     local -n files_ref="${4}"
 
-    if mycmd:command_group.directory_contains_command_group "${full_path}"; then
-        if ! mycmd:command_group.register_command_group "${full_path}"; then
-            mycmd.log "Error loading command group '${fully_qualifed_name}' from '${full_path}'."
-            return 1
-        fi
+    if ! mycmd:command_group.register_command_group "${full_path}"; then
+        mycmd.log "Error loading command group '${fully_qualifed_name}' from '${full_path}'."
+        return 1
     fi
 
     local f
     for f in "${files_ref[@]}"; do
-        if mycmd:command.file_is_command "${f}"; then
-            if ! mycmd:command.register_command "${f}"; then
-                mycmd.log "Error loading command '${f}'."
-                return 1
-            fi
+        if ! mycmd:command.register_command "${f}"; then
+            mycmd.log "Error loading command '${f}'."
+            return 1
         fi
     done
 }
