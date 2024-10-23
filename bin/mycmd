@@ -99,6 +99,7 @@ function mycmd_launcher.main() {
     # shellcheck disable=SC2154
     mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_SOURCE_FILES[@]} commands."
 
+    mycmd.print_command_group_help "mycmd/project"
 }
 
 mycmd_launcher.main "${@}"
