@@ -45,6 +45,8 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 # - A version string used in help
 
 # Global Data Structures, all keyed by the fully qualified name
+# - All Registered Command Group Names
+declare -agx _MYCMD_COMMAND_GROUPS=()
 # - Command Group Source Directories
 declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES=()
 # - Command Group Source Files
@@ -213,6 +215,7 @@ function mycmd:command_group.register_command_group() {
 
     _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${potential_command_group}"
     _MYCMD_COMMAND_GROUP_SOURCE_FILES["${fully_qualified_name}"]="${source_file_path}"
+    _MYCMD_COMMAND_GROUPS+=("${fully_qualified_name}")
 
     return 0
 }
@@ -433,6 +436,25 @@ function mycmd:command_group.get_long_description() {
     mycmd:command_group._get_optional_field_from_command_group_struct \
         "${_COMMAND_GROUP_LONG_DESC_FIELD}" \
         "${@}"
+}
+
+function mycmd:command_group.get_child_command_groups() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    local -n child_command_groups_ref="${2}"
+
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+    readonly fully_qualified_name
+
+    # shellcheck disable=SC2034
+    readarray -t child_command_groups_ref < \
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" | 
+        grep -E "^${fully_qualified_name}/[^/]+" | 
+        LC_ALL=en_US.UTF-8 sort || true)
+
+    return 0
 }
 
 function mycmd:command_group.get_version() {

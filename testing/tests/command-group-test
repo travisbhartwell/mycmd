@@ -60,8 +60,8 @@ function test_base_mycmd_command_group() {
 
     local -a parent_tree
     mycmd:command_group.get_parent_tree mycmd_command_group parent_tree
-    assertTrue 'parent_tree has one element' '(( "${#parent_tree[@]}" == 1 ))'
-    assertSame 'only element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
+    assertEquals 'parent_tree has one element' 1 "${#parent_tree[@]}"
+    assertEquals 'only element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
 }
 
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
@@ -96,6 +96,13 @@ function test_shell_extended_command_group() {
     assertSame 'first element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
     assertSame 'second element in parent tree is "mycmd/shell"' "${parent_tree[1]}" "mycmd/shell"
     assertSame 'third element in parent tree is "mycmd/shell/extended"' "${parent_tree[2]}" "mycmd/shell/extended"
+
+    local -A shell_command_group
+    mycmd:command_group.get_command_group "mycmd/shell" shell_command_group
+
+    local -a child_groups
+    mycmd:command_group.get_child_command_groups shell_command_group child_groups
+    assertEquals 'child groups has 5 elements' 1 "${#child_groups[@]}"
 }
 
 function oneTimeSetUp() {
