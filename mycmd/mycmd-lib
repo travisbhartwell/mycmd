@@ -47,7 +47,7 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 
 # ------------------------------------------------------------------------------
 # Configuring the MyCmd top-level command group
-function mycmd:discover_command_groups_and_commands_callback() {
+function mycmd.discover_command_groups_and_commands_callback() {
     local -r full_path="${1}"
     local -r fully_qualifed_name="${2}"
     # The directories are not currently used
@@ -77,11 +77,11 @@ function mycmd:discover_command_groups_and_commands_callback() {
     done
 }
 
-function mycmd:discover_command_groups_and_commands() {
-    mycmd:pathname.walk_path "mycmd" mycmd:discover_command_groups_and_commands_callback
+function mycmd.discover_command_groups_and_commands() {
+    mycmd:pathname.walk_path "mycmd" mycmd.discover_command_groups_and_commands_callback
 }
 
-mycmd:discover_command_groups_and_commands
+mycmd.discover_command_groups_and_commands
 
 # ------------------------------------------------------------------------------
 # Finalization and Clean Up
