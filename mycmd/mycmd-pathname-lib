@@ -138,8 +138,6 @@ function mycmd:pathname.walk_path_for_directory() {
 
     local f
     for f in "${absolute_path}"/*; do
-        # The current use case is to detect command groups, which are directories
-        # and commands, which are executable files, so optimizing for that.
         # TODO: Add support for symlinks?
         if [[ -d "${f}" ]]; then
             dirs+=("${f}")

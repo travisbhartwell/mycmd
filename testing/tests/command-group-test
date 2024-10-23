@@ -29,22 +29,22 @@ function test_mycmd_command_group_lib_is_loaded() {
 # shellcheck disable=SC2312
 function test_directory_is_command_group() {
     assertTrue "Directory '${MYCMD_LIB_DIRECTORY}' is a command group" \
-        "mycmd:command_group.directory_contains_command_group ${MYCMD_LIB_DIRECTORY}"
+        "mycmd:command_group.validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}"
 
     assertTrue "Directory '${MYCMD_LIB_DIRECTORY}/shell' is a command group" \
-        "mycmd:command_group.directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/shell"
+        "mycmd:command_group.validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/shell"
 
     assertTrue "Directory '${TEST_USER_LIB_DIRECTORY}/shell/extended' is a command group" \
-        "mycmd:command_group.directory_contains_command_group ${TEST_USER_LIB_DIRECTORY}/shell/extended"
+        "mycmd:command_group.validate_directory_contains_command_group  ${TEST_USER_LIB_DIRECTORY}/shell/extended"
 
     assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/foo' is a not command group" \
-        "mycmd:command_group.directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/foo"
+        "mycmd:command_group.validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/foo"
 }
 
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_base_mycmd_command_group() {
     assertTrue 'mycmd can be loaded as a command group' \
-        'mycmd:command_group.register_command_group "${MYCMD_LIB_DIRECTORY}"'
+        'mycmd:command_group.register_command_group "${MYCMD_LIB_DIRECTORY}" mycmd'
 
     local -A mycmd_command_group
     mycmd:command_group.get_command_group mycmd mycmd_command_group
@@ -67,10 +67,10 @@ function test_base_mycmd_command_group() {
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_shell_extended_command_group() {
     assertTrue "${MYCMD_LIB_DIRECTORY}/shell can be loaded as a command group" \
-        'mycmd:command_group.register_command_group "${MYCMD_LIB_DIRECTORY}/shell"'
+        'mycmd:command_group.register_command_group "${MYCMD_LIB_DIRECTORY}/shell" "mycmd/shell"'
 
     assertTrue "${TEST_USER_LIB_DIRECTORY}/shell/extended can be loaded as a command group" \
-        'mycmd:command_group.register_command_group "${TEST_USER_LIB_DIRECTORY}/shell/extended"'
+        'mycmd:command_group.register_command_group "${TEST_USER_LIB_DIRECTORY}/shell/extended" "mycmd/shell/extended"'
 
     local -A shell_extended_command_group
     mycmd:command_group.get_command_group "mycmd/shell/extended" shell_extended_command_group
