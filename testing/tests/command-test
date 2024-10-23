@@ -47,7 +47,7 @@ function test_file_is_command() {
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_test-command() {
     assertTrue 'test-command can be loaded as a command' \
-        'mycmd:command.register_command "${MYCMD_USER_BASE_DIR}/test-command"'
+        'mycmd:command.register_command "${MYCMD_USER_BASE_DIR}/test-command" "mycmd/test-command"'
 
     local -A command
     mycmd:command.get_command "mycmd/test-command" command
