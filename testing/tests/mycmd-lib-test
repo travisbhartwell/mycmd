@@ -85,8 +85,8 @@ function test_all_command_groups_are_loaded() {
     assertEquals "There are ${command_group_count} command groups loaded in source files" \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]}"
 
-    # Not all command groups have versions or short and long descriptions defined
-    local -r help_and_version_count=3
+    # Since metadata for command groups is only loaded on demand, this should be 0
+    local -r help_and_version_count=0
     assertEquals "There are ${help_and_version_count} command groups with versions" \
         "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_VERSIONS[@]}"
     assertEquals "There are ${help_and_version_count} command groups with short descriptions" \

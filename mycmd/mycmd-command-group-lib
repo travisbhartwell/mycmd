@@ -54,6 +54,11 @@ declare -Agx _MYCMD_COMMAND_GROUP_SHORT_DESCS=()
 declare -Agx _MYCMD_COMMAND_GROUP_LONG_DESCS=()
 # - Command Group Versions
 declare -Agx _MYCMD_COMMAND_GROUP_VERSIONS=()
+# - Command Groups with fully loaded metadata
+declare -Agx _MYCMD_COMMAND_GROUP_METADATA_LOADED=()
+
+# TODO: Handle this cleaner, but this is to avoid trying to load mycmd-lib
+_MYCMD_COMMAND_GROUP_METADATA_LOADED["mycmd"]=1
 
 # Command Group Data Structure
 readonly _COMMAND_GROUP_NAME_FIELD='command-group-name'
@@ -63,6 +68,7 @@ readonly _COMMAND_GROUP_SOURCE_FILE_FIELD='command-group-source-file'
 readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
 readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
 readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
+readonly _COMMAND_GROUP_METADATA_LOADED_FIELD='command-group-metadata-loaded'
 
 function mycmd:command_group.source_file_path_for_directory() {
     local -r potential_command_group="${1}"
@@ -148,7 +154,7 @@ function mycmd:command_group.register_long_description() {
     return 0
 }
 
-function mycmd:command_group.load_command_group_help_and_version() {
+function mycmd:command_group._load_command_group_help_and_version() {
     local -r fully_qualified_name="${1}"
     local -r source_file_path="${2}"
 
@@ -162,6 +168,8 @@ function mycmd:command_group.load_command_group_help_and_version() {
     fi
     unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
     unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
+
+    _MYCMD_COMMAND_GROUP_METADATA_LOADED["${fully_qualified_name}"]=1
 
     return 0
 }
@@ -200,16 +208,6 @@ function mycmd:command_group.register_command_group() {
 
     _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${potential_command_group}"
     _MYCMD_COMMAND_GROUP_SOURCE_FILES["${fully_qualified_name}"]="${source_file_path}"
-
-    # TODO: Figure out a cleaner way to do this
-    if [[ "${fully_qualified_name}" == "mycmd" ]]; then
-        return 0
-    fi
-
-    if ! mycmd:command_group.load_command_group_help_and_version "${fully_qualified_name}" "${source_file_path}"; then
-        mycmd.debug "Error loading help and version information for command group ${fully_qualified_name}."
-        return 1
-    fi
 
     return 0
 }
@@ -267,6 +265,14 @@ function mycmd:command_group.get_command_group() {
     else
         mycmd.trace "- ${_COMMAND_GROUP_VERSION_FIELD}: No value set."
     fi
+
+    if [[ -v _MYCMD_COMMAND_GROUP_METADATA_LOADED[${command_group_fq_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_METADATA_LOADED_FIELD}"]=1
+        mycmd.trace "Command Group metadata has been loaded."
+    else
+        command_group_struct_ref["${_COMMAND_GROUP_METADATA_LOADED_FIELD}"]=0
+        mycmd.trace "Command Group metadata has not been loaded."
+    fi
 }
 
 function mycmd:command_group._get_required_field_from_command_group_struct() {
@@ -277,10 +283,56 @@ function mycmd:command_group._get_required_field_from_command_group_struct() {
     echo "${command_group_struct_ref["${field_name}"]}"
 }
 
+function mycmd:command_group.load_command_group_help_and_version() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    local command_group_fq_name
+    command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+    readonly command_group_fq_name
+
+    local source_file_path
+    source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
+    readonly source_file_path
+
+    if ! mycmd:command_group.is_metadata_loaded "${!command_group_struct_ref}"; then
+        mycmd.trace "Command group metadata has not been loaded, so loading on demand."
+
+        if ! mycmd:command_group._load_command_group_help_and_version "${command_group_fq_name}" "${source_file_path}"; then
+            mycmd.debug "Error loading command group help and version information."
+            return 1
+        fi
+
+        # Reload the command group struct to get the updated metadata
+        mycmd:command_group.get_command_group "${command_group_fq_name}" "${!command_group_struct_ref}"
+    fi
+
+    return 0
+}
+
+function mycmd:command_group.is_metadata_loaded() {
+    local is_metadata_loaded
+
+    if ! is_metadata_loaded="$(mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_METADATA_LOADED_FIELD}" \
+        "${@}")"; then
+        mycmd.debug "Error getting metadata loaded field from command group."
+        return 1
+    fi
+    readonly is_metadata_loaded
+
+    [[ "${is_metadata_loaded}" == "1" ]]
+}
+
 function mycmd:command_group._get_optional_field_from_command_group_struct() {
     local -r field_name="${1}"
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${2}"
+
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
 
     if [[ -v command_group_struct_ref["${field_name}"] ]]; then
         echo "${command_group_struct_ref["${field_name}"]}"
