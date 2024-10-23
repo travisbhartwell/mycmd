@@ -79,10 +79,10 @@ function test_shell_extended_command_group() {
     assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:command_group.get_source_directory shell_extended_command_group)"
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:command_group.get_source_file shell_extended_command_group)"
-    assertEquals "MyCmd Command Group mycmd shell extended" "$(mycmd:command_group.get_short_description shell_extended_command_group)"
-    assertFalse 'There is no long description defined' \
-        'mycmd:command_group.get_long_description shell_extended_command_group'
-    assertEquals "Unknown" "$(mycmd:command_group.get_version shell_extended_command_group)"
+    assertEquals "MyCmd Shell Extended Command Group Library" "$(mycmd:command_group.get_short_description shell_extended_command_group)"
+    assertEquals "Library for common routines for extended Shell Routines." \
+        "$(mycmd:command_group.get_long_description shell_extended_command_group)"
+    assertEquals "1.0" "$(mycmd:command_group.get_version shell_extended_command_group)"
 
     local -a parent_tree
     mycmd:command_group.get_parent_tree shell_extended_command_group parent_tree

@@ -11,9 +11,9 @@ set -o nounset -o errexit -o errtrace -o pipefail
     exit 1
 }
 
-mycmd.register_command_group_version "0.1"
-mycmd.register_command_group_short_desc "MyCmd Logging Command Group Library"
-mycmd.register_command_group_long_desc "Library for common routines for logging command output."
+mycmd:command_group.register_version "0.1"
+mycmd:command_group.register_short_description "MyCmd Logging Command Group Library"
+mycmd:command_group.register_long_description "Library for common routines for logging command output."
 
 [[ -n "${_MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP:-}" ]] && return
 
