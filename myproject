@@ -377,7 +377,23 @@ project.register_task_with_fileset execute-all-tests \
 mycmd.defer_at_startup mycmd.init_bin hyperfine
 function execute-benchmark() {
     local -r output_csv="${1}"
-    shift
+    local -r benchmark_command="${2}"
+
+    local description
+    if (($# > 2)); then
+        description="${3}"
+    else
+        description="$(date '+%Y-%m-%d-%H%M%S')"
+        project.verbose "Desciption not provided, using timestamp: '${description}'."
+    fi
+    readonly description
+
+    local run_output_csv
+    if ! run_output_csv="$(mktemp -q -t "benchmark-${description}-XXXXXX.csv")"; then
+        mycmd.log "Error creating temporary file for benchmark output."
+        return 1
+    fi
+    readonly run_output_csv
 
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
@@ -385,8 +401,18 @@ function execute-benchmark() {
         PATH="${BIN_DIR}:${PATH}" \
         hyperfine \
         --warmup 5 \
-        --export-csv "${output_csv}" \
-        -- "${@}"
+        --export-csv "${run_output_csv}" \
+        -- "${benchmark_command}"
+
+    if [[ ! -e "${output_csv}" ]]; then
+        echo -n "description," >"${output_csv}"
+        head -n 1 "${run_output_csv}" >>"${output_csv}"
+    fi
+
+    echo -n "${description}," >>"${output_csv}"
+    tail -n 1 "${run_output_csv}" >>"${output_csv}"
+
+    rm -f "${run_output_csv}"
 }
 project.register_task benchmark-help \
     execute-benchmark \
