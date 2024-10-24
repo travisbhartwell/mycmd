@@ -27,7 +27,7 @@ _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LIB_SELF_FILE}")" &>/dev/null && pwd -P
 readonly _MYCMD_LIB_DIR
 
 # TODO: Generate this more intelligently, including snapshot information
-readonly _MYCMD_VERSION=0.1
+declare -rgx _MYCMD_VERSION=0.1
 
 # ------------------------------------------------------------------------------
 # Source Support Libraries
@@ -112,6 +112,7 @@ function mycmd.print_command_group_help() {
     mycmd:command_group.print_version command_group
     mycmd.output ""
     mycmd:command_group.print_short_description command_group
+    # TODO: Don't print the blank line if there is no long description
     mycmd.output ""
     mycmd:command_group.print_long_description command_group
 

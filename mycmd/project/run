@@ -2,8 +2,8 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-mycmd.register_command_version "0.1"
-mycmd.register_command_short_desc "List the tasks defined by the current myproject file."
+mycmd:command.register_version "0.1"
+mycmd:command.register_short_description "List the tasks defined by the current myproject file."
 
 mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) [[-v|--verbose] [-q|--quiet] --] <task1> [argument1..] [;]\n"
 mycmd.add_command_help_line "Multiple tasks can be specified on one command line with a semi-colon separating them. This usually needs to be escaped so the shell passes it to the command."

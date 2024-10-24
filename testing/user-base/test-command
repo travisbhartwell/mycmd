@@ -2,6 +2,9 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
+mycmd:command.register_version "0.1"
+mycmd:command.register_short_description "Test Command for MyCmd"
+
 [[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
 
 set -o nounset -o errexit -o errtrace -o pipefail

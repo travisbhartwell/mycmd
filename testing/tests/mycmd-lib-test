@@ -81,12 +81,13 @@ function test_mycmd_function_calling_lib_is_loaded() {
 }
 
 # shellcheck disable=SC2016,SC2154
-function test_all_command_groups_are_loaded() {
+function test_all_command_groups_are_registered() {
     local -r command_group_count=7
-    assertEquals "There are ${command_group_count} command groups loaded in source directories" \
+    assertEquals "There are ${command_group_count} command groups registered" \
+        "${command_group_count}" "${#_MYCMD_COMMAND_GROUPS[@]}"
+    assertEquals "There are ${command_group_count} command groups registered in source directories" \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES[@]}"
-
-    assertEquals "There are ${command_group_count} command groups loaded in source files" \
+    assertEquals "There are ${command_group_count} command groups registered in source files" \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]}"
 
     # Since metadata for command groups is only loaded on demand, this should be 0
@@ -100,9 +101,12 @@ function test_all_command_groups_are_loaded() {
 }
 
 # shellcheck disable=SC2016,SC2154
-function test_all_commands_are_loaded() {
-    assertEquals "There are 6 commands loaded" \
+function test_all_commands_are_registered() {
+    assertEquals "There are 6 commands registered with source files" \
         6 "${#_MYCMD_COMMAND_SOURCE_FILES[@]}"
+
+    assertEquals "There are 6 commands registered" \
+        6 "${#_MYCMD_COMMANDS[@]}"
 }
 
 function oneTimeSetUp() {

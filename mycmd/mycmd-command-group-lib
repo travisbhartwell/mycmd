@@ -44,9 +44,10 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 # - A long description used in help
 # - A version string used in help
 
-# Global Data Structures, all keyed by the fully qualified name
+# Global Data Structures
 # - All Registered Command Group Names
 declare -agx _MYCMD_COMMAND_GROUPS=()
+# The rest are all keyed by the fully qualified name
 # - Command Group Source Directories
 declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES=()
 # - Command Group Source Files
@@ -276,10 +277,10 @@ function mycmd:command_group.get_command_group() {
 
     if [[ -v _MYCMD_COMMAND_GROUP_METADATA_LOADED[${command_group_fq_name}] ]]; then
         command_group_struct_ref["${_COMMAND_GROUP_METADATA_LOADED_FIELD}"]=1
-        mycmd.trace "Command Group metadata has been loaded."
+        mycmd.trace "- Command Group metadata has been loaded."
     else
         command_group_struct_ref["${_COMMAND_GROUP_METADATA_LOADED_FIELD}"]=0
-        mycmd.trace "Command Group metadata has not been loaded."
+        mycmd.trace "- Command Group metadata has not been loaded."
     fi
 }
 
@@ -441,7 +442,6 @@ function mycmd:command_group.get_long_description() {
 function mycmd:command_group.get_child_command_groups() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
-
     local -n child_command_groups_ref="${2}"
 
     local fully_qualified_name

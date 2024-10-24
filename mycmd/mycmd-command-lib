@@ -42,7 +42,10 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 # - A long description used in help
 # - A version string used in help
 
-# Global Data Structures, all keyed by the fully qualified name
+# Global Data Structures
+# - All registered Commands
+declare -agx _MYCMD_COMMANDS=()
+# The rest all all keyed by the fully qualified name
 # - Command Group Source Files
 declare -Agx _MYCMD_COMMAND_SOURCE_FILES=()
 # - Command Group Short Descriptions
@@ -51,6 +54,8 @@ declare -Agx _MYCMD_COMMAND_SHORT_DESCS=()
 declare -Agx _MYCMD_COMMAND_LONG_DESCS=()
 # - Command Group Versions
 declare -Agx _MYCMD_COMMAND_VERSIONS=()
+# - Commands with fully loaded metadata
+declare -Agx _MYCMD_COMMAND_METADATA_LOADED=()
 
 # Command Data Structure
 readonly _COMMAND_NAME_FIELD='command-name'
@@ -60,6 +65,7 @@ readonly _COMMAND_SOURCE_FILE_FIELD='command-source-file'
 readonly _COMMAND_SHORT_DESC_FIELD='command-short-description'
 readonly _COMMAND_LONG_DESC_FIELD='command-long-description'
 readonly _COMMAND_VERSION_FIELD='command-version'
+readonly _COMMAND_METADATA_LOADED_FIELD='command-metadata-loaded'
 
 function mycmd:command.file_is_command() {
     local -r potential_command="${1}"
@@ -77,6 +83,42 @@ function mycmd:command.file_is_command() {
             return 1
         fi
     fi
+
+    return 0
+}
+
+function mycmd:command.register_version() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP and _MYCMD_COMMAND_FULLY_QUALIFIED_NAME must be set."
+        return 1
+    fi
+
+    local -r version="${1}"
+    _MYCMD_COMMAND_VERSIONS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]="${version}"
+
+    return 0
+}
+
+function mycmd:command.register_short_description() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP and _MYCMD_COMMAND_FULLY_QUALIFIED_NAME must be set."
+        return 1
+    fi
+
+    local -r short_description="${1}"
+    _MYCMD_COMMAND_SHORT_DESCS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]="${short_description}"
+
+    return 0
+}
+
+function mycmd:command.register_long_description() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP and _MYCMD_COMMAND_FULLY_QUALIFIED_NAME must be set."
+        return 1
+    fi
+
+    local -r long_description="${1}"
+    _MYCMD_COMMAND_LONG_DESCS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]="${long_description}"
 
     return 0
 }
@@ -102,6 +144,7 @@ function mycmd:command.register_command() {
 
     # TODO - Validate enclosing command groups are registered
     _MYCMD_COMMAND_SOURCE_FILES["${fully_qualifed_name}"]="${potential_command}"
+    _MYCMD_COMMANDS+=("${fully_qualifed_name}")
 
     return 0
 }
@@ -148,6 +191,61 @@ function mycmd:command.get_command() {
     else
         mycmd.trace "- ${_COMMAND_VERSION_FIELD}: No value set."
     fi
+
+    if [[ -v _MYCMD_COMMAND_METADATA_LOADED[${command_fq_name}] ]]; then
+        command_struct_ref["${_COMMAND_METADATA_LOADED_FIELD}"]=1
+        mycmd.trace "- Command metadata has been loaded."
+    else
+        command_struct_ref["${_COMMAND_METADATA_LOADED_FIELD}"]=0
+        mycmd.trace "- Command metadata has not been loaded."
+    fi
+}
+
+function mycmd:command._load_command_help_and_version() {
+    local -r command_fq_name="${1}"
+    local -r source_file_path="${2}"
+
+    mycmd.trace "Loading command help and version for '${command_fq_name}' from '${source_file_path}'."
+
+    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fq_name}"
+    declare -gx _MYCMD_SOURCING_COMMAND_FOR_HELP=1
+    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+        mycmd.debug "Error loading command source file '${source_file_path}'."
+        return 1
+    fi
+    unset _MYCMD_SOURCING_COMMAND_FOR_HELP
+    unset _MYCMD_COMMAND_FULLY_QUALIFIED_NAME
+
+    _MYCMD_COMMAND_METADATA_LOADED["${command_fq_name}"]=1
+
+    return 0
+}
+
+function mycmd:command.load_command_help_and_version() {
+    # shellcheck disable=SC2178
+    local -n command_struct_ref="${1}"
+
+    local command_fq_name
+    command_fq_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
+    readonly command_fq_name
+
+    local source_file_path
+    source_file_path="$(mycmd:command.get_source_file "${!command_struct_ref}")"
+    readonly source_file_path
+
+    if ! mycmd:command.is_metadata_loaded "${!command_struct_ref}"; then
+        mycmd.trace "Command metadata has not been loaded, so loading on demand."
+
+        if ! mycmd:command._load_command_help_and_version "${command_fq_name}" "${source_file_path}"; then
+            mycmd.debug "Error loading command help and version for '${command_fq_name}'."
+            return 1
+        fi
+
+        # Reload the command struct to get the updated metadata
+        mycmd:command.get_command "${command_fq_name}" "${!command_struct_ref}"
+    fi
+
+    return 0
 }
 
 function mycmd:command.execute() {
@@ -174,10 +272,28 @@ function mycmd:command._get_required_field_from_command_struct() {
     echo "${command_struct_ref["${field_name}"]}"
 }
 
+function mycmd:command.is_metadata_loaded() {
+    local is_metadata_loaded
+    if ! is_metadata_loaded="$(mycmd:command._get_required_field_from_command_struct \
+        "${_COMMAND_METADATA_LOADED_FIELD}" \
+        "${@}")"; then
+        mycmd.debug "Error getting metadata loaded field from command."
+        return 1
+    fi
+    readonly is_metadata_loaded
+
+    [[ "${is_metadata_loaded}" == "1" ]]
+}
+
 function mycmd:command._get_optional_field_from_command_struct() {
     local -r field_name="${1}"
     # shellcheck disable=SC2178
     local -n command_struct_ref="${2}"
+
+    if ! mycmd:command.load_command_help_and_version "${!command_struct_ref}"; then
+        mycmd.debug "Error loading command help and version for '${!command_struct_ref}'."
+        return 1
+    fi
 
     if [[ -v command_struct_ref["${field_name}"] ]]; then
         echo "${command_struct_ref["${field_name}"]}"
@@ -272,6 +388,19 @@ function mycmd:command.is_source_loaded() {
     readonly source_file
 
     mycmd._file_has_been_loaded "${source_file}"
+}
+
+function mycmd:command.get_child_commands_for_command_group() {
+    local -r command_group_fully_qualified_name="${1}"
+    local -n commands_array_ref="${2}"
+
+    # shellcheck disable=SC2034
+    readarray -t commands_array_ref < \
+        <(printf '%s\n' "${_MYCMD_COMMANDS[@]}" \
+            | grep -E "^${command_group_fully_qualified_name}/[^/]+$" \
+            | LC_ALL=en_US.UTF-8 sort || true)
+
+    return 0
 }
 
 mycmd.trace "The MyCmd Command support library has been sourced."
