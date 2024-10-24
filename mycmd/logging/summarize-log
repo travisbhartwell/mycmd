@@ -2,8 +2,8 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-mycmd.register_command_version "0.1"
-mycmd.register_command_short_desc "Provide summary of the specified log file, for preview."
+mycmd:command.register_version "0.1"
+mycmd:command.register_short_description "Provide summary of the specified log file, for preview."
 
 mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) <log file path>"
 mycmd.add_command_help_line "\tlog file path - the path of the log file to summarize\n"

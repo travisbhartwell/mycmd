@@ -56,10 +56,16 @@ function test_test-command() {
     assertEquals "mycmd test-command" "$(mycmd:command.get_namespaced_parts_as_string command)"
     assertEquals "mycmd" "$(mycmd:command.get_fully_qualified_command_group_name command)"
     assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file command)"
-    assertEquals "MyCmd Command mycmd test-command" "$(mycmd:command.get_short_description command)"
+    # Before loading optional data, this should be false
+    assertFalse 'Metadata is not loaded' \
+        'mycmd:command.is_metadata_loaded command'
+    assertEquals "Test Command for MyCmd" "$(mycmd:command.get_short_description command)"
     assertFalse 'There is no long description defined' \
         'mycmd:command.get_long_description command'
-    assertEquals "Unknown" "$(mycmd:command.get_version command)"
+    assertEquals "0.1" "$(mycmd:command.get_version command)"
+    # After loading optional data, this should be true
+    assertTrue 'Metadata is loaded' \
+        'mycmd:command.is_metadata_loaded command'
 }
 
 function oneTimeSetUp() {
