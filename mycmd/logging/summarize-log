@@ -5,13 +5,14 @@
 mycmd:command.register_version "0.1"
 mycmd:command.register_short_description "Provide summary of the specified log file, for preview."
 
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) <log file path>"
-mycmd.add_command_help_line "\tlog file path - the path of the log file to summarize\n"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
-mycmd.add_command_help_line "Options:"
-mycmd.add_command_help_line "\t-h | --help    - Show this help"
-mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+# shellcheck disable=SC2154
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} <log file path>"
+mycmd:command.register_help_text "\tlog file path - the path of the log file to summarize\n"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -h | --help"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -v | --version"
+mycmd:command.register_help_text "Options:"
+mycmd:command.register_help_text "\t-h | --help    - Show this help"
+mycmd:command.register_help_text "\t-v | --version - Show this command's version"
 
 [[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
 

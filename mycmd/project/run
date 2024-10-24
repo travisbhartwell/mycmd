@@ -5,17 +5,18 @@
 mycmd:command.register_version "0.1"
 mycmd:command.register_short_description "List the tasks defined by the current myproject file."
 
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) [[-v|--verbose] [-q|--quiet] --] <task1> [argument1..] [;]\n"
-mycmd.add_command_help_line "Multiple tasks can be specified on one command line with a semi-colon separating them. This usually needs to be escaped so the shell passes it to the command."
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -p | --prompt"
-mycmd.add_command_help_line "Options:"
-mycmd.add_command_help_line "\t-h | --help    - Show this help"
-mycmd.add_command_help_line "\t-v | --version - Show this command's version"
-mycmd.add_command_help_line "\t-p | --prompt  - Prompt for task to run, even if default is set"
-mycmd.add_command_help_line "\t-q | --quiet   - Only show the names of the tasks"
-mycmd.add_command_help_line "\t-V | --verbose - Show detailed information about the tasks"
+# shellcheck disable=SC2154
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} [[-v|--verbose] [-q|--quiet] --] <task1> [argument1..] [;]\n"
+mycmd:command.register_help_text "Multiple tasks can be specified on one command line with a semi-colon separating them. This usually needs to be escaped so the shell passes it to the command."
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -h | --help"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -v | --version"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -p | --prompt"
+mycmd:command.register_help_text "Options:"
+mycmd:command.register_help_text "\t-h | --help    - Show this help"
+mycmd:command.register_help_text "\t-v | --version - Show this command's version"
+mycmd:command.register_help_text "\t-p | --prompt  - Prompt for task to run, even if default is set"
+mycmd:command.register_help_text "\t-q | --quiet   - Only show the names of the tasks"
+mycmd:command.register_help_text "\t-V | --verbose - Show detailed information about the tasks"
 
 [[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
 

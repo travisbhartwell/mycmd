@@ -5,16 +5,17 @@
 mycmd:command.register_version "0.1"
 mycmd:command.register_short_description "List the tasks defined by the current myproject file."
 
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true)"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -q | --quiet"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -V | --verbose"
-mycmd.add_command_help_line "Options:"
-mycmd.add_command_help_line "\t-h | --help    - Show this help"
-mycmd.add_command_help_line "\t-v | --version - Show this command's version"
-mycmd.add_command_help_line "\t-q | --quiet   - Only show the names of the tasks"
-mycmd.add_command_help_line "\t-V | --verbose - Show detailed information about the tasks"
+# shellcheck disable=SC2154
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS}"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -h | --help"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -v | --version"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -q | --quiet"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -V | --verbose"
+mycmd:command.register_help_text "Options:"
+mycmd:command.register_help_text "\t-h | --help    - Show this help"
+mycmd:command.register_help_text "\t-v | --version - Show this command's version"
+mycmd:command.register_help_text "\t-q | --quiet   - Only show the names of the tasks"
+mycmd:command.register_help_text "\t-V | --verbose - Show detailed information about the tasks"
 
 [[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
 
