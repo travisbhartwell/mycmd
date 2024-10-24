@@ -296,16 +296,16 @@ function mycmd:command_group.load_command_group_help_and_version() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
-    local command_group_fq_name
-    command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-    readonly command_group_fq_name
-
-    local source_file_path
-    source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
-    readonly source_file_path
-
     if ! mycmd:command_group.is_metadata_loaded "${!command_group_struct_ref}"; then
         mycmd.trace "Command group metadata has not been loaded, so loading on demand."
+
+        local command_group_fq_name
+        command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+        readonly command_group_fq_name
+
+        local source_file_path
+        source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
+        readonly source_file_path
 
         if ! mycmd:command_group._load_command_group_help_and_version "${command_group_fq_name}" "${source_file_path}"; then
             mycmd.debug "Error loading command group help and version information."

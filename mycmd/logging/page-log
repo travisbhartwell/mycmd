@@ -5,18 +5,19 @@
 mycmd:command.register_version "0.1"
 mycmd:command.register_short_description "Select and page a log file previously logged with log-both."
 
-mycmd.add_command_help_line "If there are multiple rotated copies of the log file present, this will prompt the user for which version"
-mycmd.add_command_help_line "to view, unless the --log-number parameter is specified, which will open the specific one directly.\n"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) \\\\"
-mycmd.add_command_help_line "      --base-log-file-path=<base log file path> \\\\"
-mycmd.add_command_help_line "      [--log-number=<number of log file to view>] \\\\"
-mycmd.add_command_help_line "\tbase log file path  - the path of the base filename of the log to view"
-mycmd.add_command_help_line "\log number           - the number of the log file to view, 0 = most recent log stored"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -h | --help"
-mycmd.add_command_help_line "$(mycmd.running_command_parts_from_path || true) -v | --version"
-mycmd.add_command_help_line "Options:"
-mycmd.add_command_help_line "\t-h | --help    - Show this help"
-mycmd.add_command_help_line "\t-v | --version - Show this command's version"
+mycmd:command.register_help_text "If there are multiple rotated copies of the log file present, this will prompt the user for which version"
+mycmd:command.register_help_text "to view, unless the --log-number parameter is specified, which will open the specific one directly.\n"
+# shellcheck disable=SC2154
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS}"
+mycmd:command.register_help_text "      --base-log-file-path=<base log file path>"
+mycmd:command.register_help_text "      [--log-number=<number of log file to view>]"
+mycmd:command.register_help_text "\tbase log file path  - the path of the base filename of the log to view"
+mycmd:command.register_help_text "\log number           - the number of the log file to view, 0 = most recent log stored"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -h | --help"
+mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -v | --version"
+mycmd:command.register_help_text "Options:"
+mycmd:command.register_help_text "\t-h | --help    - Show this help"
+mycmd:command.register_help_text "\t-v | --version - Show this command's version"
 
 [[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
 

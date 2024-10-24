@@ -60,8 +60,8 @@ function test_test-command() {
     assertFalse 'Metadata is not loaded' \
         'mycmd:command.is_metadata_loaded command'
     assertEquals "Test Command for MyCmd" "$(mycmd:command.get_short_description command)"
-    assertFalse 'There is no long description defined' \
-        'mycmd:command.get_long_description command'
+    assertFalse 'There is no help text defined' \
+        'mycmd:command.get_help_text command'
     assertEquals "0.1" "$(mycmd:command.get_version command)"
     # After loading optional data, this should be true
     assertTrue 'Metadata is loaded' \

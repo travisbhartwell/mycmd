@@ -39,7 +39,7 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 # - Namespaced Parts - [mycmd, financial, import, chase-visa  ]
 # - A Source File - $HOME/mycmd/financial/import/chase-visa
 # - A short description used in help
-# - A long description used in help
+# - Help text used in help
 # - A version string used in help
 
 # Global Data Structures
@@ -50,8 +50,8 @@ declare -agx _MYCMD_COMMANDS=()
 declare -Agx _MYCMD_COMMAND_SOURCE_FILES=()
 # - Command Group Short Descriptions
 declare -Agx _MYCMD_COMMAND_SHORT_DESCS=()
-# - Command Group Long Descriptions
-declare -Agx _MYCMD_COMMAND_LONG_DESCS=()
+# - Command Group Help Texts
+declare -Agx _MYCMD_COMMAND_HELP_TEXTS=()
 # - Command Group Versions
 declare -Agx _MYCMD_COMMAND_VERSIONS=()
 # - Commands with fully loaded metadata
@@ -63,7 +63,7 @@ readonly _COMMAND_FULLY_QUALIFIED_NAME_FIELD='command-fully-qualified-name'
 readonly _COMMAND_FULLY_QUALIFIED_COMMAND_GROUP_NAME_FIELD='command-fully-qualified-command-group-name'
 readonly _COMMAND_SOURCE_FILE_FIELD='command-source-file'
 readonly _COMMAND_SHORT_DESC_FIELD='command-short-description'
-readonly _COMMAND_LONG_DESC_FIELD='command-long-description'
+readonly _COMMAND_HELP_TEXT_FIELD='command-help-text'
 readonly _COMMAND_VERSION_FIELD='command-version'
 readonly _COMMAND_METADATA_LOADED_FIELD='command-metadata-loaded'
 
@@ -88,8 +88,8 @@ function mycmd:command.file_is_command() {
 }
 
 function mycmd:command.register_version() {
-    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP and _MYCMD_COMMAND_FULLY_QUALIFIED_NAME must be set."
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME && ! -v _MYCMD_COMMAND_PARTS ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP, _MYCMD_COMMAND_FULLY_QUALIFIED_NAME, and _MYCMD_COMMAND_PARTS must be set."
         return 1
     fi
 
@@ -100,8 +100,8 @@ function mycmd:command.register_version() {
 }
 
 function mycmd:command.register_short_description() {
-    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP and _MYCMD_COMMAND_FULLY_QUALIFIED_NAME must be set."
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME && ! -v _MYCMD_COMMAND_PARTS ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP, _MYCMD_COMMAND_FULLY_QUALIFIED_NAME, and _MYCMD_COMMAND_PARTS must be set."
         return 1
     fi
 
@@ -111,14 +111,20 @@ function mycmd:command.register_short_description() {
     return 0
 }
 
-function mycmd:command.register_long_description() {
-    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP and _MYCMD_COMMAND_FULLY_QUALIFIED_NAME must be set."
+function mycmd:command.register_help_text() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_FOR_HELP && ! -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME && ! -v _MYCMD_COMMAND_PARTS ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_COMMAND_FOR_HELP, _MYCMD_COMMAND_FULLY_QUALIFIED_NAME, and _MYCMD_COMMAND_PARTS must be set."
         return 1
     fi
 
-    local -r long_description="${1}"
-    _MYCMD_COMMAND_LONG_DESCS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]="${long_description}"
+    local -r help_text="${1}"
+
+    if [[ -v _MYCMD_COMMAND_HELP_TEXTS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"] ]]; then
+        local existing="${_MYCMD_COMMAND_HELP_TEXTS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]}"
+        _MYCMD_COMMAND_HELP_TEXTS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]="${existing}\n${help_text}"
+    else
+        _MYCMD_COMMAND_HELP_TEXTS["${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"]="${help_text}"
+    fi
 
     return 0
 }
@@ -178,11 +184,11 @@ function mycmd:command.get_command() {
         mycmd.trace "- ${_COMMAND_SHORT_DESC_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_LONG_DESCS[${command_fq_name}] ]]; then
-        command_struct_ref["${_COMMAND_LONG_DESC_FIELD}"]="${_MYCMD_COMMAND_LONG_DESCS["${command_fq_name}"]}"
-        mycmd.trace "- ${_COMMAND_LONG_DESC_FIELD}: ${command_struct_ref["${_COMMAND_LONG_DESC_FIELD}"]}"
+    if [[ -v _MYCMD_COMMAND_HELP_TEXTS[${command_fq_name}] ]]; then
+        command_struct_ref["${_COMMAND_HELP_TEXT_FIELD}"]="${_MYCMD_COMMAND_HELP_TEXTS["${command_fq_name}"]}"
+        mycmd.trace "- ${_COMMAND_HELP_TEXT_FIELD}: ${command_struct_ref["${_COMMAND_HELP_TEXT_FIELD}"]}"
     else
-        mycmd.trace "- ${_COMMAND_LONG_DESC_FIELD}: No value set."
+        mycmd.trace "- ${_COMMAND_HELP_TEXT_FIELD}: No value set."
     fi
 
     if [[ -v _MYCMD_COMMAND_VERSIONS[${command_fq_name}] ]]; then
@@ -203,17 +209,20 @@ function mycmd:command.get_command() {
 
 function mycmd:command._load_command_help_and_version() {
     local -r command_fq_name="${1}"
-    local -r source_file_path="${2}"
+    local -r namespaced_parts_string="${2}"
+    local -r source_file_path="${3}"
 
     mycmd.trace "Loading command help and version for '${command_fq_name}' from '${source_file_path}'."
 
     declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fq_name}"
+    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
     declare -gx _MYCMD_SOURCING_COMMAND_FOR_HELP=1
     if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
         mycmd.debug "Error loading command source file '${source_file_path}'."
         return 1
     fi
     unset _MYCMD_SOURCING_COMMAND_FOR_HELP
+    unset _MYCMD_COMMAND_PARTS
     unset _MYCMD_COMMAND_FULLY_QUALIFIED_NAME
 
     _MYCMD_COMMAND_METADATA_LOADED["${command_fq_name}"]=1
@@ -225,18 +234,22 @@ function mycmd:command.load_command_help_and_version() {
     # shellcheck disable=SC2178
     local -n command_struct_ref="${1}"
 
-    local command_fq_name
-    command_fq_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
-    readonly command_fq_name
-
-    local source_file_path
-    source_file_path="$(mycmd:command.get_source_file "${!command_struct_ref}")"
-    readonly source_file_path
-
     if ! mycmd:command.is_metadata_loaded "${!command_struct_ref}"; then
         mycmd.trace "Command metadata has not been loaded, so loading on demand."
 
-        if ! mycmd:command._load_command_help_and_version "${command_fq_name}" "${source_file_path}"; then
+        local command_fq_name
+        command_fq_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
+        readonly command_fq_name
+
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
+        readonly namespaced_parts_string
+
+        local source_file_path
+        source_file_path="$(mycmd:command.get_source_file "${!command_struct_ref}")"
+        readonly source_file_path
+
+        if ! mycmd:command._load_command_help_and_version "${command_fq_name}" "${namespaced_parts_string}" "${source_file_path}"; then
             mycmd.debug "Error loading command help and version for '${command_fq_name}'."
             return 1
         fi
@@ -359,9 +372,9 @@ function mycmd:command.get_short_description() {
     return 0
 }
 
-function mycmd:command.get_long_description() {
+function mycmd:command.get_help_text() {
     mycmd:command._get_optional_field_from_command_struct \
-        "${_COMMAND_LONG_DESC_FIELD}" \
+        "${_COMMAND_HELP_TEXT_FIELD}" \
         "${@}"
 }
 
