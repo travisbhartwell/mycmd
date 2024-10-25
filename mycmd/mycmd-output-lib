@@ -61,7 +61,11 @@ function mycmd.output_with_timestamp() {
     mycmd._output_with_timestamp "${_MYCMD_OUTPUT_FD}" "$*"
 }
 
-exec {_MYCMD_LOG_FD}>&2
+if [[ -n "${MYCMD_LOG_FILE-}" ]]; then
+    exec {_MYCMD_LOG_FD}>>"${MYCMD_LOG_FILE}"
+else
+    exec {_MYCMD_LOG_FD}>&2
+fi
 readonly _MYCMD_LOG_FD
 export _MYCMD_LOG_FD
 

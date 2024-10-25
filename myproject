@@ -331,7 +331,8 @@ function summarize_test_results() {
 }
 
 function execute-test() {
-    local -r test_file="${1}"
+    local -r test_log_file="${1}"
+    local -r test_file="${2}"
 
     if [[ ! -e "${test_file}" ]]; then
         mycmd.log "Test file not found: ${test_file}"
@@ -340,8 +341,12 @@ function execute-test() {
 
     local result=0
     mycmd.log "Executing test file: ${test_file}"
+    echo "Executing test file: ${test_file}" >>"${test_log_file}"
 
     /usr/bin/env -u MYCMD_SEARCH_PATH \
+        MYCMD_TRACE=1 \
+        MYCMD_DEBUG=1 \
+        MYCMD_LOG_FILE="${test_log_file}" \
         MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
@@ -349,6 +354,7 @@ function execute-test() {
         "${test_file}" || result=$?
 
     mycmd.log "Result of ${test_file}: ${result}"
+    echo "Result of ${test_file}: ${result}" >>"${test_log_file}"
     return "${result}"
 }
 
@@ -358,10 +364,16 @@ function execute-all-tests() {
     local -A results=()
     local result
 
+    local description
+    description="$(date '+%Y-%m-%d-%H%M%S')"
+    readonly description
+
+    local -r test_log_file="${TMP_WORKING_DIR}/test-output-${description}.log"
+
     for test_file in "${test_fileset[@]}"; do
         result=0
 
-        execute-test "${test_file}" || result=$?
+        execute-test "${test_log_file}" "${test_file}" || result=$?
         # shellcheck disable=SC2034
         results["${test_file}"]="${result}"
     done
@@ -384,7 +396,7 @@ function execute-benchmark() {
         description="${3}"
     else
         description="$(date '+%Y-%m-%d-%H%M%S')"
-        project.verbose "Desciption not provided, using timestamp: '${description}'."
+        project.verbose "Description not provided, using timestamp: '${description}'."
     fi
     readonly description
 

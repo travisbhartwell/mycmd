@@ -5,6 +5,33 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 shopt -s inherit_errexit
 
+# ------------------------------------------------------------------------------
+# Early Tracing and Debugging
+
+# _MYCMD_EARLY_SHELL_TRACE and _MYCMD_EARLY_SHELL_VERBOSE are mainly for the ease of debugging
+# MyCmd itself; since the MyCmd launcher is also in shell and sources mycmd-lib, if we check
+# the user facing variables MYCMD_SHELL_TRACE and MYCMD_SHELL_VERBOSE and set the options here
+# the output will have too much of the mechanics of MyCmd itself and not the user's command.
+
+if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
+    if [[ -n "${_MYCMD_EARLY_TRACE_LOG_FILE-}" ]]; then
+        PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[0]:+${FUNCNAME[0]}()}]:[${FUNCNAME[*]}]:'
+        export PS4
+
+        exec {_MYCMD_EARLY_TRACE_LOG_FD}>>"${_MYCMD_EARLY_TRACE_LOG_FILE}"
+        BASH_XTRACEFD="${_MYCMD_EARLY_TRACE_LOG_FD}"
+    fi
+
+    set -o xtrace
+fi
+
+if [[ -n "${_MYCMD_EARLY_SHELL_VERBOSE-}" ]]; then
+    set -o verbose
+fi
+
+# ------------------------------------------------------------------------------
+# Setting up environment
+
 function mycmd_launcher.set_mycmd_system_environment() {
     _MYCMD_LAUNCHER_SELF_FILE="${BASH_SOURCE[0]}"
     MYCMD_BIN_DIR=$(cd "$(dirname "${_MYCMD_LAUNCHER_SELF_FILE}")" &>/dev/null && pwd -P)
