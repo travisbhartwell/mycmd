@@ -475,6 +475,11 @@ function mycmd:command_group.print_version() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
+
     local namespaced_parts
     namespaced_parts="$(mycmd:command_group.get_namespaced_parts_as_string "${!command_group_struct_ref}")"
     readonly namespaced_parts
@@ -490,6 +495,11 @@ function mycmd:command_group.print_short_description() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
+
     local short_description
     short_description="$(mycmd:command_group.get_short_description "${!command_group_struct_ref}")"
     readonly short_description
@@ -500,6 +510,11 @@ function mycmd:command_group.print_short_description() {
 function mycmd:command_group.print_long_description() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
+
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
 
     local long_description
     if ! long_description="$(mycmd:command_group.get_long_description "${!command_group_struct_ref}")"; then
