@@ -3,7 +3,7 @@
 # shellcheck shell=bash
 
 mycmd:command.register_version "0.1"
-mycmd:command.register_short_description "List the tasks defined by the current myproject file."
+mycmd:command.register_short_description "Run one or more tasks defined by the current myproject file."
 
 # shellcheck disable=SC2154
 mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} [[-v|--verbose] [-q|--quiet] --] <task1> [argument1..] [;]\n"

@@ -139,8 +139,8 @@ function mycmd:command_group.register_short_description() {
         return 1
     fi
 
-    local -r short_descripption="${1}"
-    _MYCMD_COMMAND_GROUP_SHORT_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${short_descripption}"
+    local -r short_description="${1}"
+    _MYCMD_COMMAND_GROUP_SHORT_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${short_description}"
 
     return 0
 }
