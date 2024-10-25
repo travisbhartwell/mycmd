@@ -403,6 +403,58 @@ function mycmd:command.is_source_loaded() {
     mycmd._file_has_been_loaded "${source_file}"
 }
 
+function mycmd:command.print_version() {
+    local -n command_struct_ref="${1}"
+
+    if ! mycmd:command.load_command_help_and_version "${!command_struct_ref}"; then
+        mycmd.debug "Error loading command help and version for '${!command_struct_ref}'."
+        return 1
+    fi
+
+    local namespaced_parts
+    namespaced_parts="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
+    readonly namespaced_parts
+
+    local version
+    version="$(mycmd:command.get_version "${!command_struct_ref}")"
+    readonly version
+
+    mycmd.output "${namespaced_parts} version ${version}"
+}
+
+function mycmd:command.print_short_description() {
+    local -n command_struct_ref="${1}"
+
+    if ! mycmd:command.load_command_help_and_version "${!command_struct_ref}"; then
+        mycmd.debug "Error loading command help and version for '${!command_struct_ref}'."
+        return 1
+    fi
+
+    local short_description
+    short_description="$(mycmd:command.get_short_description "${!command_struct_ref}")"
+    readonly short_description
+
+    mycmd.output "${short_description}"
+}
+
+function mycmd:command.print_help_text() {
+    local -n command_struct_ref="${1}"
+
+    if ! mycmd:command.load_command_help_and_version "${!command_struct_ref}"; then
+        mycmd.debug "Error loading command help and version for '${!command_struct_ref}'."
+        return 1
+    fi
+
+    local help_text
+    if ! help_text="$(mycmd:command.get_help_text "${!command_struct_ref}")"; then
+        mycmd.debug "No help text defined for command."
+        return 0
+    fi
+    readonly help_text
+
+    mycmd.output "${help_text}"
+}
+
 function mycmd:command.get_child_commands_for_command_group() {
     local -r command_group_fully_qualified_name="${1}"
     local -n commands_array_ref="${2}"

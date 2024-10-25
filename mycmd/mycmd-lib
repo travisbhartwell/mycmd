@@ -148,6 +148,23 @@ function mycmd.print_command_group_help() {
     fi
 }
 
+function mycmd.print_command_help() {
+    local -r fully_qualified_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command
+
+    if ! mycmd:command.get_command "${fully_qualified_name}" command; then
+        mycmd.log "Unknown command: '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command.print_version command
+    mycmd.output ""
+    mycmd:command.print_short_description command
+    mycmd.output ""
+    mycmd:command.print_help_text command
+}
+
 # ------------------------------------------------------------------------------
 # Finalization and Clean Up
 mycmd.discover_command_groups_and_commands
