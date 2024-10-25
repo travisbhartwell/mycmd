@@ -26,9 +26,6 @@ readonly _MYCMD_LIB_SELF_FILE="${BASH_SOURCE[0]}"
 _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
 readonly _MYCMD_LIB_DIR
 
-# TODO: Generate this more intelligently, including snapshot information
-declare -rgx _MYCMD_VERSION=0.1
-
 # ------------------------------------------------------------------------------
 # Source Support Libraries
 
@@ -81,8 +78,17 @@ function mycmd.discover_command_groups_and_commands_callback() {
     done
 }
 
+# TODO: Generate this more intelligently, including snapshot information
+declare -rgx _MYCMD_VERSION=0.1
+readonly _MYCMD_SHORT_DESCRIPTION="MyCmd: The Bash Command Framework"
+readonly _MYCMD_LONG_DESCRIPTION="MyCmd is a framework for creating and managing Bash commands and scripts."
+
 function mycmd.discover_command_groups_and_commands() {
     mycmd:pathname.walk_path "mycmd" mycmd.discover_command_groups_and_commands_callback
+
+    mycmd:command_group.register_mycmd_version_and_descriptions "${_MYCMD_VERSION}" \
+        "${_MYCMD_SHORT_DESCRIPTION}" \
+        "${_MYCMD_LONG_DESCRIPTION}"
 }
 
 # ------------------------------------------------------------------------------

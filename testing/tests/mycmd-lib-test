@@ -90,8 +90,8 @@ function test_all_command_groups_are_registered() {
     assertEquals "There are ${command_group_count} command groups registered in source files" \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]}"
 
-    # Since metadata for command groups is only loaded on demand, this should be 0
-    local -r help_and_version_count=0
+    # Since metadata for command groups is only loaded on demand, except for the top-level mycmd group, this should be 1
+    local -r help_and_version_count=1
     assertEquals "There are ${help_and_version_count} command groups with versions" \
         "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_VERSIONS[@]}"
     assertEquals "There are ${help_and_version_count} command groups with short descriptions" \
