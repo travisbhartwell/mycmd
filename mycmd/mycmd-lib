@@ -134,16 +134,47 @@ function mycmd.print_command_group_help() {
             local name
             name="$(mycmd:command_group.get_name child)"
 
-            local short_descripption
-            short_descripption="$(mycmd:command_group.get_short_description child)"
+            local short_description
+            short_description="$(mycmd:command_group.get_short_description child)"
 
             # shellcheck disable=2034
-            child_table["${name}"]="${short_descripption}"
+            child_table["${name}"]="${short_description}"
         done
 
         mycmd:formatted_output.print_table child_table \
             "The following child command groups are defined:" \
             "Group Name" \
+            "Description"
+    fi
+
+    local -a child_commands
+    mycmd:command.get_child_commands_for_command_group "${fully_qualified_name}" child_commands
+
+    if ((${#child_commands[@]} > 0)); then
+        local -A commands_table=()
+
+        local child_fully_qualified_name
+        for child_fully_qualified_name in "${child_commands[@]}"; do
+            # shellcheck disable=SC2034
+            local -A child=()
+            if ! mycmd:command.get_command "${child_fully_qualified_name}" child; then
+                mycmd.debug "Error getting child command '${child_fully_qualified_name}"
+                return 1
+            fi
+
+            local name
+            name="$(mycmd:command.get_name child)"
+
+            local short_description
+            short_description="$(mycmd:command.get_short_description child)"
+
+            # shellcheck disable=2034
+            commands_table["${name}"]="${short_description}"
+        done
+
+        mycmd:formatted_output.print_table commands_table \
+            "The following child commands are defined:" \
+            "Command Name" \
             "Description"
     fi
 }

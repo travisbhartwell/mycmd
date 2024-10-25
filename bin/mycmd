@@ -88,22 +88,6 @@ function mycmd_launcher.main() {
     # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
 
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_GROUPS[@]} command groups."
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]} command groups."
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_GROUP_VERSIONS[@]} command group short descriptions."
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_GROUP_SHORT_DESCS[@]} command group short descriptions."
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_GROUP_LONG_DESCS[@]} command group long descriptions."
-
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMANDS[@]} commands."
-    # shellcheck disable=SC2154
-    mycmd.output "Successfully loaded ${#_MYCMD_COMMAND_SOURCE_FILES[@]} commands."
-
     mycmd.print_command_group_help "mycmd"
 }
 
