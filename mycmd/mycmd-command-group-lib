@@ -178,6 +178,26 @@ function mycmd:command_group._load_command_group_help_and_version() {
     return 0
 }
 
+function mycmd:command_group.register_mycmd_version_and_descriptions() {
+    local -r version="${1}"
+    local -r short_description="${2}"
+    local -r long_description="${3}"
+
+    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="mycmd"
+    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
+
+    mycmd:command_group.register_version "${version}"
+    mycmd:command_group.register_short_description "${short_description}"
+    mycmd:command_group.register_long_description "${long_description}"
+
+    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
+    unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
+
+    _MYCMD_COMMAND_GROUP_METADATA_LOADED["mycmd"]=1
+
+    return 0
+}
+
 function mycmd:command_group.register_command_group() {
     local -r potential_command_group="${1}"
     local -r fully_qualified_name="${2}"
