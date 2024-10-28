@@ -1,29 +1,88 @@
 #+title: Mycmd Planning
 
 * Milestones
-** Separate Install vs From Development Check Out
-To make development easier especially when making sweeping changes, especially now that I'm relying on the task runner.
+** MVP
 
-*** TODO project tasks defined for managing tags
+This will be when I first merge the =rewrite= branch into =main=. Some of the work, such as getting CI integrated will have to happen post =main= merge, so the first MVP is not going to be the initial release. Basically, the done signal will be that I can switch my personal MyCmd install to use this commit.
 
-*** TODO project tasks defined for managing worktrees
+*** Features
+**** TODO Execution of MyCmd commands via =mycmd=
+**** TODO Using =mycmd= in shebang lines
+**** TODO Command Line Parsing
+**** TODO Displaying Version Information for Commands
+**** TODO Displaying Version Information for Command Groups
+**** TODO Displaying Help for Commands
+**** TODO Displaying Help for Command Groups
+**** TODO Fix =mycmd.init_bin= to work all at once
+**** TODO Installation Shell Script and Instructions
+**** TODO Zsh completion support
+**** TODO Update =mycmd/project= to work with any changes in the rewrite
 
-** Able to Port Scripts and Installation from Work Over
+** 0.1 Release
 
-** Initial MVP Release for Others to Use With Manual Installation Instructions
+This will be the release with full CI working.
 
-** MyCmd 1.0
+*** Features
+**** TODO User documentation for =mycmd= use
+**** TODO Documentation for MyCmd command group and command authors
+**** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions
+**** TODO Tests and Linters Running in GitHub Actions
+**** TODO Pull Request workflow configured with GitHub Actions that creates snapshot tags
+**** TODO Bash Completion Support
+**** TODO Fish Completion Support
+**** TODO =mycmd/shell= Command Group for shell integration
+**** TODO =mycmd/create= Command Group for creating new command groups and commands from templates
+**** TODO =mycmd/logging= works correctly on Mac OS and Linux
+**** TODO Finalize coding standards and fix any breakage
+**** TODO Get local git hooks set up and working
+**** TODO Audit support library loading
+
+** Post 0.1 Release
+*** TODO Utility to generate the flamegraphs from trace logs
+*** TODO Separate =mycmd/project= into its own project
+*** TODO Rewrite =mycmd/sessions= into its own project
+*** TODO Figure out Test Coverage
+*** TODO Out of band =myproject= files for work projects
+*** TODO Better support for executing commands and =mycmd/project= tasks in Emacs
+*** TODO Providing packages for MyCmd for package managers
+*** TODO Support for custom completion for commands
+
+* Side Quests
+** =bashdoc=
+
+Build [[https://github.com/travisbhartwell/bashdoc][bashdoc]] to generate API docs for the public APIs that MyCmd command group and command writers will use.
+
+** Internal Dependency Analysis and Linting
+
+Write tools to analysis the dependencies between the different MyCmd support libraries to:
+- minimize the functions to just those needed
+- each support library only loads the libraries it needs
+- there are no circular dependencies
+
+This could include:
+- a linter
+- visualization of dependencies with graphviz
+- call graphs
+
+** General Linters
+
+I should establish strict naming conventions for functions and variables and then implement linters to ensure that I keep to those standards.
+
+Also, I should see if there are ways to instrument this to make sure I am not accidentally leaking local variables anywhere.
+
+* Ideas
 
 * Bugs
-** Syntax or other errors when sourcing aren't caught
 
-* Task List
-** TODO Investigate mise plugins for installing MyCmd
-** TODO Update version functions to add tag information
-
-* Standards
-** For strings that do not have variables in them, use single quotes
-
-* MyCmd MyProject Tasks
-** TODO Refactor once command-group like functionality is implemented in =mycmd project=
-** TODO Add =fzf= or other fuzzy finder functionality to select tags for appropriate tasks
+* Development Log Entries
+** TODO 0.1 Release Announcement
+** TODO Why Bash?
+** TODO Higher Order Functions in Bash
+** TODO Pseudo-structs
+** TODO Safety Guarantees in MyCmd
+** TODO How MyCmd commands are executed
+** TODO How I use git worktrees in development
+** TODO Profiling Shell Script Execution
+** TODO Testing
+** TODO Output Capture and Logging
+** TODO General feature discussions
