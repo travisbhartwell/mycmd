@@ -59,61 +59,6 @@ function mycmd.load_mycmd_lib_support_lib() {
     mycmd.source_lib_by_path_if_found "${support_lib_file}"
 }
 
-function mycmd._source_mycmd_lib() {
-    local -r lib_relative_path="${1}"
-    shift
-    local -r lib_name="${1}"
-    shift
-
-    mycmd.trace "Attempting to load '${lib_name}' from '${lib_relative_path}'."
-
-    local base_dir
-    # shellcheck disable=SC2154
-    for base_dir in "${_MYCMD_SEARCH_PATH[@]}"; do
-        local lib_dir="${base_dir}/${lib_relative_path}"
-        local lib_script="${lib_dir}/${lib_name}"
-
-        if mycmd.source_lib_by_path_if_found "${lib_script}" "${@}"; then
-            return 0
-        fi
-    done
-
-    mycmd.log "Cannot find library '${lib_name}' on MyCmd Search Path."
-    return 1
-}
-
-# mycmd.source_mycmd_lib
-#   Explicitly source a MyCmd library and its dependencies by providing the
-#   directory name of the MyCmd library relative to each of the base directories
-#   on the MyCmd Search Path.
-#
-#   For example, to source the library in ~/mycmd/requests/service1, call this
-#   like this:
-#
-#   mycmd.source_mycmd_lib "requests/service1"
-function mycmd.source_mycmd_lib() {
-    local -r library_path="$1"
-    shift
-
-    local dir_parts
-    # shellcheck disable=SC2162
-    IFS="/" read -a dir_parts <<<"${library_path}"
-    readonly dir_parts
-
-    local lib_dir=""
-
-    local dir
-    for dir in "${dir_parts[@]}"; do
-        lib_dir="${lib_dir-}${lib_dir:+/}${dir}"
-
-        if ! mycmd._source_mycmd_lib "${lib_dir}" "${dir}-lib"; then
-            return 1
-        fi
-    done
-
-    return 0
-}
-
 # mycmd.source_mycmd_local_lib
 function mycmd.source_mycmd_local_lib() {
     # shellcheck disable=SC2154

@@ -41,7 +41,7 @@ mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 # Project File Sets
 # All Files
 project.register_fileset ALL_FILES
-project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SUPPORT_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
+project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" -type f
 # shellcheck disable=SC2154
 project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
 project.register_task_with_fileset list-all-files \

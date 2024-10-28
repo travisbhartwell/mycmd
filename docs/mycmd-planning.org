@@ -18,6 +18,7 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** TODO Installation Shell Script and Instructions
 **** TODO Zsh completion support
 **** TODO Update =mycmd/project= to work with any changes in the rewrite
+**** TODO Use mycmd:formatted_output in MyCmd's =myproject= instead of Gum
 
 ** 0.1 Release
 
@@ -75,6 +76,9 @@ Also, I should see if there are ways to instrument this to make sure I am not ac
 * Ideas
 
 * Bugs
+
+* Tasks
+** TODO Fix =myproject= filesets to handle non-shell files
 
 * Development Log Entries
 ** TODO 0.1 Release Announcement
