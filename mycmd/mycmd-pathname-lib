@@ -75,10 +75,6 @@ function mycmd:pathname.path_relative_to_directory() {
     fi
 }
 
-function mycmd:pathname.is_path_relative_to_directory() {
-    mycmd:pathname.path_relative_to_directory "${@}" >/dev/null
-}
-
 function mycmd:pathname.fully_qualified_name_for_path() {
     local -r full_path="${1}"
 
