@@ -9,6 +9,7 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** TODO Execution of MyCmd commands via =mycmd=
 **** TODO Using =mycmd= in shebang lines
 **** TODO Command Line Parsing
+**** TODO Clean up of launcher environment before execution
 **** TODO Displaying Version Information for Commands
 **** TODO Displaying Version Information for Command Groups
 **** TODO Displaying Help for Commands
@@ -46,6 +47,7 @@ This will be the release with full CI working.
 *** TODO Better support for executing commands and =mycmd/project= tasks in Emacs
 *** TODO Providing packages for MyCmd for package managers
 *** TODO Support for custom completion for commands
+*** TODO Mise plugin for MyCmd?
 
 * Side Quests
 ** =bashdoc=

@@ -206,6 +206,7 @@ function mycmd.print_command_help() {
 # Finalization and Clean Up
 mycmd.discover_command_groups_and_commands
 mycmd._protect_mycmd_lib
+mycmd.source_mycmd_local_lib
 mycmd.run_startup_deferreds
 
 mycmd.trace "${_MYCMD_LIB_SELF_FILE} sourcing complete."
