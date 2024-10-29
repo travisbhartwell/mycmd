@@ -406,14 +406,14 @@ function wrapped-null-glob() {
 }
 
 function get-last-test-log() {
-    local -a test_log_files=( "${TMP_WORKING_DIR}"/test-output-*.log )
+    local -a test_log_files=("${TMP_WORKING_DIR}"/test-output-*.log)
 
     if ((${#test_log_files[@]} == 0)); then
         return 1
     fi
 
     local -a sorted_logs
-    readarray -t sorted_logs < <(printf '%s\n' "${test_log_files[@]}" | sort -r || true)    
+    readarray -t sorted_logs < <(printf '%s\n' "${test_log_files[@]}" | sort -r || true)
     local -r last_test_log="${sorted_logs[0]}"
     echo "${last_test_log}"
 }

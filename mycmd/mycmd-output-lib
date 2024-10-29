@@ -104,4 +104,45 @@ function mycmd.err_exit() {
     exit "${exit_code}"
 }
 
+function mycmd.configure_shell_trace() {
+    if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
+        mycmd.trace "Early shell trace is already enabled, ignoring MYCMD_SHELL_TRACE."
+        return 0
+    fi
+
+    if [[ -n "${MYCMD_SHELL_TRACE-}" ]]; then
+        if [[ -n "${MYCMD_TRACE_LOG_FILE-}" ]]; then
+            PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[0]:+${FUNCNAME[0]}()}]:[${FUNCNAME[*]}]:'
+            export PS4
+
+            exec {_MYCMD_TRACE_LOG_FD}>>"${MYCMD_TRACE_LOG_FILE}"
+            readonly _MYCMD_TRACE_LOG_FD
+            export _MYCMD_TRACE_LOG_FD
+            BASH_XTRACEFD="${_MYCMD_TRACE_LOG_FD}"
+        fi
+
+        set -o xtrace
+    fi
+
+    return 0
+}
+
+function mycmd.configure_shell_verbosity() {
+    if [[ -n "${_MYCMD_EARLY_SHELL_VERBOSE-}" ]]; then
+        mycmd.trace "Early shell verbosity is already enabled, ignoring MYCMD_SHELL_VERBOSE."
+        return 0
+    fi
+
+    if [[ -n "${MYCMD_SHELL_VERBOSE-}" ]]; then
+        set -o verbose
+    fi
+
+    return 0
+}
+
+function mycmd.configure_shell_trace_and_verbosity() {
+    mycmd.configure_shell_trace
+    mycmd.configure_shell_verbosity
+}
+
 mycmd.trace "The MyCmd Library Output support library has been sourced."

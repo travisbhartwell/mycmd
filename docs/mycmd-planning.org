@@ -8,6 +8,7 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 *** Features
 **** DONE Loading command groups
 **** DONE Add task to look at last test log
+**** DONE Execution of commands
 **** TODO Execution of MyCmd commands via =mycmd=
 **** TODO Using =mycmd= in shebang lines
 **** TODO Command Line Parsing

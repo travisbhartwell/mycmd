@@ -19,6 +19,8 @@ if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
         export PS4
 
         exec {_MYCMD_EARLY_TRACE_LOG_FD}>>"${_MYCMD_EARLY_TRACE_LOG_FILE}"
+        readonly _MYCMD_EARLY_TRACE_LOG_FD
+        export _MYCMD_EARLY_TRACE_LOG_FD
         BASH_XTRACEFD="${_MYCMD_EARLY_TRACE_LOG_FD}"
     fi
 
@@ -115,7 +117,7 @@ function mycmd_launcher.main() {
     # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
 
-    mycmd.print_command_group_help "mycmd"
+    mycmd:command.execute_by_name "mycmd/test-command" "${@}"
 }
 
 mycmd_launcher.main "${@}"
