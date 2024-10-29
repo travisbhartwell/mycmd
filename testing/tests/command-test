@@ -61,11 +61,19 @@ function test_test-command() {
         "mycmd test-command\n\nOptions:\nmycmd test-command -h" \
         "$(mycmd:command.get_help_text command)"
     assertEquals "0.1" "$(mycmd:command.get_version command)"
+
+    assertTrue 'test-command can be executed' \
+        'mycmd:command.execute command'
 }
 
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-command-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-lib"
+
+    # Hard code these to enable testing, since command group discovery is in top-level mycmd-lib
+    _MYCMD_COMMAND_GROUPS+=("mycmd")
+    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["mycmd"]="${MYCMD_LIB_DIRECTORY}"
+    _MYCMD_COMMAND_GROUP_SOURCE_FILES["mycmd"]="${MYCMD_LIB_DIRECTORY}/mycmd-lib"
 }
 
 # shellcheck source=../vendor/shunit2

@@ -16,5 +16,6 @@ set -o nounset -o errexit -o errtrace -o pipefail
 mycmd.defer_at_startup mycmd.output "Finished starting of test-command."
 mycmd.defer_at_exit mycmd.output "Finished execution of test-command."
 function mycmd.main() {
-    mycmd.output "Running test-command."
+    mycmd.trace "Running test-command."
+    return 0
 }

@@ -31,6 +31,7 @@ mycmd.load_mycmd_lib_support_lib "event-lifecycle"
 mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "pathname"
+mycmd.load_mycmd_lib_support_lib "command-group"
 
 # A Command has:
 # - A Name:  chase-visa
@@ -261,22 +262,6 @@ function mycmd:command.load_command_help_and_version() {
     return 0
 }
 
-function mycmd:command.execute() {
-    # shellcheck disable=SC2178
-    local -n command_struct_ref="${1}"
-    shift
-
-    # Source the source file
-
-    # Get the containing command group
-
-    # Source the command group
-
-    # Validate that mycmd.main exists
-
-    # Call it and exit with the return value
-}
-
 function mycmd:command._get_required_field_from_command_struct() {
     local -r field_name="${1}"
     # shellcheck disable=SC2178
@@ -466,6 +451,76 @@ function mycmd:command.get_child_commands_for_command_group() {
             | LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
+}
+
+function mycmd:command.execute_by_name() {
+    local -r command_fully_qualified_name="${1}"
+    shift
+
+    # shellcheck disable=SC2034
+    local -A command
+    if ! mycmd:command.get_command "${command_fully_qualified_name}" command; then
+        mycmd.err "Error getting command '${command_fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command.execute command "${@}"
+}
+
+# Since calling this is the last thing that MyCmd will do, any errors here are exits
+function mycmd:command.execute() {
+    # shellcheck disable=SC2178
+    local -n command_struct_ref="${1}"
+    shift
+
+    local command_fully_qualified_name
+    command_fully_qualified_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
+    readonly command_fully_qualified_name
+
+    mycmd.trace "Executing command '${command_fully_qualified_name}'."
+
+    # Get the containing command group
+    local command_group_fully_qualified_name
+    command_group_fully_qualified_name="$(mycmd:command.get_fully_qualified_command_group_name "${!command_struct_ref}")"
+    readonly command_group_fully_qualified_name
+
+    mycmd.trace "Command Group: ${command_group_fully_qualified_name}"
+
+    # Source the command group
+    if ! mycmd:command_group.load_command_group_by_name "${command_group_fully_qualified_name}"; then
+        mycmd.err_exit 1 "Error loading command group '${command_group_fully_qualified_name}'."
+    fi
+
+    local namespaced_parts_string
+    namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
+    readonly namespaced_parts_string
+
+    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fully_qualified_name}"
+    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
+
+    # Source the source file
+    local source_file
+    if ! source_file="$(mycmd:command.get_source_file "${!command_struct_ref}")"; then
+        mycmd.err_exit 1 "Error getting source file for command '${command_fully_qualified_name}'."
+    fi
+    readonly source_file
+    mycmd.trace "Sourcing command source file: '${source_file}'."
+
+    if ! mycmd.source_lib_by_path_if_found "${source_file}"; then
+        mycmd.err_exit 1 "Error sourcing command source file '${source_file}'."
+    fi
+
+    # Validate that mycmd.main exists
+    if ! mycmd.function_exists "mycmd.main"; then
+        mycmd.err_exit 1 "Error: 'mycmd.main' function does not exist."
+    fi
+
+    mycmd.configure_shell_trace_and_verbosity
+
+    # Call it and exit with the return value
+    mycmd.main "$@"
+
+    exit $?
 }
 
 mycmd.trace "The MyCmd Command support library has been sourced."
