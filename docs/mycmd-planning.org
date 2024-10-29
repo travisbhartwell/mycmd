@@ -6,6 +6,8 @@
 This will be when I first merge the =rewrite= branch into =main=. Some of the work, such as getting CI integrated will have to happen post =main= merge, so the first MVP is not going to be the initial release. Basically, the done signal will be that I can switch my personal MyCmd install to use this commit.
 
 *** Features
+**** DONE Loading command groups
+**** DONE Add task to look at last test log
 **** TODO Execution of MyCmd commands via =mycmd=
 **** TODO Using =mycmd= in shebang lines
 **** TODO Command Line Parsing
@@ -38,6 +40,7 @@ This will be the release with full CI working.
 **** TODO Finalize coding standards and fix any breakage
 **** TODO Get local git hooks set up and working
 **** TODO Audit support library loading
+**** TODO Use log rotation for MyCmd test logs
 
 ** Post 0.1 Release
 *** TODO Utility to generate the flamegraphs from trace logs

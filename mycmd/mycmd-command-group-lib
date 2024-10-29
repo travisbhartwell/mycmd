@@ -339,6 +339,77 @@ function mycmd:command_group.load_command_group_help_and_version() {
     return 0
 }
 
+function mycmd:command_group.load_command_group_by_name() {
+    local -r command_group_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command_group_struct
+
+    if ! mycmd:command_group.get_command_group "${command_group_name}" command_group_struct; then
+        mycmd.debug "Error getting command group struct for '${command_group_name}'."
+        return 1
+    fi
+
+    if ! mycmd:command_group.load_command_group command_group_struct; then
+        mycmd.debug "Error loading command group '${command_group_name}'."
+        return 1
+    fi
+
+    return 0
+}
+
+function mycmd:command_group.load_command_group_by_name_only() {
+    local -r command_group_name="${1}"
+
+    # shellcheck disable=SC2034
+    local -A command_group_struct
+
+    if ! mycmd:command_group.get_command_group "${command_group_name}" command_group_struct; then
+        mycmd.debug "Error getting command group struct for '${command_group_name}'."
+        return 1
+    fi
+
+    if ! mycmd:command_group.load_command_group_only command_group_struct; then
+        mycmd.debug "Error loading command group '${command_group_name}'."
+        return 1
+    fi
+
+    return 0
+
+}
+
+function mycmd:command_group.load_command_group_only() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    local source_file_path
+    source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
+    readonly source_file_path
+
+    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+        mycmd.debug "Error loading command group library from '${source_file_path}'."
+        return 1
+    fi
+}
+
+function mycmd:command_group.load_command_group() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    local -a parent_tree
+    mycmd:command_group.get_parent_tree "${!command_group_struct_ref}" parent_tree
+
+    for parent in "${parent_tree[@]}"; do
+        mycmd.trace "Loading parent command group '${parent}'."
+
+        if ! mycmd:command_group.load_command_group_by_name_only "${parent}"; then
+            mycmd.debug "Error loading parent command group '${parent}'."
+            return 1
+        fi
+    done
+
+    mycmd:command_group.load_command_group_only "${!command_group_struct_ref}"
+}
+
 function mycmd:command_group.is_metadata_loaded() {
     local is_metadata_loaded
 

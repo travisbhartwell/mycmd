@@ -384,6 +384,57 @@ project.register_task_with_fileset execute-all-tests \
     execute-all-tests \
     TEST_FILES
 
+function wrapped-null-glob() {
+    local nullglob_set
+    if shopt -q nullglob; then
+        nullglob_set=0
+    else
+        nullglob_set=1
+        shopt -s nullglob
+    fi
+    readonly nullglob_set
+
+    result=0
+    "${@}" || result=$?
+
+    # unset nullglob if it wasn't originally set
+    if ((nullglob_set == 1)); then
+        shopt -u nullglob
+    fi
+
+    return "${result}"
+}
+
+function get-last-test-log() {
+    local -a test_log_files=( "${TMP_WORKING_DIR}"/test-output-*.log )
+
+    if ((${#test_log_files[@]} == 0)); then
+        return 1
+    fi
+
+    local -a sorted_logs
+    readarray -t sorted_logs < <(printf '%s\n' "${test_log_files[@]}" | sort -r || true)    
+    local -r last_test_log="${sorted_logs[0]}"
+    echo "${last_test_log}"
+}
+
+function page-last-test-log() {
+    local last_test_log
+    if ! last_test_log="$(wrapped-null-glob get-last-test-log)"; then
+        mycmd.output "No test log files found."
+        return 1
+    fi
+    readonly last_test_log
+
+    less "${last_test_log}"
+}
+project.register_task page-last-test-log
+
+function remove-test-logs() {
+    rm -f "${TMP_WORKING_DIR}"/test-output-*.log 2>/dev/null || true
+}
+project.register_task remove-test-logs
+
 #----------------------------------------
 # Benchmarking
 mycmd.defer_at_startup mycmd.init_bin hyperfine
