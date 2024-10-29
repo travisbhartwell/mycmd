@@ -22,6 +22,13 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** TODO Zsh completion support
 **** TODO Update =mycmd/project= to work with any changes in the rewrite
 **** TODO Use mycmd:formatted_output in MyCmd's =myproject= instead of Gum
+*** Functions and Refactors Needed
+**** TODO =mycmd.canonicalize_path= -> Something in =mycmd-pathname-lib=
+**** TODO =mycmd.command_help=
+**** TODO =mycmd.command_version=
+**** TODO nullglob wrapper
+**** TODO =mycmd.load_command_group_support_lib=
+**** TODO =mycmd.source_mycmd_lib=
 
 ** 0.1 Release
 
@@ -80,6 +87,7 @@ Also, I should see if there are ways to instrument this to make sure I am not ac
 * Ideas
 
 * Bugs
+** TODO =project.find_files_for_filset= should be additive
 
 * Tasks
 ** TODO Fix =myproject= filesets to handle non-shell files
