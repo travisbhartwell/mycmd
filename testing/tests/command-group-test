@@ -97,6 +97,12 @@ function test_shell_extended_command_group() {
     local -a child_groups
     mycmd:command_group.get_child_command_groups shell_command_group child_groups
     assertEquals 'child groups has 1 element' 1 "${#child_groups[@]}"
+
+    assertTrue 'Successfullly loads the command groups' \
+        'mycmd:command_group.load_command_group shell_extended_command_group'
+
+    assertTrue 'MyCmd Shell Group Lib Loaded' '[ -v _MYCMD_SHELL_LIB ]'
+    assertTrue 'MyCmd Shell Extended Group Lib Loaded' '[ -v _MYCMD_SHELL_EXTENDED_LIB ]'
 }
 
 function oneTimeSetUp() {
