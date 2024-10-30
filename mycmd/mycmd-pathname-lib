@@ -51,7 +51,7 @@ function mycmd:pathname.canonicalize_path() {
     mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${path_to_resolve}"
 }
 
-function mycmd:mycmd:pathname.canonicalize_path_missing_ok() {
+function mycmd:pathname.canonicalize_path_missing_ok() {
     local -r path_to_resolve="${1}"
 
     mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
@@ -218,6 +218,39 @@ function mycmd:pathname.walk_path() {
             mycmd:pathname.walk_path_for_directory "${full_path}" "${fully_qualifed_name}" "${callback}"
         fi
     done
+}
+
+function mycmd:pathname.find_support_library_for_command_group() {
+    local -r fully_qualified_name="${1}"
+    local -r command_group_source_directory="${2}"
+    local -r support_library_file_name="${3}"
+
+    # Strip the leading mycmd from the fully qualified name
+    local realtive_path="${fully_qualified_name#mycmd/}"
+    realtive_path="${fully_qualified_name#mycmd}"
+
+    local base
+    local full_path
+    local start=false
+    for base in "${_MYCMD_SEARCH_PATH[@]}"; do
+        full_path="${base}${relative_path:+/}${realtive_path}"
+
+        if [[ -d "${full_path}" ]]; then
+            if [[ "${full_path}" = "${command_group_source_directory}" ]]; then
+                start=true
+            fi
+
+            if [[ "${start}" == "true" ]]; then
+                local support_library_path="${full_path}/${support_library_file_name}"
+                if [[ -f "${support_library_path}" ]]; then
+                    echo "${support_library_path}"
+                    return 0
+                fi
+            fi
+        fi
+    done
+
+    return 1
 }
 
 mycmd.trace "The MyCmd Pathname support library has been sourced."

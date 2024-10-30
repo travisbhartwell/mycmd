@@ -29,7 +29,7 @@ declare -Agx _MYCMD_PROJECT_TASK_ARGUMENT_COUNTS=()
 declare -agx _MYCMD_PROJECT_TASK_ARGUMENTS=()
 declare -gx _MYCMD_PROJECT_DEFAULT_TASK
 
-mycmd.load_command_group_support_lib "task"
+mycmd:command_group.load_support_lib "task"
 
 function project:task.get_task() {
     project:task._get_task \
@@ -361,7 +361,7 @@ function project.list-files() {
 function project.load_task_library() {
     local -r task_library="${1}"
 
-    mycmd.load_command_group_support_lib "${task_library}"
+    mycmd:command_group.load_support_lib "${task_library}"
 }
 
 mycmd.trace "The MyCmd Project command group library has been sourced."

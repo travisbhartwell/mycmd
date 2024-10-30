@@ -133,6 +133,7 @@ function parse_command_line() {
     local -A errors=()
 
     # Set defaults
+    local help_or_version_found=false
     arguments_ref["${_HELP}"]=false
     arguments_ref["${_VERSION}"]=false
 
@@ -140,12 +141,14 @@ function parse_command_line() {
         case "${1}" in
             "--${_HELP}" | "-h")
                 arguments_ref["${_HELP}"]=true
+                help_or_version_found=true
                 # Ignore other arguments
                 break
                 ;;
 
             "--${_VERSION}" | "-v")
                 arguments_ref["${_VERSION}"]=true
+                help_or_version_found=true
                 # Ignore other arguments
                 break
                 ;;
@@ -217,7 +220,9 @@ function parse_command_line() {
         if [[ -v arguments_ref["${argument}"] ]]; then
             mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
         elif ! [[ -v errors["${argument}"] ]]; then
-            if ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_LOG_NUMBER}$) ]]; then
+            if [[ "${help_or_version_found}" = true ]]; then
+                mycmd.trace "Help or version found, ignoring missing argument: ${argument}."
+            elif ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_LOG_NUMBER}$) ]]; then
                 mycmd.log "Required argument '--${argument}' is not set."
                 errors["${argument}"]=1
             else

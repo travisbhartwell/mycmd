@@ -117,7 +117,7 @@ function mycmd_launcher.main() {
     # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
 
-    mycmd:command.execute_by_name "mycmd/test-command" "${@}"
+    mycmd:command.execute_by_name "mycmd/project/list-tasks" "${@}"
 }
 
 mycmd_launcher.main "${@}"
