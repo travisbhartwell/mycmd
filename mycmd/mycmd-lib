@@ -12,7 +12,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 # This file should only be sourced and not executed directly, so exit with error
-# with execution is attempted. Technique borrowed from
+# if execution is attempted. Technique borrowed from
 # https://stackoverflow.com/a/28776166
 (return 0 >/dev/null 2>&1) || {
     echo >&2 "$0 is a library only meant to be sourced."
@@ -50,13 +50,13 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 # Configuring the MyCmd top-level command group
 function mycmd.discover_command_groups_and_commands_callback() {
     local -r full_path="${1}"
-    local -r fully_qualifed_name="${2}"
+    local -r fully_qualified_name="${2}"
     # The directories are not currently used
     local -n _dirs_ref="${3}"
     local -n files_ref="${4}"
 
-    if ! mycmd:command_group.register_command_group "${full_path}" "${fully_qualifed_name}"; then
-        mycmd.log "Error loading command group '${fully_qualifed_name}' from '${full_path}'."
+    if ! mycmd:command_group.register_command_group "${full_path}" "${fully_qualified_name}"; then
+        mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
         return 1
     fi
 
@@ -69,7 +69,7 @@ function mycmd.discover_command_groups_and_commands_callback() {
             return 1
         fi
 
-        file_fully_qualified_name="${fully_qualifed_name}/${file_name}"
+        file_fully_qualified_name="${fully_qualified_name}/${file_name}"
 
         if ! mycmd:command.register_command "${f}" "${file_fully_qualified_name}"; then
             mycmd.log "Error loading command '${f}'."
@@ -89,6 +89,19 @@ function mycmd.discover_command_groups_and_commands() {
     mycmd:command_group.register_mycmd_version_and_descriptions "${_MYCMD_VERSION}" \
         "${_MYCMD_SHORT_DESCRIPTION}" \
         "${_MYCMD_LONG_DESCRIPTION}"
+}
+
+# ------------------------------------------------------------------------------
+# Loading Support Libraries
+function mycmd.source_mycmd_lib() {
+    local -r lib_name="${1}"
+    local fully_qualified_name="${lib_name}"
+    if [[ ! "${lib_name}" =~ ^mycmd ]]; then
+        fully_qualified_name="mycmd/${lib_name}"
+    fi
+    readonly fully_qualified_name
+
+    mycmd:command_group.load_command_group_by_name "${fully_qualified_name}"
 }
 
 # ------------------------------------------------------------------------------
@@ -133,7 +146,7 @@ function mycmd.print_command_group_help() {
             # shellcheck disable=SC2034
             local -A child=()
             if ! mycmd:command_group.get_command_group "${child_fully_qualified_name}" child; then
-                mycmd.debug "Error getting child command group '${child_fully_qualified_name}"
+                mycmd.debug "Error getting child command group '${child_fully_qualified_name}'"
                 return 1
             fi
 
@@ -143,7 +156,7 @@ function mycmd.print_command_group_help() {
             local short_description
             short_description="$(mycmd:command_group.get_short_description child)"
 
-            # shellcheck disable=2034
+            # shellcheck disable=SC2034
             child_table["${name}"]="${short_description}"
         done
 
@@ -164,7 +177,7 @@ function mycmd.print_command_group_help() {
             # shellcheck disable=SC2034
             local -A child=()
             if ! mycmd:command.get_command "${child_fully_qualified_name}" child; then
-                mycmd.debug "Error getting child command '${child_fully_qualified_name}"
+                mycmd.debug "Error getting child command '${child_fully_qualified_name}'"
                 return 1
             fi
 
@@ -188,7 +201,7 @@ function mycmd.print_command_group_help() {
 function mycmd.print_command_version() {
     local fully_qualified_name
     if [[ "$#" -ne 1 && -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        file_fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
+        fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
     else
         fully_qualified_name="${1}"
     fi
@@ -205,10 +218,20 @@ function mycmd.print_command_version() {
 }
 
 function mycmd.print_command_help() {
+    mycmd.trace "Printing command help, received arguments: $*"
+
+    if [[ -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.trace "MyCmd Command Fully Qualified Name is set to '${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}'."
+    else
+        mycmd.trace "_MYCMD_COMMAND_FULLY_QUALIFIED_NAME is not set."
+    fi
+
     local fully_qualified_name
     if [[ "$#" -ne 1 && -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        file_fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
+        mycmd.trace "Using _MYCMD_COMMAND_FULLY_QUALIFIED_NAME to get command."
+        fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
     else
+        mycmd.trace "Using passed argument to get command."
         fully_qualified_name="${1}"
     fi
     readonly fully_qualified_name

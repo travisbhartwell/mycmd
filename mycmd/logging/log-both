@@ -67,6 +67,7 @@ function parse_command_line() {
     shift
     local -A errors=()
 
+    local help_or_version_found=false
     local -i shift_amount=0
 
     # Set defaults
@@ -78,15 +79,19 @@ function parse_command_line() {
     arguments_ref["${_FILES_TO_KEEP_UNCOMPRESSED}"]="${_LOGGING_FILES_TO_KEEP_UNCOMPRESSED_DEFAULT}"
 
     while (($# > 0)); do
+        mycmd.trace "Examining argument: '${1}'"
+
         case "${1}" in
             "--${_HELP}" | "-h")
                 arguments_ref["${_HELP}"]=true
+                help_or_version_found=true
                 # Ignore other arguments
                 break
                 ;;
 
             "--${_VERSION}" | "-v")
                 arguments_ref["${_VERSION}"]=true
+                help_or_version_found=true
                 # Ignore other arguments
                 break
                 ;;
@@ -200,7 +205,9 @@ function parse_command_line() {
         if [[ -v arguments_ref["${argument}"] ]]; then
             mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
         elif ! [[ -v errors["${argument}"] ]]; then
-            if ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_SHIFT_AMOUNT}$) ]]; then
+            if [[ "${help_or_version_found}" = true ]]; then
+                mycmd.trace "Help or version found, ignoring missing argument: ${argument}."
+            elif ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_SHIFT_AMOUNT}$) ]]; then
                 mycmd.log "Required argument '--${argument}' is not set."
                 errors["${argument}"]=1
             elif [[ "${argument}" = "${_SHIFT_AMOUNT}" ]]; then

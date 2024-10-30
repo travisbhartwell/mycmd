@@ -525,6 +525,9 @@ function mycmd:command.execute() {
 
     mycmd.configure_shell_trace_and_verbosity
 
+    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fully_qualified_name}"
+    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
+
     local result=0
     # Call it and exit with the return value
     mycmd.main "$@" || result=$?

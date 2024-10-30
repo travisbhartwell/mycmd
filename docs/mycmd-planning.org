@@ -28,8 +28,8 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE =mycmd.command_help=
 **** DONE =mycmd.command_version=
 **** DONE nullglob wrapper
-**** TODO =mycmd.load_command_group_support_lib=
-**** TODO =mycmd.source_mycmd_lib=
+**** DONE =mycmd.load_command_group_support_lib=
+**** DONE =mycmd.source_mycmd_lib=
 
 ** 0.1 Release
 
