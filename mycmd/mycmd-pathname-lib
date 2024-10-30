@@ -45,6 +45,19 @@ function mycmd:pathname.is_valid_absolute_path_of_directory() {
 }
 
 mycmd.init_bin realpath
+function mycmd:pathname.canonicalize_path() {
+    local -r path_to_resolve="${1}"
+
+    mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${path_to_resolve}"
+}
+
+function mycmd:mycmd:pathname.canonicalize_path_missing_ok() {
+    local -r path_to_resolve="${1}"
+
+    mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
+}
+
+mycmd.init_bin realpath
 function mycmd:pathname.path_relative_to_directory() {
     local -r full_path="${1}"
     local -r base_path="${2}"

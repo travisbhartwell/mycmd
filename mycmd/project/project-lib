@@ -97,7 +97,7 @@ function project.find_up() {
     local -r name_to_find="${1}"
     local starting_dir="${2}"
 
-    if ! starting_dir="$(mycmd.canonicalize_path "${starting_dir}")"; then
+    if ! starting_dir="$(mycmd:pathname.canonicalize_path "${starting_dir}")"; then
         mycmd.debug "'${starting_dir}' not found."
         return 1
     fi
