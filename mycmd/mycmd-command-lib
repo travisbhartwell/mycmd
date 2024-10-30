@@ -36,7 +36,7 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 # A Command has:
 # - A Name:  chase-visa
 # - A Fully Qualified Name for Containing Command Group - 'mycmd/financial/import'
-# - A Fully Qualifield Name - `mycmd/financial/import/chase-visa`
+# - A Fully Qualified Name - `mycmd/financial/import/chase-visa`
 # - Namespaced Parts - [mycmd, financial, import, chase-visa  ]
 # - A Source File - $HOME/mycmd/financial/import/chase-visa
 # - A short description used in help
@@ -132,26 +132,26 @@ function mycmd:command.register_help_text() {
 
 function mycmd:command.register_command() {
     local -r potential_command="${1}"
-    local -r fully_qualifed_name="${2}"
+    local -r fully_qualified_name="${2}"
 
     if ! mycmd:command.file_is_command "${potential_command}"; then
         mycmd.debug "'${potential_command}' is not a valid command."
         return 0
     fi
 
-    if [[ -v _MYCMD_COMMAND_SOURCE_FILES[${fully_qualifed_name}] ]]; then
-        if [[ "${_MYCMD_COMMAND_SOURCE_FILES[${fully_qualifed_name}]}" != "${potential_command}" ]]; then
-            mycmd.debug "Command '${fully_qualifed_name}' has already been registered with a different source file."
+    if [[ -v _MYCMD_COMMAND_SOURCE_FILES[${fully_qualified_name}] ]]; then
+        if [[ "${_MYCMD_COMMAND_SOURCE_FILES[${fully_qualified_name}]}" != "${potential_command}" ]]; then
+            mycmd.debug "Command '${fully_qualified_name}' has already been registered with a different source file."
             return 1
         else
-            mycmd.debug "Command '${fully_qualifed_name}' has already been registered."
+            mycmd.debug "Command '${fully_qualified_name}' has already been registered."
             return 0
         fi
     fi
 
     # TODO - Validate enclosing command groups are registered
-    _MYCMD_COMMAND_SOURCE_FILES["${fully_qualifed_name}"]="${potential_command}"
-    _MYCMD_COMMANDS+=("${fully_qualifed_name}")
+    _MYCMD_COMMAND_SOURCE_FILES["${fully_qualified_name}"]="${potential_command}"
+    _MYCMD_COMMANDS+=("${fully_qualified_name}")
 
     return 0
 }
@@ -215,16 +215,17 @@ function mycmd:command._load_command_help_and_version() {
 
     mycmd.trace "Loading command help and version for '${command_fq_name}' from '${source_file_path}'."
 
-    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fq_name}"
-    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
+    local result=0
     declare -gx _MYCMD_SOURCING_COMMAND_FOR_HELP=1
-    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+    if ! mycmd:command._load_command "${command_fq_name}" "${namespaced_parts_string}" "${source_file_path}"; then
         mycmd.debug "Error loading command source file '${source_file_path}'."
         return 1
     fi
     unset _MYCMD_SOURCING_COMMAND_FOR_HELP
-    unset _MYCMD_COMMAND_PARTS
-    unset _MYCMD_COMMAND_FULLY_QUALIFIED_NAME
+
+    if ((result != 0)); then
+        return 1
+    fi
 
     _MYCMD_COMMAND_METADATA_LOADED["${command_fq_name}"]=1
 
@@ -377,17 +378,6 @@ function mycmd:command.get_version() {
     fi
 }
 
-function mycmd:command.is_source_loaded() {
-    local -n command_struct_ref="${1}"
-    local source_file
-    if ! source_file="$(mycmd:command.get_source_file "${@}")"; then
-        return 1
-    fi
-    readonly source_file
-
-    mycmd._file_has_been_loaded "${source_file}"
-}
-
 function mycmd:command.print_version() {
     local -n command_struct_ref="${1}"
 
@@ -467,6 +457,23 @@ function mycmd:command.execute_by_name() {
     mycmd:command.execute command "${@}"
 }
 
+function mycmd:command._load_command() {
+    local -r command_fq_name="${1}"
+    local -r namespaced_parts_string="${2}"
+    local -r source_file_path="${3}"
+
+    local result=0
+    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fq_name}"
+    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
+    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+        result=1
+    fi
+    unset _MYCMD_COMMAND_PARTS
+    unset _MYCMD_COMMAND_FULLY_QUALIFIED_NAME
+
+    return "${result}"
+}
+
 # Since calling this is the last thing that MyCmd will do, any errors here are exits
 function mycmd:command.execute() {
     # shellcheck disable=SC2178
@@ -488,39 +495,41 @@ function mycmd:command.execute() {
 
     # Source the command group
     if ! mycmd:command_group.load_command_group_by_name "${command_group_fully_qualified_name}"; then
-        mycmd.err_exit 1 "Error loading command group '${command_group_fully_qualified_name}'."
+        mycmd.log "Error loading command group '${command_group_fully_qualified_name}'."
+        return 1
     fi
 
     local namespaced_parts_string
     namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
     readonly namespaced_parts_string
 
-    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fully_qualified_name}"
-    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
-
     # Source the source file
     local source_file
     if ! source_file="$(mycmd:command.get_source_file "${!command_struct_ref}")"; then
-        mycmd.err_exit 1 "Error getting source file for command '${command_fully_qualified_name}'."
+        mycmd.log "Error getting source file for command '${command_fully_qualified_name}'."
+        return 1
     fi
     readonly source_file
     mycmd.trace "Sourcing command source file: '${source_file}'."
 
-    if ! mycmd.source_lib_by_path_if_found "${source_file}"; then
-        mycmd.err_exit 1 "Error sourcing command source file '${source_file}'."
+    if ! mycmd:command._load_command "${command_fully_qualified_name}" "${namespaced_parts_string}" "${source_file}"; then
+        mycmd.log "Error sourcing command source file '${source_file}'."
+        return 1
     fi
 
     # Validate that mycmd.main exists
     if ! mycmd.function_exists "mycmd.main"; then
-        mycmd.err_exit 1 "Error: 'mycmd.main' function does not exist."
+        mycmd.log "Error: 'mycmd.main' function does not exist."
+        return 1
     fi
 
     mycmd.configure_shell_trace_and_verbosity
 
+    local result=0
     # Call it and exit with the return value
-    mycmd.main "$@"
+    mycmd.main "$@" || result=$?
 
-    exit $?
+    return "${result}"
 }
 
 mycmd.trace "The MyCmd Command support library has been sourced."
