@@ -34,7 +34,7 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 
 # A Command Group has:
 # - A Name: import
-# - A Fully Qualifield Name - `mycmd/financial/import`
+# - A Fully Qualified Name - `mycmd/financial/import`
 # - Namespaced Parts - [mycmd, financial, import]
 # - A Source Directory - $HOME/mycmd/financial/import/
 # - A Source File - $HOME/mycmd/financial/import/import-lib
@@ -152,8 +152,8 @@ function mycmd:command_group.register_long_description() {
         return 1
     fi
 
-    local -r long_descripption="${1}"
-    _MYCMD_COMMAND_GROUP_LONG_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${long_descripption}"
+    local -r long_description="${1}"
+    _MYCMD_COMMAND_GROUP_LONG_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${long_description}"
 
     return 0
 }
@@ -162,16 +162,20 @@ function mycmd:command_group._load_command_group_help_and_version() {
     local -r fully_qualified_name="${1}"
     local -r source_file_path="${2}"
 
+    local result=0
     mycmd.trace "Loading help and version information for command group '${fully_qualified_name}' at file '${source_file_path}'."
 
-    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
     declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
-    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
         mycmd.debug "Error loading command group help and version information from '${source_file_path}'."
-        return 1
+        result=1
     fi
     unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
     unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
+
+    if ((result != 0)); then
+        return 1
+    fi
 
     _MYCMD_COMMAND_GROUP_METADATA_LOADED["${fully_qualified_name}"]=1
 
@@ -377,15 +381,33 @@ function mycmd:command_group.load_command_group_by_name_only() {
 
 }
 
+function mycmd:command_group._load_command_group_only() {
+    local -r fully_qualified_name="${1}"
+    local -r source_file_path="${2}"
+
+    local result=0
+    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
+    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+        result=1
+    fi
+    unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
+
+    return "${result}"
+}
+
 function mycmd:command_group.load_command_group_only() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
+
+    local command_group_fq_name
+    command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+    readonly command_group_fq_name
 
     local source_file_path
     source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
     readonly source_file_path
 
-    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+    if ! mycmd:command_group._load_command_group_only "${command_group_fq_name}" "${source_file_path}"; then
         mycmd.debug "Error loading command group library from '${source_file_path}'."
         return 1
     fi

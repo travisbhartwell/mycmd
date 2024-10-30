@@ -88,6 +88,7 @@ Also, I should see if there are ways to instrument this to make sure I am not ac
 
 * Bugs
 ** TODO =project.find_files_for_filset= should be additive
+** DONE Command group loading needs to set environment variables
 
 * Tasks
 ** TODO Fix =myproject= filesets to handle non-shell files
