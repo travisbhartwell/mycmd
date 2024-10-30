@@ -35,17 +35,17 @@ function summarize_log() {
 
 function mycmd.main() {
     if (($# < 1)); then
-        mycmd.command_help
+        mycmd.print_command_help
         exit 1
     fi
 
     if [[ "${1}" = "--help" || "${1}" = "-h" ]]; then
-        mycmd.command_help
+        mycmd.print_command_help
         exit 0
     fi
 
     if [[ "${1}" = "--version" || "${1}" = "-v" ]]; then
-        mycmd.command_version
+        mycmd.print_command_version
         exit 0
     fi
 

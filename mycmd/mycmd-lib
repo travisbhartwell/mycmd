@@ -185,8 +185,34 @@ function mycmd.print_command_group_help() {
     fi
 }
 
+function mycmd.print_command_version() {
+    local fully_qualified_name
+    if [[ "$#" -ne 1 && -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
+        file_fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
+    else
+        fully_qualified_name="${1}"
+    fi
+    readonly fully_qualified_name
+
+    local -A command
+
+    if ! mycmd:command.get_command "${fully_qualified_name}" command; then
+        mycmd.log "Unknown command: '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command.print_version command
+}
+
 function mycmd.print_command_help() {
-    local -r fully_qualified_name="${1}"
+    local fully_qualified_name
+    if [[ "$#" -ne 1 && -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
+        file_fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
+    else
+        fully_qualified_name="${1}"
+    fi
+    readonly fully_qualified_name
+
     # shellcheck disable=SC2034
     local -A command
 

@@ -127,15 +127,7 @@ function mycmd:pathname.is_child_of_mycmd_path_directory() {
     return 0
 }
 
-function mycmd:pathname.walk_path_for_directory() {
-    local -r absolute_path="${1}"
-    local -r fully_qualifed_name="${2}"
-    local -r callback="${3}"
-
-    local -a dirs=()
-    local -a files=()
-
-    # set nullglob if it wasn't originally set
+function mycmd:pathname.nullglob_set_wrapper() {
     local nullglob_set
     if shopt -q nullglob; then
         nullglob_set=0
@@ -145,8 +137,41 @@ function mycmd:pathname.walk_path_for_directory() {
     fi
     readonly nullglob_set
 
+    result=0
+    "${@}" || result=$?
+
+    # unset nullglob if it wasn't originally set
+    if ((nullglob_set == 1)); then
+        shopt -u nullglob
+    fi
+
+    return "${result}"
+}
+
+function mycmd:pathname.gather_files_and_directories() {
+    local -r absolute_path="${1}"
+
     local f
     for f in "${absolute_path}"/*; do
+        echo "${f}"
+    done
+}
+
+function mycmd:pathname.walk_path_for_directory() {
+    local -r absolute_path="${1}"
+    local -r fully_qualifed_name="${2}"
+    local -r callback="${3}"
+
+    local -a dirs=()
+    local -a files=()
+    local -a child_paths
+
+    readarray -t child_paths < <(mycmd:pathname.nullglob_set_wrapper mycmd:pathname.gather_files_and_directories "${absolute_path}" || true)
+    local f
+
+    for f in "${child_paths[@]}"; do
+        mycmd.trace "Processing '${f}'."
+
         # TODO: Add support for symlinks?
         if [[ -d "${f}" ]]; then
             dirs+=("${f}")
@@ -154,11 +179,6 @@ function mycmd:pathname.walk_path_for_directory() {
             files+=("${f}")
         fi
     done
-
-    # unset nullglob if it wasn't originally set
-    if ((nullglob_set == 1)); then
-        shopt -u nullglob
-    fi
 
     if (("${#dirs[@]}" > 0 || "${#files[@]}" > 0)); then
         if ! "${callback}" "${absolute_path}" "${fully_qualifed_name}" dirs files; then
