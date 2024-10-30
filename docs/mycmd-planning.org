@@ -22,11 +22,12 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** TODO Zsh completion support
 **** TODO Update =mycmd/project= to work with any changes in the rewrite
 **** TODO Use mycmd:formatted_output in MyCmd's =myproject= instead of Gum
+**** TODO Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
 *** Functions and Refactors Needed
-**** TODO =mycmd.canonicalize_path= -> Something in =mycmd-pathname-lib=
-**** TODO =mycmd.command_help=
-**** TODO =mycmd.command_version=
-**** TODO nullglob wrapper
+**** DONE =mycmd.canonicalize_path= -> Something in =mycmd-pathname-lib=
+**** DONE =mycmd.command_help=
+**** DONE =mycmd.command_version=
+**** DONE nullglob wrapper
 **** TODO =mycmd.load_command_group_support_lib=
 **** TODO =mycmd.source_mycmd_lib=
 
@@ -49,6 +50,7 @@ This will be the release with full CI working.
 **** TODO Get local git hooks set up and working
 **** TODO Audit support library loading
 **** TODO Use log rotation for MyCmd test logs
+**** TODO Feature detection for Bash version requirements
 
 ** Post 0.1 Release
 *** TODO Utility to generate the flamegraphs from trace logs

@@ -224,12 +224,12 @@ function mycmd.main() {
     fi
 
     if [[ "${parsed_arguments[${_HELP}]}" = "true" ]]; then
-        mycmd.command_help
+        mycmd.print_command_help
         exit 0
     fi
 
     if [[ "${parsed_arguments[${_VERSION}]}" = "true" ]]; then
-        mycmd.command_version
+        mycmd.print_command_version
         exit 0
     fi
 
