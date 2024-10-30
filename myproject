@@ -891,8 +891,14 @@ project.register_task update-snapshot-worktree-to-latest-development-snapshot \
 
 #----------------------------------------
 # Run everything
+mycmd.defer_at_startup mycmd.init_bin find
+function clean-up() {
+    mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type f -name '.DS_Store' -delete
+}
+project.register_task clean-up
+
 function all() {
-    project.execute_tasks format lint execute-all-tests
+    project.execute_tasks clean-up format lint execute-all-tests
 }
 project.register_task all
 project.register_default_task all
