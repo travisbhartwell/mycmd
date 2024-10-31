@@ -172,12 +172,12 @@ function mycmd.print_command_group_help() {
     if ((${#child_commands[@]} > 0)); then
         local -A commands_table=()
 
-        local child_fully_qualified_name
-        for child_fully_qualified_name in "${child_commands[@]}"; do
+        local command_fully_qualified_name
+        for command_fully_qualified_name in "${child_commands[@]}"; do
             # shellcheck disable=SC2034
             local -A child=()
-            if ! mycmd:command.get_command "${child_fully_qualified_name}" child; then
-                mycmd.debug "Error getting child command '${child_fully_qualified_name}'"
+            if ! mycmd:command.get_command "${command_fully_qualified_name}" child; then
+                mycmd.debug "Error getting child command '${command_fully_qualified_name}'"
                 return 1
             fi
 

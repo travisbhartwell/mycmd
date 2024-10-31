@@ -41,7 +41,12 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## The Command Group inherits the code from the command groups above it in the heirarchy and any
 ## of the Commands and Command Groups it contains will inherit the Command Group's provided
 ## code.
-
+##
+## A Command Group is described by the following attributes:
+## - A name, for example, 'import'
+##
+## - A fully qualified name, representing the fully path in the hierarchy, for example, 'mycmd/financial/import'
+##
 # A Command Group has:
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
@@ -267,49 +272,49 @@ function mycmd:command_group._dump_source_data() {
 }
 
 function mycmd:command_group.get_command_group() {
-    local -r command_group_fq_name="${1}"
+    local -r fully_qualified_name="${1}"
     local -n command_group_struct_ref="${2}"
 
-    if [[ ! -v _MYCMD_COMMAND_GROUP_SOURCE_FILES[${command_group_fq_name}] ]]; then
-        mycmd.log "Unknown command group: '${command_group_fq_name}'."
+    if [[ ! -v _MYCMD_COMMAND_GROUP_SOURCE_FILES[${fully_qualified_name}] ]]; then
+        mycmd.log "Unknown command group: '${fully_qualified_name}'."
         return 1
     fi
 
     mycmd.trace "Returning Command Group definition:"
-    command_group_struct_ref["${_COMMAND_GROUP_NAME_FIELD}"]="$(basename "${command_group_fq_name}")"
+    command_group_struct_ref["${_COMMAND_GROUP_NAME_FIELD}"]="$(basename "${fully_qualified_name}")"
     mycmd.trace "- ${_COMMAND_GROUP_NAME_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_NAME_FIELD}"]}"
 
-    command_group_struct_ref["${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}"]="${command_group_fq_name}"
+    command_group_struct_ref["${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}"]="${fully_qualified_name}"
     mycmd.trace "- ${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}"]}"
 
-    command_group_struct_ref["${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${command_group_fq_name}"]}"
+    command_group_struct_ref["${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]}"
     mycmd.trace "- ${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}"]}"
 
-    command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_FILES["${command_group_fq_name}"]}"
+    command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_GROUP_SOURCE_FILES["${fully_qualified_name}"]}"
     mycmd.trace "- ${_COMMAND_GROUP_SOURCE_FILE_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SOURCE_FILE_FIELD}"]}"
 
-    if [[ -v _MYCMD_COMMAND_GROUP_SHORT_DESCS[${command_group_fq_name}] ]]; then
-        command_group_struct_ref["${_COMMAND_GROUP_SHORT_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_SHORT_DESCS["${command_group_fq_name}"]}"
+    if [[ -v _MYCMD_COMMAND_GROUP_SHORT_DESCS[${fully_qualified_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_SHORT_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_SHORT_DESCS["${fully_qualified_name}"]}"
         mycmd.trace "- ${_COMMAND_GROUP_SHORT_DESC_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_SHORT_DESC_FIELD}"]}"
     else
         mycmd.trace "- ${_COMMAND_GROUP_SHORT_DESC_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_GROUP_LONG_DESCS[${command_group_fq_name}] ]]; then
-        command_group_struct_ref["${_COMMAND_GROUP_LONG_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_LONG_DESCS["${command_group_fq_name}"]}"
+    if [[ -v _MYCMD_COMMAND_GROUP_LONG_DESCS[${fully_qualified_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_LONG_DESC_FIELD}"]="${_MYCMD_COMMAND_GROUP_LONG_DESCS["${fully_qualified_name}"]}"
         mycmd.trace "- ${_COMMAND_GROUP_LONG_DESC_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_LONG_DESC_FIELD}"]}"
     else
         mycmd.trace "- ${_COMMAND_GROUP_LONG_DESC_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_GROUP_VERSIONS[${command_group_fq_name}] ]]; then
-        command_group_struct_ref["${_COMMAND_GROUP_VERSION_FIELD}"]="${_MYCMD_COMMAND_GROUP_VERSIONS["${command_group_fq_name}"]}"
+    if [[ -v _MYCMD_COMMAND_GROUP_VERSIONS[${fully_qualified_name}] ]]; then
+        command_group_struct_ref["${_COMMAND_GROUP_VERSION_FIELD}"]="${_MYCMD_COMMAND_GROUP_VERSIONS["${fully_qualified_name}"]}"
         mycmd.trace "- ${_COMMAND_GROUP_VERSION_FIELD}: ${command_group_struct_ref["${_COMMAND_GROUP_VERSION_FIELD}"]}"
     else
         mycmd.trace "- ${_COMMAND_GROUP_VERSION_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_GROUP_METADATA_LOADED[${command_group_fq_name}] ]]; then
+    if [[ -v _MYCMD_COMMAND_GROUP_METADATA_LOADED[${fully_qualified_name}] ]]; then
         command_group_struct_ref["${_COMMAND_GROUP_METADATA_LOADED_FIELD}"]=1
         mycmd.trace "- Command Group metadata has been loaded."
     else
@@ -333,21 +338,21 @@ function mycmd:command_group.load_command_group_help_and_version() {
     if ! mycmd:command_group.is_metadata_loaded "${!command_group_struct_ref}"; then
         mycmd.trace "Command group metadata has not been loaded, so loading on demand."
 
-        local command_group_fq_name
-        command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-        readonly command_group_fq_name
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+        readonly fully_qualified_name
 
         local source_file_path
         source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
         readonly source_file_path
 
-        if ! mycmd:command_group._load_command_group_help_and_version "${command_group_fq_name}" "${source_file_path}"; then
+        if ! mycmd:command_group._load_command_group_help_and_version "${fully_qualified_name}" "${source_file_path}"; then
             mycmd.debug "Error loading command group help and version information."
             return 1
         fi
 
         # Reload the command group struct to get the updated metadata
-        mycmd:command_group.get_command_group "${command_group_fq_name}" "${!command_group_struct_ref}"
+        mycmd:command_group.get_command_group "${fully_qualified_name}" "${!command_group_struct_ref}"
     fi
 
     return 0
@@ -423,8 +428,9 @@ function mycmd:command_group.get_command_group_from_file() {
 }
 
 function mycmd:command_group.load_support_lib() {
-    local fully_qualified_name
+    local -r support_library_name="${1}"
 
+    local fully_qualified_name
     if [[ -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
         fully_qualified_name="${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"
     else
@@ -433,17 +439,10 @@ function mycmd:command_group.load_support_lib() {
             return 1
         fi
     fi
-
-    local fully_qualified_name
-    if [[ -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
-        fully_qualified_name="${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"
-    fi
     readonly fully_qualified_name
-    local -r support_library_name="${1}"
 
     # shellcheck disable=SC2034
     local -A command_group_struct
-
     if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group_struct; then
         mycmd.debug "Error getting command group struct for '${fully_qualified_name}'."
         return 1
@@ -493,15 +492,15 @@ function mycmd:command_group.load_command_group_only() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
-    local command_group_fq_name
-    command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-    readonly command_group_fq_name
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+    readonly fully_qualified_name
 
     local source_file_path
     source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
     readonly source_file_path
 
-    if ! mycmd:command_group._load_command_group_only "${command_group_fq_name}" "${source_file_path}"; then
+    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
         mycmd.debug "Error loading command group library from '${source_file_path}'."
         return 1
     fi
@@ -554,10 +553,11 @@ function mycmd:command_group._get_optional_field_from_command_group_struct() {
         echo "${command_group_struct_ref["${field_name}"]}"
         return 0
     else
-        local command_group_fq_name
-        command_group_fq_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-        readonly command_group_fq_name
-        mycmd.trace "No value for '${field_name}' defined for command group '${command_group_fq_name}'."
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+        readonly fully_qualified_name
+
+        mycmd.trace "No value for '${field_name}' defined for command group '${fully_qualified_name}'."
         return 1
     fi
 }
@@ -632,6 +632,7 @@ function mycmd:command_group.get_short_description() {
         local namespaced_parts
         namespaced_parts="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
         readonly namespaced_parts
+
         short_description="MyCmd Command Group ${namespaced_parts}"
         readonly short_description
     fi
@@ -657,9 +658,9 @@ function mycmd:command_group.get_child_command_groups() {
 
     # shellcheck disable=SC2034
     readarray -t child_command_groups_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" |
-            grep -E "^${fully_qualified_name}/[^/]+$" |
-            LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
+            | grep -E "^${fully_qualified_name}/[^/]+$" \
+            | LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }
