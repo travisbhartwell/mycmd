@@ -38,6 +38,12 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 ##
 ## A Command is a script executed by MyCmd.
 ##
+## A Command is described by the following attributes:
+## - A name, for example 'chase-visa'
+##
+## - The fully qualified name of the containing Command Group, for example, 'mycmd/financial/import'
+##
+## - A fully qualified name, representing the fully path in the hierarchy, for example, 'mycmd/financial/import/chase-visa'
 
 # A Command has:
 # - A Name:  chase-visa
@@ -163,49 +169,49 @@ function mycmd:command.register_command() {
 }
 
 function mycmd:command.get_command() {
-    local -r command_fq_name="${1}"
+    local -r fully_qualified_name="${1}"
     local -n command_struct_ref="${2}"
 
-    if [[ ! -v _MYCMD_COMMAND_SOURCE_FILES[${command_fq_name}] ]]; then
-        mycmd.log "Unknown command: '${command_fq_name}'."
+    if [[ ! -v _MYCMD_COMMAND_SOURCE_FILES[${fully_qualified_name}] ]]; then
+        mycmd.log "Unknown command: '${fully_qualified_name}'."
         return 1
     fi
 
     mycmd.trace "Returning Command definition:"
-    command_struct_ref["${_COMMAND_NAME_FIELD}"]="$(basename "${command_fq_name}")"
+    command_struct_ref["${_COMMAND_NAME_FIELD}"]="$(basename "${fully_qualified_name}")"
     mycmd.trace "- ${_COMMAND_NAME_FIELD}: ${command_struct_ref["${_COMMAND_NAME_FIELD}"]}"
 
-    command_struct_ref["${_COMMAND_FULLY_QUALIFIED_NAME_FIELD}"]="${command_fq_name}"
+    command_struct_ref["${_COMMAND_FULLY_QUALIFIED_NAME_FIELD}"]="${fully_qualified_name}"
     mycmd.trace "- ${_COMMAND_FULLY_QUALIFIED_NAME_FIELD}: ${command_struct_ref["${_COMMAND_FULLY_QUALIFIED_NAME_FIELD}"]}"
 
-    command_struct_ref["${_COMMAND_FULLY_QUALIFIED_COMMAND_GROUP_NAME_FIELD}"]="$(dirname "${command_fq_name}")"
+    command_struct_ref["${_COMMAND_FULLY_QUALIFIED_COMMAND_GROUP_NAME_FIELD}"]="$(dirname "${fully_qualified_name}")"
     mycmd.trace "- ${_COMMAND_FULLY_QUALIFIED_COMMAND_GROUP_NAME_FIELD}: ${command_struct_ref["${_COMMAND_FULLY_QUALIFIED_COMMAND_GROUP_NAME_FIELD}"]}"
 
-    command_struct_ref["${_COMMAND_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_SOURCE_FILES["${command_fq_name}"]}"
+    command_struct_ref["${_COMMAND_SOURCE_FILE_FIELD}"]="${_MYCMD_COMMAND_SOURCE_FILES["${fully_qualified_name}"]}"
     mycmd.trace "- ${_COMMAND_SOURCE_FILE_FIELD}: ${command_struct_ref["${_COMMAND_SOURCE_FILE_FIELD}"]}"
 
-    if [[ -v _MYCMD_COMMAND_SHORT_DESCS[${command_fq_name}] ]]; then
-        command_struct_ref["${_COMMAND_SHORT_DESC_FIELD}"]="${_MYCMD_COMMAND_SHORT_DESCS["${command_fq_name}"]}"
+    if [[ -v _MYCMD_COMMAND_SHORT_DESCS[${fully_qualified_name}] ]]; then
+        command_struct_ref["${_COMMAND_SHORT_DESC_FIELD}"]="${_MYCMD_COMMAND_SHORT_DESCS["${fully_qualified_name}"]}"
         mycmd.trace "- ${_COMMAND_SHORT_DESC_FIELD}: ${command_struct_ref["${_COMMAND_SHORT_DESC_FIELD}"]}"
     else
         mycmd.trace "- ${_COMMAND_SHORT_DESC_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_HELP_TEXTS[${command_fq_name}] ]]; then
-        command_struct_ref["${_COMMAND_HELP_TEXT_FIELD}"]="${_MYCMD_COMMAND_HELP_TEXTS["${command_fq_name}"]}"
+    if [[ -v _MYCMD_COMMAND_HELP_TEXTS[${fully_qualified_name}] ]]; then
+        command_struct_ref["${_COMMAND_HELP_TEXT_FIELD}"]="${_MYCMD_COMMAND_HELP_TEXTS["${fully_qualified_name}"]}"
         mycmd.trace "- ${_COMMAND_HELP_TEXT_FIELD}: ${command_struct_ref["${_COMMAND_HELP_TEXT_FIELD}"]}"
     else
         mycmd.trace "- ${_COMMAND_HELP_TEXT_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_VERSIONS[${command_fq_name}] ]]; then
-        command_struct_ref["${_COMMAND_VERSION_FIELD}"]="${_MYCMD_COMMAND_VERSIONS["${command_fq_name}"]}"
+    if [[ -v _MYCMD_COMMAND_VERSIONS[${fully_qualified_name}] ]]; then
+        command_struct_ref["${_COMMAND_VERSION_FIELD}"]="${_MYCMD_COMMAND_VERSIONS["${fully_qualified_name}"]}"
         mycmd.trace "- ${_COMMAND_VERSION_FIELD}: ${command_struct_ref["${_COMMAND_VERSION_FIELD}"]}"
     else
         mycmd.trace "- ${_COMMAND_VERSION_FIELD}: No value set."
     fi
 
-    if [[ -v _MYCMD_COMMAND_METADATA_LOADED[${command_fq_name}] ]]; then
+    if [[ -v _MYCMD_COMMAND_METADATA_LOADED[${fully_qualified_name}] ]]; then
         command_struct_ref["${_COMMAND_METADATA_LOADED_FIELD}"]=1
         mycmd.trace "- Command metadata has been loaded."
     else
@@ -215,15 +221,15 @@ function mycmd:command.get_command() {
 }
 
 function mycmd:command._load_command_help_and_version() {
-    local -r command_fq_name="${1}"
+    local -r fully_qualified_name="${1}"
     local -r namespaced_parts_string="${2}"
     local -r source_file_path="${3}"
 
-    mycmd.trace "Loading command help and version for '${command_fq_name}' from '${source_file_path}'."
+    mycmd.trace "Loading command help and version for '${fully_qualified_name}' from '${source_file_path}'."
 
     local result=0
     declare -gx _MYCMD_SOURCING_COMMAND_FOR_HELP=1
-    if ! mycmd:command._load_command "${command_fq_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+    if ! mycmd:command._load_command "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
         mycmd.debug "Error loading command source file '${source_file_path}'."
         return 1
     fi
@@ -233,7 +239,7 @@ function mycmd:command._load_command_help_and_version() {
         return 1
     fi
 
-    _MYCMD_COMMAND_METADATA_LOADED["${command_fq_name}"]=1
+    _MYCMD_COMMAND_METADATA_LOADED["${fully_qualified_name}"]=1
 
     return 0
 }
@@ -245,9 +251,9 @@ function mycmd:command.load_command_help_and_version() {
     if ! mycmd:command.is_metadata_loaded "${!command_struct_ref}"; then
         mycmd.trace "Command metadata has not been loaded, so loading on demand."
 
-        local command_fq_name
-        command_fq_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
-        readonly command_fq_name
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
+        readonly fully_qualified_name
 
         local namespaced_parts_string
         namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
@@ -257,13 +263,13 @@ function mycmd:command.load_command_help_and_version() {
         source_file_path="$(mycmd:command.get_source_file "${!command_struct_ref}")"
         readonly source_file_path
 
-        if ! mycmd:command._load_command_help_and_version "${command_fq_name}" "${namespaced_parts_string}" "${source_file_path}"; then
-            mycmd.debug "Error loading command help and version for '${command_fq_name}'."
+        if ! mycmd:command._load_command_help_and_version "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+            mycmd.debug "Error loading command help and version for '${fully_qualified_name}'."
             return 1
         fi
 
         # Reload the command struct to get the updated metadata
-        mycmd:command.get_command "${command_fq_name}" "${!command_struct_ref}"
+        mycmd:command.get_command "${fully_qualified_name}" "${!command_struct_ref}"
     fi
 
     return 0
@@ -304,10 +310,10 @@ function mycmd:command._get_optional_field_from_command_struct() {
         echo "${command_struct_ref["${field_name}"]}"
         return 0
     else
-        local command_fq_name
-        command_fq_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
-        readonly command_fq_name
-        mycmd.trace "No value for '${field_name}' defined for command '${command_fq_name}'."
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
+        readonly fully_qualified_name
+        mycmd.trace "No value for '${field_name}' defined for command '${fully_qualified_name}'."
         return 1
     fi
 }
@@ -437,26 +443,26 @@ function mycmd:command.print_help_text() {
 }
 
 function mycmd:command.get_child_commands_for_command_group() {
-    local -r command_group_fully_qualified_name="${1}"
+    local -r fully_qualified_name="${1}"
     local -n commands_array_ref="${2}"
 
     # shellcheck disable=SC2034
     readarray -t commands_array_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMANDS[@]}" |
-            grep -E "^${command_group_fully_qualified_name}/[^/]+$" |
-            LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMANDS[@]}" \
+            | grep -E "^${fully_qualified_name}/[^/]+$" \
+            | LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }
 
 function mycmd:command.execute_by_name() {
-    local -r command_fully_qualified_name="${1}"
+    local -r fully_qualified_name="${1}"
     shift
 
     # shellcheck disable=SC2034
     local -A command
-    if ! mycmd:command.get_command "${command_fully_qualified_name}" command; then
-        mycmd.err "Error getting command '${command_fully_qualified_name}'."
+    if ! mycmd:command.get_command "${fully_qualified_name}" command; then
+        mycmd.err "Error getting command '${fully_qualified_name}'."
         return 1
     fi
 
@@ -464,12 +470,12 @@ function mycmd:command.execute_by_name() {
 }
 
 function mycmd:command._load_command() {
-    local -r command_fq_name="${1}"
+    local -r fully_qualified_name="${1}"
     local -r namespaced_parts_string="${2}"
     local -r source_file_path="${3}"
 
     local result=0
-    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fq_name}"
+    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
     declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
     if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
         result=1
