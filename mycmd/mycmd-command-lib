@@ -33,6 +33,12 @@ mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "pathname"
 mycmd.load_mycmd_lib_support_lib "command-group"
 
+# ------------------------------------------------------------------------------
+## The Command
+##
+## A Command is a script executed by MyCmd.
+##
+
 # A Command has:
 # - A Name:  chase-visa
 # - A Fully Qualified Name for Containing Command Group - 'mycmd/financial/import'
@@ -436,9 +442,9 @@ function mycmd:command.get_child_commands_for_command_group() {
 
     # shellcheck disable=SC2034
     readarray -t commands_array_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMANDS[@]}" \
-            | grep -E "^${command_group_fully_qualified_name}/[^/]+$" \
-            | LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMANDS[@]}" |
+            grep -E "^${command_group_fully_qualified_name}/[^/]+$" |
+            LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }
