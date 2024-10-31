@@ -1,5 +1,3 @@
 vendor/.working
 *.log
 tmp/
-# TODO: Remove this after cleaning up docs/
-docs/

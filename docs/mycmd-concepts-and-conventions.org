@@ -1,0 +1,17 @@
+#+title: Mycmd Concepts And Conventions
+
+Concepts and Conventions in MyCmd
+
+* Concepts
+** Command Group
+
+A command group is a unit of hierarchy in MyCmd. It provides common code shared by the commands and command groups that it might contain.
+
+** Commands
+
+A command is a script executed by MyCmd.
+
+* General Conventions
+** Naming
+
+- When referring to the names of Command Groups or Commands, use the variable name =name=, unless the function refers to both a command group and a command at the same time. In that case, use =command_group_name= and =command_name=.

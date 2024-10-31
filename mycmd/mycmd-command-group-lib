@@ -32,6 +32,16 @@ mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "pathname"
 
+# ------------------------------------------------------------------------------
+## The Command Group
+##
+## A Command Group is the basic unit of organization and code reuse in MyCmd, representing part
+## of the hierarchal structure.
+##
+## The Command Group inherits the code from the command groups above it in the heirarchy and any
+## of the Commands and Command Groups it contains will inherit the Command Group's provided
+## code.
+
 # A Command Group has:
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
@@ -344,17 +354,17 @@ function mycmd:command_group.load_command_group_help_and_version() {
 }
 
 function mycmd:command_group.load_command_group_by_name() {
-    local -r command_group_name="${1}"
+    local -r name="${1}"
     # shellcheck disable=SC2034
     local -A command_group_struct
 
-    if ! mycmd:command_group.get_command_group "${command_group_name}" command_group_struct; then
-        mycmd.debug "Error getting command group struct for '${command_group_name}'."
+    if ! mycmd:command_group.get_command_group "${name}" command_group_struct; then
+        mycmd.debug "Error getting command group struct for '${name}'."
         return 1
     fi
 
     if ! mycmd:command_group.load_command_group command_group_struct; then
-        mycmd.debug "Error loading command group '${command_group_name}'."
+        mycmd.debug "Error loading command group '${name}'."
         return 1
     fi
 
@@ -362,23 +372,22 @@ function mycmd:command_group.load_command_group_by_name() {
 }
 
 function mycmd:command_group.load_command_group_by_name_only() {
-    local -r command_group_name="${1}"
+    local -r name="${1}"
 
     # shellcheck disable=SC2034
     local -A command_group_struct
 
-    if ! mycmd:command_group.get_command_group "${command_group_name}" command_group_struct; then
-        mycmd.debug "Error getting command group struct for '${command_group_name}'."
+    if ! mycmd:command_group.get_command_group "${name}" command_group_struct; then
+        mycmd.debug "Error getting command group struct for '${name}'."
         return 1
     fi
 
     if ! mycmd:command_group.load_command_group_only command_group_struct; then
-        mycmd.debug "Error loading command group '${command_group_name}'."
+        mycmd.debug "Error loading command group '${name}'."
         return 1
     fi
 
     return 0
-
 }
 
 function mycmd:command_group.get_support_library_file_name() {
@@ -648,9 +657,9 @@ function mycmd:command_group.get_child_command_groups() {
 
     # shellcheck disable=SC2034
     readarray -t child_command_groups_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
-            | grep -E "^${fully_qualified_name}/[^/]+$" \
-            | LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" |
+            grep -E "^${fully_qualified_name}/[^/]+$" |
+            LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }
