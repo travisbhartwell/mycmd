@@ -51,6 +51,29 @@ find "$sources_root" -type f -name 'page-list*' -delete
   rm tmp
 }
 
+# Generate topic pages
+
+{
+  find . -type f -name page-pattern >tmp
+  while IFS= read -r pattern_file
+  do
+    path="$(dirname "$pattern_file")"
+    dest="$path/page-list"
+
+    pattern=$(cat $pattern_file)
+
+    find . -type f -name page-list >page-list-tmp
+    while IFS= read -r list
+    do
+      ROOT="$(dirname "$list" | sed -E 's/\/[^\/]+/\/../g')"
+      LIST_DIR="$(dirname "$list")"
+      grep -E "$pattern" "$list" | sed -e "s%^%$ROOT/$LIST_DIR/%" >>"$dest"
+    done <page-list-tmp
+    rm page-list-tmp
+  done <tmp
+  rm tmp
+}
+
 # Generate page lists
 
 {

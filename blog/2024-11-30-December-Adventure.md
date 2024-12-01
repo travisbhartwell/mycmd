@@ -15,3 +15,6 @@ My primary work for December Adventure will be around [MyCmd](https://github.com
 
 Additionally, I want to start to understand the rewriting language [Nova](https://wiki.nova-lang.net/index.php?title=Main_Page) and potentially create my own implementation or some other code to understand this very interesting project.
 
+---
+
+All of my December Adventure 2024 posts will be linked from [here](../../december-adventure-2024).
