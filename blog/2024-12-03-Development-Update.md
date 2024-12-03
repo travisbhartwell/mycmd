@@ -21,7 +21,7 @@ At a high level, these are some of the changes I've made:
 * Implemented two new data structures to manage information for Commands and Command Groups (I have a TODO item to write a post explaining the patterns I'm using with these).
 * Changed from having just a MyCmd System Directory and a MyCmd User Directory to having a search path (described in [this design document](https://raw.githubusercontent.com/travisbhartwell/mycmd/refs/heads/rewrite/docs/mycmd-path.org)).
 * Implemented a new discovery mechanism for Command Groups and Commands.
-* Implemented enough of the prior functionality that I can execute exsiting commands and command groups by hardcoding the calls to them in `bin/mycmd`.
+* Implemented enough of the prior functionality that I can execute existing commands and command groups by hardcoding the calls to them in `bin/mycmd`.
 * Added functionality over in [bashdoc](https://github.com/travisbhartwell/bashdoc/) -- see the diff [here](https://github.com/travisbhartwell/bashdoc/compare/feccfe3fb179ba458f905c0b8c1671c3ea600762...b716db84b72ce615bf3aaff493170f8359e2f97d) -- to index the shell files so I can write tools like [this](https://github.com/travisbhartwell/mycmd/blob/rewrite/support/analyze-dependencies.py) to analyze the dependencies between the different libraries in MyCmd.
 
 ## The Road Ahead
