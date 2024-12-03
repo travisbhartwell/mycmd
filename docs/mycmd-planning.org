@@ -87,6 +87,7 @@ I should establish strict naming conventions for functions and variables and the
 Also, I should see if there are ways to instrument this to make sure I am not accidentally leaking local variables anywhere.
 
 * Ideas
+** Are there diagrams I can create about MyCmd's structure that would help?
 
 * Bugs
 ** TODO =project.find_files_for_filset= should be additive
@@ -97,7 +98,7 @@ Also, I should see if there are ways to instrument this to make sure I am not ac
 
 * Development Log Entries
 ** TODO 0.1 Release Announcement
-** TODO Why Bash?
+** DONE Why Bash?
 ** TODO Higher Order Functions in Bash
 ** TODO Pseudo-structs
 ** TODO Safety Guarantees in MyCmd

@@ -47,6 +47,7 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ##
 ## - A fully qualified name, representing the fully path in the hierarchy, for example, 'mycmd/financial/import'
 ##
+## - The namespaced parts of the name,
 # A Command Group has:
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
@@ -658,9 +659,9 @@ function mycmd:command_group.get_child_command_groups() {
 
     # shellcheck disable=SC2034
     readarray -t child_command_groups_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
-            | grep -E "^${fully_qualified_name}/[^/]+$" \
-            | LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" |
+            grep -E "^${fully_qualified_name}/[^/]+$" |
+            LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }
