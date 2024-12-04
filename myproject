@@ -11,10 +11,14 @@ project.load_task_library "shell"
 # shellcheck disable=SC2154
 readonly BLOG_DIR="${MYPROJECT_BASE_DIR}/blog"
 # shellcheck disable=SC2154
+readonly TEMPLATE_DIR="${MYPROJECT_BASE_DIR}/templates"
+# shellcheck disable=SC2154
 readonly WORKING_DIR="${MYPROJECT_BASE_DIR}/.working"
+
 mycmd.trace "The following variables are set:"
-mycmd.trace "- BLOG_DIR: ${BLOG_DIR}"
-mycmd.trace "- WORKING_DIR: ${WORKING_DIR}"
+mycmd.trace "- BLOG_DIR:     ${BLOG_DIR}"
+mycmd.trace "- TEMPLATE_DIR: ${TEMPLATE_DIR}"
+mycmd.trace "- WORKING_DIR:  ${WORKING_DIR}"
 
 #----------------------------------------
 # Project File Sets
@@ -78,9 +82,9 @@ mycmd.trace "- PICO_CSS_DOWNLOAD_BASE: ${PICO_CSS_DOWNLOAD_BASE}"
 mycmd.defer_at_startup mycmd.init_bin git
 mycmd.defer_at_startup mycmd.init_bin sed
 function get_latest_release() {
-    mycmd.bin_execute git ls-remote --tags --sort="-version:refname" "${PICO_CSS_GITHUB_URL}" \
-        | head -n1 \
-        | mycmd.bin_execute sed -r -n 's/.*refs\/tags\/v(.*)/\1/p'
+    mycmd.bin_execute git ls-remote --tags --sort="-version:refname" "${PICO_CSS_GITHUB_URL}" |
+        head -n1 |
+        mycmd.bin_execute sed -r -n 's/.*refs\/tags\/v(.*)/\1/p'
 }
 
 mycmd.defer_at_startup mycmd.init_bin sed
@@ -191,5 +195,35 @@ function archive-output() {
     cp ./blog/*.html "${dest_dir}/blog"
 }
 project.register_task archive-output
+
+#----------------------------------------
+# December Adventure
+readonly DECEMBER_ADVENTURE_TEMPLATE="${TEMPLATE_DIR}/december-adventure.md.template"
+
+mycmd.init_bin envsubst
+function new-december-adventure-post() {
+    local post_date
+    post_date="$(date '+%Y-%m-%d')"
+    readonly post_date
+
+    DAY="$(date '+%-d')"
+    export DAY
+    YEAR="$(date '+%Y')"
+    export YEAR
+
+    local -r post_file_name="${BLOG_DIR}/${post_date}-December-Adventure-${YEAR}:-Day-${DAY}.md"
+
+    if [[ -e "${post_file_name}" ]]; then
+        mycmd.log "Post '${post_file_name}' already exists, not overwriting."
+        return 1
+    fi
+
+    mycmd.bin_execute envsubst \
+        <"${DECEMBER_ADVENTURE_TEMPLATE}" \
+        >"${post_file_name}"
+
+    mycmd.output "Generated new December Adventure Post for ${post_date}: '${post_file_name}'."
+}
+project.register_task new-december-adventure-post
 
 project.register_default_task generate
