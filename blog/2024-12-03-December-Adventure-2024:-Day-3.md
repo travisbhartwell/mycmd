@@ -2,7 +2,7 @@
 
 ## MyCmd Related
 
-I have written [MyCmd: Development Update](../2024-12-03-Development-Update/) to summarize the work I've done this year in MyCmd.
+I have written [MyCmd: Development Update](../2024-12-03-development-update/) to summarize the work I've done this year in MyCmd.
 
 I also pushed a [small commit](https://github.com/travisbhartwell/mycmd/commit/4be0803398d1852ca9e68f59945c7c0b524158eb) to add a minimal [myproject file](https://github.com/travisbhartwell/mycmd/blob/4be0803398d1852ca9e68f59945c7c0b524158eb/support/templates/myproject) that I can use as a base in new projects. Eventually, I will have functionality to generate project files using this template. Right now, the file just exists so I can `cp` into a new project and start writing.
 
