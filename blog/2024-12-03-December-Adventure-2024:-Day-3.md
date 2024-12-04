@@ -21,7 +21,7 @@ I found these additional useful resources in my study:
 * [Powered by Janet](https://goto-engineering.github.io/powered-by-janet/): A collection of all things written in Janet
 * [JanetDocs](https://janetdocs.com): A community documentation site for the Janet language.
 
-I started this simple [aspirations project](https://github.com/travisbhartwell/aspirations) as a first little project to learn Janet. I use a set what I've termed "aspirations" that I repeat to myself while exercising and at other times to focus on my mind and remind me of who I am and how I want to live my life. I've been doing this for four months now and I have 15 such statements so far, and I write new ones each month. I primarily focus on the new aspirations each month, but every few days I review statements from past months to keep them fresh. The purpose of the project is two fold:
+I started this simple [aspirations project](https://github.com/travisbhartwell/aspirations) as a first little project to learn Janet. I use a set of what I've termed "aspirations" that I repeat to myself while exercising and at other times to focus my mind and remind me of who I am and how I want to live my life. I've been doing this for four months now and I have 15 such statements so far, and I write new ones each month. I primarily focus on the new aspirations for the month, but every few days I review statements from past months to keep them fresh. The purpose of the project is two-fold:
 
 * Generate a random list of statements to review on my review days.
 * I recently purchased the [TRMNL device](https://usetrmnl.com) and I want to write a custom plugin to show a random aspiration on it. This code will push a new statement to the server to be displayed via a webhook.
