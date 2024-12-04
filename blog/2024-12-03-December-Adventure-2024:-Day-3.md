@@ -26,7 +26,7 @@ I started this simple [aspirations project](https://github.com/travisbhartwell/a
 * Generate a random list of statements to review on my review days.
 * I recently purchased the [TRMNL device](https://usetrmnl.com) and I want to write a custom plugin to show a random aspiration on it. This code will push a new statement to the server to be displayed via a webhook.
 
-I've got a minimal Janet project created. Tomorrow, I will add a dependency on [spork](https://github.com/janet-lang/spork) primarily so I can add a task to format my Janet code to my project..
+I've got a minimal Janet project created. Tomorrow, I will add a dependency on [spork](https://github.com/janet-lang/spork) primarily so I can add a task to format my Janet code to my project.
 
 ## Dot Files
 
