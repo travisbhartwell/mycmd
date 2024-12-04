@@ -43,7 +43,12 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 ##
 ## - The fully qualified name of the containing Command Group, for example, 'mycmd/financial/import'
 ##
-## - A fully qualified name, representing the fully path in the hierarchy, for example, 'mycmd/financial/import/chase-visa'
+## - A fully qualified name, representing the fully path in the hierarchy, for example,
+##   'mycmd/financial/import/chase-visa'
+##
+## - The namespaced parts of the name, are the individual parts of the hierarchy,
+##   for example, [mycmd, financial, import, chase-visa] for the array version, or
+##   "mycmd financial import chase-visa" as a string.
 
 # A Command has:
 # - A Name:  chase-visa
@@ -335,8 +340,8 @@ function mycmd:command.get_namespaced_parts_as_string() {
     fully_qualified_name="$(mycmd:command.get_fully_qualified_name "${@}")"
     readonly fully_qualified_name
 
-    local -r namespaced_parts="${fully_qualified_name//\// }"
-    echo "${namespaced_parts}"
+    local -r namespaced_parts_string="${fully_qualified_name//\// }"
+    echo "${namespaced_parts_string}"
 }
 
 function mycmd:command.get_fully_qualified_command_group_name() {
