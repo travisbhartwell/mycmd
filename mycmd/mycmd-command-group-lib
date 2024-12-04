@@ -45,9 +45,13 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## A Command Group is described by the following attributes:
 ## - A name, for example, 'import'
 ##
-## - A fully qualified name, representing the fully path in the hierarchy, for example, 'mycmd/financial/import'
+## - A fully qualified name, representing the fully path in the hierarchy, for example,
+##   'mycmd/financial/import'
 ##
-## - The namespaced parts of the name,
+## - The namespaced parts of the name, are the individual parts of the hierarchy,
+##   for example, [mycmd, financial, import] for the array version, or
+##   "mycmd financial import" as a string.
+##
 # A Command Group has:
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
@@ -606,8 +610,8 @@ function mycmd:command_group.get_namespaced_parts_as_string() {
     fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
     readonly fully_qualified_name
 
-    local -r namespaced_parts="${fully_qualified_name//\// }"
-    echo "${namespaced_parts}"
+    local -r namespaced_parts_string="${fully_qualified_name//\// }"
+    echo "${namespaced_parts_string}"
 }
 
 function mycmd:command_group.get_source_directory() {
@@ -659,9 +663,9 @@ function mycmd:command_group.get_child_command_groups() {
 
     # shellcheck disable=SC2034
     readarray -t child_command_groups_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" |
-            grep -E "^${fully_qualified_name}/[^/]+$" |
-            LC_ALL=en_US.UTF-8 sort || true)
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
+            | grep -E "^${fully_qualified_name}/[^/]+$" \
+            | LC_ALL=en_US.UTF-8 sort || true)
 
     return 0
 }

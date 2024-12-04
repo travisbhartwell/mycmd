@@ -13,7 +13,8 @@ A command is a script executed by MyCmd.
 
 * General Conventions
 ** Naming
-
 - When referring to the names of Command Groups or Commands, use the variable name =name=, unless the function refers to both a command group and a command at the same time. In that case, use =command_group_name= and =command_name=.
 
 - When referring to a fully qualified name follow the same pattern, but using the name =fully_qualified_name=, with similar exceptions.
+
+- When referring to the namespaced parts of Command Groups or Commands, use the variable name =namespaced_parts= for the array version, or the variable name =namespaced_parts_string= for the string version.
