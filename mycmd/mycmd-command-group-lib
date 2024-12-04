@@ -52,6 +52,9 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ##   for example, [mycmd, financial, import] for the array version, or
 ##   "mycmd financial import" as a string.
 ##
+## - A source directory, the directory containing the source file of the command group, for example,
+##   $HOME/mycmd/financial/import/.
+##
 # A Command Group has:
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
@@ -95,16 +98,16 @@ readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
 readonly _COMMAND_GROUP_METADATA_LOADED_FIELD='command-group-metadata-loaded'
 
 function mycmd:command_group.source_file_path_for_directory() {
-    local -r potential_command_group="${1}"
+    local -r source_directory="${1}"
 
     local name
-    if ! name="$(basename "${potential_command_group}")"; then
-        mycmd.debug "Error getting basename of '${potential_command_group}'."
+    if ! name="$(basename "${source_directory}")"; then
+        mycmd.debug "Error getting basename of '${source_directory}'."
         return 1
     fi
     readonly name
 
-    local -r source_file_name="${potential_command_group}/${name}-lib"
+    local -r source_file_name="${source_directory}/${name}-lib"
     echo "${source_file_name}"
     return 0
 }
@@ -114,21 +117,21 @@ function mycmd:command_group.validate_directory_contains_command_group() {
     # - it is valid directory
     # - it is a child of one of the top-level MyCmd directories on the path
     # - it has a file named <command-group>/<command-group>-lib matching the directory
-    local -r potential_command_group="${1}"
+    local -r source_directory="${1}"
 
-    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${potential_command_group}"; then
-        mycmd.debug "${potential_command_group} is not a valid absolute path of a directory."
+    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${source_directory}"; then
+        mycmd.debug "${source_directory} is not a valid absolute path of a directory."
         return 1
     fi
 
-    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${potential_command_group}"; then
-        mycmd.debug "${potential_command_group} is not a descendant of any of the MyCmd base directories."
+    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_directory}"; then
+        mycmd.debug "${source_directory} is not a descendant of any of the MyCmd base directories."
         return 1
     fi
 
     local source_file_path
-    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${potential_command_group}")"; then
-        mycmd.debug "Error getting source file name for command group library '${potential_command_group}'."
+    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${source_directory}")"; then
+        mycmd.debug "Error getting source file name for command group library '${source_directory}'."
         return 1
     fi
     readonly source_file_path
@@ -223,22 +226,22 @@ function mycmd:command_group.register_mycmd_version_and_descriptions() {
 }
 
 function mycmd:command_group.register_command_group() {
-    local -r potential_command_group="${1}"
+    local -r source_directory="${1}"
     local -r fully_qualified_name="${2}"
 
     # If this is called by mycmd:pathname.walk_path, assuming directory paths are real and on the MyCmd Search Path
     if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
         mycmd.trace "Skipping validation of parameters, assuming they are valid, as called from 'mycmd:pathname.walk_path'."
     else
-        if ! mycmd:command_group.validate_directory_contains_command_group "${potential_command_group}"; then
-            mycmd.debug "Directory ${potential_command_group} does not contain a command group."
+        if ! mycmd:command_group.validate_directory_contains_command_group "${source_directory}"; then
+            mycmd.debug "Directory ${source_directory} does not contain a command group."
             return 0
         fi
     fi
 
     local source_file_path
-    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${potential_command_group}")"; then
-        mycmd.debug "Error getting source file name for command group library '${potential_command_group}'."
+    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${source_directory}")"; then
+        mycmd.debug "Error getting source file name for command group library '${source_directory}'."
         return 1
     fi
     readonly source_file_path
@@ -249,7 +252,7 @@ function mycmd:command_group.register_command_group() {
     fi
 
     if [[ -v _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"] ]]; then
-        if [[ "${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]}" == "${potential_command_group}" ]]; then
+        if [[ "${_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]}" == "${source_directory}" ]]; then
             mycmd.debug "Command group ${fully_qualified_name} has already been loaded."
             return 0
         else
@@ -258,7 +261,7 @@ function mycmd:command_group.register_command_group() {
         fi
     fi
 
-    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${potential_command_group}"
+    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${source_directory}"
     _MYCMD_COMMAND_GROUP_SOURCE_FILES["${fully_qualified_name}"]="${source_file_path}"
     _MYCMD_COMMAND_GROUPS+=("${fully_qualified_name}")
 

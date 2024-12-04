@@ -18,3 +18,5 @@ A command is a script executed by MyCmd.
 - When referring to a fully qualified name follow the same pattern, but using the name =fully_qualified_name=, with similar exceptions.
 
 - When referring to the namespaced parts of Command Groups or Commands, use the variable name =namespaced_parts= for the array version, or the variable name =namespaced_parts_string= for the string version.
+
+- When referring to a source directory of a Command Group, use the variable name =source_directory=.
