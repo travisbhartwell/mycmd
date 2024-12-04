@@ -196,6 +196,57 @@ function archive-output() {
 }
 project.register_task archive-output
 
+mycmd.defer_at_startup mycmd.init_bin wget
+mycmd.defer_at_startup mycmd.init_bin htmlq
+function remove-temporary-file() {
+    local -r f="${1}"
+
+    if [[ -e "${f}" ]]; then
+        rm -f "${f}" || true
+    fi
+}
+
+function open-all-links() {
+    local -r url="${1}"
+
+    local page_html_file
+    if ! page_html_file="$(mktemp -q -t "page-XXXXXX.html")"; then
+        mycmd.log "Error creating temporary file for the HTML output."
+        return 1
+    fi
+    readonly page_html_file
+    mycmd.defer_at_exit remove-temporary-file "${page_html_file}"
+
+    local page_html_filename_only
+    page_html_filename_only="$(basename "${page_html_file}")"
+    readonly page_html_filename_only
+
+    if ! mycmd.bin_execute wget --output-document "${page_html_file}" --convert-links --quiet "${url}"; then
+        mycmd.log "Error fetching content for '${url}'."
+        return 1
+    fi
+
+    # Automatically close assigned using the `{varname}` redirection syntax
+    shopt -s varredir_close
+    exec {inputfd}>&0
+    readonly inputfd
+
+    local array
+    local i
+
+    while mapfile -t -n 5 array && ((${#array[@]})); do
+        for i in "${array[@]}"; do
+            if [[ "${i}" != "${page_html_filename_only}" ]]; then
+                mycmd.output "Opening '${i}'."
+                open "${i}"
+            fi
+        done
+
+        read -r -u "${inputfd}" -p "Press enter to open the next batch."
+    done < <(mycmd.bin_execute htmlq --filename "${page_html_file}" --attribute href a)
+}
+project.register_task open-all-links
+
 #----------------------------------------
 # December Adventure
 readonly DECEMBER_ADVENTURE_TEMPLATE="${TEMPLATE_DIR}/december-adventure.md.template"
