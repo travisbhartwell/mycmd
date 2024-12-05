@@ -55,6 +55,10 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## - A source directory, the directory containing the source file of the command group, for example,
 ##   $HOME/mycmd/financial/import/.
 ##
+## - A source file, the source of the shared library code for the Command Group, for example,
+##   $HOME/mycmd/financial/import/import-lib. The source file is named with the name of the
+##   Command Group with "-lib" appended to it.
+
 # A Command Group has:
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
@@ -107,8 +111,8 @@ function mycmd:command_group.source_file_path_for_directory() {
     fi
     readonly name
 
-    local -r source_file_name="${source_directory}/${name}-lib"
-    echo "${source_file_name}"
+    local -r source_file_path="${source_directory}/${name}-lib"
+    echo "${source_file_path}"
     return 0
 }
 
@@ -268,17 +272,6 @@ function mycmd:command_group.register_command_group() {
     return 0
 }
 
-function mycmd:command_group._dump_assoc_array() {
-    declare -Agx | grep "${1}"
-}
-
-function mycmd:command_group._dump_source_data() {
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_SOURCE_FILES
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_LONG_DESCS
-    mycmd:command_group._dump_assoc_array _MYCMD_COMMAND_GROUP_VERSIONS
-}
-
 function mycmd:command_group.get_command_group() {
     local -r fully_qualified_name="${1}"
     local -n command_group_struct_ref="${2}"
@@ -351,7 +344,7 @@ function mycmd:command_group.load_command_group_help_and_version() {
         readonly fully_qualified_name
 
         local source_file_path
-        source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
+        source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
         readonly source_file_path
 
         if ! mycmd:command_group._load_command_group_help_and_version "${fully_qualified_name}" "${source_file_path}"; then
@@ -406,13 +399,13 @@ function mycmd:command_group.load_command_group_by_name_only() {
 function mycmd:command_group.get_support_library_file_name() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
-    local -r source_library_name="${2}"
+    local -r support_library_name="${2}"
 
     local command_group_name
     command_group_name="$(mycmd:command_group.get_name "${!command_group_struct_ref}")"
     readonly command_group_name
 
-    echo "${command_group_name}-${source_library_name}-lib"
+    echo "${command_group_name}-${support_library_name}-lib"
 }
 
 function mycmd:command_group.get_command_group_from_file() {
@@ -505,7 +498,7 @@ function mycmd:command_group.load_command_group_only() {
     readonly fully_qualified_name
 
     local source_file_path
-    source_file_path="$(mycmd:command_group.get_source_file "${!command_group_struct_ref}")"
+    source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
     readonly source_file_path
 
     if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
@@ -623,7 +616,7 @@ function mycmd:command_group.get_source_directory() {
         "${@}"
 }
 
-function mycmd:command_group.get_source_file() {
+function mycmd:command_group.get_source_file_path() {
     mycmd:command_group._get_required_field_from_command_group_struct \
         "${_COMMAND_GROUP_SOURCE_FILE_FIELD}" \
         "${@}"
@@ -637,11 +630,11 @@ function mycmd:command_group.get_short_description() {
         "${@}")"; then
         readonly short_description
     else
-        local namespaced_parts
-        namespaced_parts="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
-        readonly namespaced_parts
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
+        readonly namespaced_parts_string
 
-        short_description="MyCmd Command Group ${namespaced_parts}"
+        short_description="MyCmd Command Group ${namespaced_parts_string}"
         readonly short_description
     fi
 
@@ -696,15 +689,15 @@ function mycmd:command_group.print_version() {
         return 1
     fi
 
-    local namespaced_parts
-    namespaced_parts="$(mycmd:command_group.get_namespaced_parts_as_string "${!command_group_struct_ref}")"
-    readonly namespaced_parts
+    local namespaced_parts_string
+    namespaced_parts_string="$(mycmd:command_group.get_namespaced_parts_as_string "${!command_group_struct_ref}")"
+    readonly namespaced_parts_string
 
     local version
     version="$(mycmd:command_group.get_version "${!command_group_struct_ref}")"
     readonly version
 
-    mycmd.output "${namespaced_parts} version ${version}"
+    mycmd.output "${namespaced_parts_string} version ${version}"
 }
 
 function mycmd:command_group.print_short_description() {

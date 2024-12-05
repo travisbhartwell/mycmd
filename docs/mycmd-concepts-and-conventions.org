@@ -20,3 +20,5 @@ A command is a script executed by MyCmd.
 - When referring to the namespaced parts of Command Groups or Commands, use the variable name =namespaced_parts= for the array version, or the variable name =namespaced_parts_string= for the string version.
 
 - When referring to a source directory of a Command Group, use the variable name =source_directory=.
+
+- When referring to the source file of a Command Group or Command, use the variable name =source_file_name= for the file name without the full path to the file, and =source_file_path= for the full file path of the source file.

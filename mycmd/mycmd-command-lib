@@ -49,6 +49,8 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 ## - The namespaced parts of the name, are the individual parts of the hierarchy,
 ##   for example, [mycmd, financial, import, chase-visa] for the array version, or
 ##   "mycmd financial import chase-visa" as a string.
+##
+## - A source file for the command, for example, $HOME/mycmd/financial/import/chase-visa.
 
 # A Command has:
 # - A Name:  chase-visa
@@ -86,18 +88,18 @@ readonly _COMMAND_VERSION_FIELD='command-version'
 readonly _COMMAND_METADATA_LOADED_FIELD='command-metadata-loaded'
 
 function mycmd:command.file_is_command() {
-    local -r potential_command="${1}"
+    local -r source_file_path="${1}"
 
-    if ! mycmd:pathname.is_valid_absolute_path_of_executable_file "${potential_command}"; then
-        mycmd.debug "'${potential_command}' is not a valid absolute path of an executable file."
+    if ! mycmd:pathname.is_valid_absolute_path_of_executable_file "${source_file_path}"; then
+        mycmd.debug "'${source_file_path}' is not a valid absolute path of an executable file."
         return 1
     fi
 
     if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
         mycmd.trace "Skipping validation of file is on MyCmd Search path, assuming it is, as called from 'mycmd:pathname.walk_path'."
     else
-        if ! mycmd:pathname.is_child_of_mycmd_path_directory "${potential_command}"; then
-            mycmd.debug "'${potential_command}' is not located on the MyCmd Search Path."
+        if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_file_path}"; then
+            mycmd.debug "'${source_file_path}' is not located on the MyCmd Search Path."
             return 1
         fi
     fi
@@ -148,16 +150,16 @@ function mycmd:command.register_help_text() {
 }
 
 function mycmd:command.register_command() {
-    local -r potential_command="${1}"
+    local -r source_file_path="${1}"
     local -r fully_qualified_name="${2}"
 
-    if ! mycmd:command.file_is_command "${potential_command}"; then
-        mycmd.debug "'${potential_command}' is not a valid command."
+    if ! mycmd:command.file_is_command "${source_file_path}"; then
+        mycmd.debug "'${source_file_path}' is not a valid command."
         return 0
     fi
 
     if [[ -v _MYCMD_COMMAND_SOURCE_FILES[${fully_qualified_name}] ]]; then
-        if [[ "${_MYCMD_COMMAND_SOURCE_FILES[${fully_qualified_name}]}" != "${potential_command}" ]]; then
+        if [[ "${_MYCMD_COMMAND_SOURCE_FILES[${fully_qualified_name}]}" != "${source_file_path}" ]]; then
             mycmd.debug "Command '${fully_qualified_name}' has already been registered with a different source file."
             return 1
         else
@@ -167,7 +169,7 @@ function mycmd:command.register_command() {
     fi
 
     # TODO - Validate enclosing command groups are registered
-    _MYCMD_COMMAND_SOURCE_FILES["${fully_qualified_name}"]="${potential_command}"
+    _MYCMD_COMMAND_SOURCE_FILES["${fully_qualified_name}"]="${source_file_path}"
     _MYCMD_COMMANDS+=("${fully_qualified_name}")
 
     return 0
@@ -265,7 +267,7 @@ function mycmd:command.load_command_help_and_version() {
         readonly namespaced_parts_string
 
         local source_file_path
-        source_file_path="$(mycmd:command.get_source_file "${!command_struct_ref}")"
+        source_file_path="$(mycmd:command.get_source_file_path "${!command_struct_ref}")"
         readonly source_file_path
 
         if ! mycmd:command._load_command_help_and_version "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
@@ -350,7 +352,7 @@ function mycmd:command.get_fully_qualified_command_group_name() {
         "${@}"
 }
 
-function mycmd:command.get_source_file() {
+function mycmd:command.get_source_file_path() {
     mycmd:command._get_required_field_from_command_struct \
         "${_COMMAND_SOURCE_FILE_FIELD}" \
         "${@}"
@@ -364,10 +366,10 @@ function mycmd:command.get_short_description() {
         "${@}")"; then
         readonly short_description
     else
-        local namespaced_parts
-        namespaced_parts="$(mycmd:command.get_namespaced_parts_as_string "${@}")"
-        readonly namespaced_parts
-        short_description="MyCmd Command ${namespaced_parts}"
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${@}")"
+        readonly namespaced_parts_string
+        short_description="MyCmd Command ${namespaced_parts_string}"
         readonly short_description
     fi
 
@@ -403,15 +405,15 @@ function mycmd:command.print_version() {
         return 1
     fi
 
-    local namespaced_parts
-    namespaced_parts="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
-    readonly namespaced_parts
+    local namespaced_parts_string
+    namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
+    readonly namespaced_parts_string
 
     local version
     version="$(mycmd:command.get_version "${!command_struct_ref}")"
     readonly version
 
-    mycmd.output "${namespaced_parts} version ${version}"
+    mycmd.output "${namespaced_parts_string} version ${version}"
 }
 
 function mycmd:command.print_short_description() {
@@ -521,16 +523,16 @@ function mycmd:command.execute() {
     readonly namespaced_parts_string
 
     # Source the source file
-    local source_file
-    if ! source_file="$(mycmd:command.get_source_file "${!command_struct_ref}")"; then
+    local source_file_path
+    if ! source_file_path="$(mycmd:command.get_source_file_path "${!command_struct_ref}")"; then
         mycmd.log "Error getting source file for command '${command_fully_qualified_name}'."
         return 1
     fi
-    readonly source_file
-    mycmd.trace "Sourcing command source file: '${source_file}'."
+    readonly source_file_path
+    mycmd.trace "Sourcing command source file: '${source_file_path}'."
 
-    if ! mycmd:command._load_command "${command_fully_qualified_name}" "${namespaced_parts_string}" "${source_file}"; then
-        mycmd.log "Error sourcing command source file '${source_file}'."
+    if ! mycmd:command._load_command "${command_fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+        mycmd.log "Error sourcing command source file '${source_file_path}'."
         return 1
     fi
 
