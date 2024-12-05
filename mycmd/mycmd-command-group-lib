@@ -43,10 +43,10 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## code.
 ##
 ## A Command Group is described by the following attributes:
-## - A name, for example, 'import'
+## - A name, for example, 'import'.
 ##
 ## - A fully qualified name, representing the fully path in the hierarchy, for example,
-##   'mycmd/financial/import'
+##   'mycmd/financial/import'.
 ##
 ## - The namespaced parts of the name, are the individual parts of the hierarchy,
 ##   for example, [mycmd, financial, import] for the array version, or
@@ -58,8 +58,13 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## - A source file, the source of the shared library code for the Command Group, for example,
 ##   $HOME/mycmd/financial/import/import-lib. The source file is named with the name of the
 ##   Command Group with "-lib" appended to it.
+##
+## - Any number of child commands.
+##
+## - Any number of child command groups.
 
 # A Command Group has:
+#
 # - A Name: import
 # - A Fully Qualified Name - `mycmd/financial/import`
 # - Namespaced Parts - [mycmd, financial, import]
