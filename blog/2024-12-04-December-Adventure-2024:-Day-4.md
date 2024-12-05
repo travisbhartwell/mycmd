@@ -32,7 +32,7 @@ I did a small amount of work on my [aspirations](https://github.com/travisbhartw
 
 I added a `format` task to format the Janet files, using the `janet-format` tool from the [spork](https://github.com/janet-lang/spork/) library.
 
-I pushed this in [commit 57fd72c23a63d90e4f6efd5cb5cc594c8125e0b1](https://github.com/travisbhartwell/aspirations/commit/57fd72c23a63d90e4f6efd5cb5cc594c8125e0b1)
+I pushed this in [commit 57fd72c23a63d90e4f6efd5cb5cc594c8125e0b1](https://github.com/travisbhartwell/aspirations/commit/57fd72c23a63d90e4f6efd5cb5cc594c8125e0b1).
 
 ## Other
 
