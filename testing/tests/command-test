@@ -55,7 +55,7 @@ function test_test-command() {
     assertEquals "mycmd/test-command" "$(mycmd:command.get_fully_qualified_name command)"
     assertEquals "mycmd test-command" "$(mycmd:command.get_namespaced_parts_as_string command)"
     assertEquals "mycmd" "$(mycmd:command.get_fully_qualified_command_group_name command)"
-    assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file command)"
+    assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file_path command)"
     assertEquals "Test Command for MyCmd" "$(mycmd:command.get_short_description command)"
     assertEquals 'Help text is defined' \
         "mycmd test-command\n\nOptions:\nmycmd test-command -h" \
