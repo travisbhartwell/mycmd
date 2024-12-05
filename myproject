@@ -82,9 +82,9 @@ mycmd.trace "- PICO_CSS_DOWNLOAD_BASE: ${PICO_CSS_DOWNLOAD_BASE}"
 mycmd.defer_at_startup mycmd.init_bin git
 mycmd.defer_at_startup mycmd.init_bin sed
 function get_latest_release() {
-    mycmd.bin_execute git ls-remote --tags --sort="-version:refname" "${PICO_CSS_GITHUB_URL}" |
-        head -n1 |
-        mycmd.bin_execute sed -r -n 's/.*refs\/tags\/v(.*)/\1/p'
+    mycmd.bin_execute git ls-remote --tags --sort="-version:refname" "${PICO_CSS_GITHUB_URL}" \
+        | head -n1 \
+        | mycmd.bin_execute sed -r -n 's/.*refs\/tags\/v(.*)/\1/p'
 }
 
 mycmd.defer_at_startup mycmd.init_bin sed
