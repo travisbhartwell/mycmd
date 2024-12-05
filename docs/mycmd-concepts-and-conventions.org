@@ -13,6 +13,16 @@ A command is a script executed by MyCmd.
 
 * General Conventions
 ** Naming
+Since Bash allows for periods, colons, and dashes in function names, I use them in this fashion:
+- All top-level MyCmd functionality (in other words, functions from =mycmd/mycmd-lib= and its support libraries) have the =mycmd= prefix.
+
+- For functions related to the implementation of "object-like" structures (like command-groups), a colon and the object name follows the =mycmd= prefix, for example, =mycmd:command_group=.
+
+- In all cases, a period follows the prefix and is before the function name.
+
+- For functions that a purely internal, an underscore precedes the function name. Nothing outside of the file of those functions should call them.
+
+** Specific Naming Conventions
 - When referring to the names of Command Groups or Commands, use the variable name =name=, unless the function refers to both a command group and a command at the same time. In that case, use =command_group_name= and =command_name=.
 
 - When referring to a fully qualified name follow the same pattern, but using the name =fully_qualified_name=, with similar exceptions.
