@@ -26,3 +26,11 @@ A command is a script executed by MyCmd.
 - When referring to the child commands of a Command Group, use the variable name =child_commands=.
 
 - When referring to the child command groups of a Command Groups, use the variable name =child_command_groups=.
+
+- When referring to the short description of a Command Group or a Command, use the variable name =short_description=.
+
+- When referring to the long description of a Command Group, use the variable name =long_description=.
+
+- When referring to the help text of a Command, use the variable name =help_text=.
+
+- When referring to the version of a Command Group or a Command, use the variable name =version=.

@@ -97,8 +97,8 @@ Also, I should see if there are ways to instrument this to make sure I am not ac
 ** TODO Fix =myproject= filesets to handle non-shell files
 
 * Development Log Entries
-** TODO 0.1 Release Announcement
 ** DONE Why Bash?
+** TODO 0.1 Release Announcement
 ** TODO Higher Order Functions in Bash
 ** TODO Pseudo-structs
 ** TODO Safety Guarantees in MyCmd
