@@ -51,16 +51,12 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 ##   "mycmd financial import chase-visa" as a string.
 ##
 ## - A source file for the command, for example, $HOME/mycmd/financial/import/chase-visa.
-
-# A Command has:
-# - A Name:  chase-visa
-# - A Fully Qualified Name for Containing Command Group - 'mycmd/financial/import'
-# - A Fully Qualified Name - `mycmd/financial/import/chase-visa`
-# - Namespaced Parts - [mycmd, financial, import, chase-visa  ]
-# - A Source File - $HOME/mycmd/financial/import/chase-visa
-# - A short description used in help
-# - Help text used in help
-# - A version string used in help
+##
+## - A short description used in displaying help.
+##
+## - Help text (usually documenting command line parameters and usage) used in displaying help.
+##
+## - A version string used in displaying help and version information.
 
 # Global Data Structures
 # - All registered Commands
@@ -493,7 +489,6 @@ function mycmd:command._load_command() {
     return "${result}"
 }
 
-# Since calling this is the last thing that MyCmd will do, any errors here are exits
 function mycmd:command.execute() {
     # shellcheck disable=SC2178
     local -n command_struct_ref="${1}"

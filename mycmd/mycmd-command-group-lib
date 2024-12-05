@@ -62,19 +62,12 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## - Any number of child commands.
 ##
 ## - Any number of child command groups.
-
-# A Command Group has:
-#
-# - A Name: import
-# - A Fully Qualified Name - `mycmd/financial/import`
-# - Namespaced Parts - [mycmd, financial, import]
-# - A Source Directory - $HOME/mycmd/financial/import/
-# - A Source File - $HOME/mycmd/financial/import/import-lib
-# - Any number of commands
-# - Any number of child command groups
-# - A short description used in help
-# - A long description used in help
-# - A version string used in help
+##
+## - A short description used in displaying help.
+##
+## - A long description used in displaying help.
+##
+## - A version string used in displaying help and version information.
 
 # Global Data Structures
 # - All Registered Command Group Names
