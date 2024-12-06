@@ -1,0 +1,1962 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="454" onload="init(evt)" viewBox="0 0 1200 454" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs >
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	var details, searchbtn, matchedtxt, svg;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	// mouse-over for info
+	function s(node) {		// show
+		info = g_to_text(node);
+		details.nodeValue = "Function: " + info;
+	}
+	function c() {			// clear
+		details.nodeValue = ' ';
+	}
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	})
+
+	// functions
+	function find_child(parent, name, attr) {
+		var children = parent.childNodes;
+		for (var i=0; i<children.length;i++) {
+			if (children[i].tagName == name)
+				return (attr != undefined) ? children[i].attributes[attr].value : children[i];
+		}
+		return;
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_"+attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_"+attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_"+attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes["width"].value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes["x"].value = parseFloat(r.attributes["x"].value) +3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2*12*0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x=txt.length-2; x>0; x--) {
+			if (t.getSubStringLength(0, x+2) <= w) {
+				t.textContent = txt.substring(0,x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = (parseFloat(e.attributes["x"].value) - x - 10) * ratio + 10;
+				if(e.tagName == "text") e.attributes["x"].value = find_child(e.parentNode, "rect", "x") + 3;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseFloat(e.attributes["width"].value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_child(c[i], x-10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = 10;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseInt(svg.width.baseVal.value) - (10*2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr["width"].value);
+		var xmin = parseFloat(attr["x"].value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr["y"].value);
+		var ratio = (svg.width.baseVal.value - 2*10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "1.0";
+
+		var el = document.getElementsByTagName("g");
+		for(var i=0;i<el.length;i++){
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a["x"].value);
+			var ew = parseFloat(a["width"].value);
+			// Is it an ancestor
+			if (0 == 0) {
+				var upstack = parseFloat(a["y"].value) > ymin;
+			} else {
+				var upstack = parseFloat(a["y"].value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.style["opacity"] = "0.5";
+					zoom_parent(e);
+					e.onclick = function(e){unzoom(); zoom(this);};
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.style["display"] = "none";
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.style["display"] = "none";
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					e.onclick = function(e){zoom(this);};
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "0.0";
+
+		var el = document.getElementsByTagName("g");
+		for(i=0;i<el.length;i++) {
+			el[i].style["display"] = "block";
+			el[i].style["opacity"] = "1";
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.getElementsByTagName("rect");
+		for (var i=0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.style["opacity"] = "0.1";
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.style["opacity"] = "0.0";
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementsByTagName("g");
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			if (e.attributes["class"].value != "func_g")
+				continue;
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (rect == null) {
+				// the rect might be wrapped in an anchor
+				// if nameattr href is being used
+				if (rect = find_child(e, "a")) {
+				    rect = find_child(r, "rect");
+				}
+			}
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes["width"].value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes["x"].value);
+				orig_save(rect, "fill");
+				rect.attributes["fill"].value =
+				    "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.style["opacity"] = "1.0";
+		searchbtn.firstChild.nodeValue = "Reset Search"
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.style["opacity"] = "1.0";
+		pct = 100 * count / maxwidth;
+		if (pct == 100)
+			pct = "100"
+		else
+			pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+	function searchover(e) {
+		searchbtn.style["opacity"] = "1.0";
+	}
+	function searchout(e) {
+		if (searching) {
+			searchbtn.style["opacity"] = "1.0";
+		} else {
+			searchbtn.style["opacity"] = "0.1";
+		}
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="454.0" fill="url(#background)"  />
+<text text-anchor="middle" x="600.00" y="24" font-size="17" font-family="Verdana" fill="rgb(0,0,0)"  >Flame Graph</text>
+<text text-anchor="" x="10.00" y="437" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
+<text text-anchor="" x="10.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer" >Reset Zoom</text>
+<text text-anchor="" x="1090.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:0.1;cursor:pointer" >Search</text>
+<text text-anchor="" x="1090.00" y="437" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="matched" > </text>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (2,155 samples, 0.51%)</title><rect x="896.2" y="309" width="6.0" height="15.0" fill="rgb(245,124,28)" rx="2" ry="2" />
+<text text-anchor="" x="899.22" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.fire (6,048 samples, 1.43%)</title><rect x="292.6" y="133" width="16.9" height="15.0" fill="rgb(227,55,50)" rx="2" ry="2" />
+<text text-anchor="" x="295.57" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (1,224 samples, 0.29%)</title><rect x="284.3" y="85" width="3.4" height="15.0" fill="rgb(206,43,24)" rx="2" ry="2" />
+<text text-anchor="" x="287.28" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (376 samples, 0.09%)</title><rect x="290.5" y="165" width="1.1" height="15.0" fill="rgb(220,106,13)" rx="2" ry="2" />
+<text text-anchor="" x="293.54" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.debug (109 samples, 0.03%)</title><rect x="675.5" y="277" width="0.3" height="15.0" fill="rgb(233,157,17)" rx="2" ry="2" />
+<text text-anchor="" x="678.53" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.canonicalize_path (2,218 samples, 0.52%)</title><rect x="34.6" y="261" width="6.2" height="15.0" fill="rgb(251,221,12)" rx="2" ry="2" />
+<text text-anchor="" x="37.59" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.find_support_library_for_command_group (418 samples, 0.10%)</title><rect x="527.9" y="181" width="1.2" height="15.0" fill="rgb(249,220,40)" rx="2" ry="2" />
+<text text-anchor="" x="530.91" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (108 samples, 0.03%)</title><rect x="986.0" y="181" width="0.3" height="15.0" fill="rgb(223,194,23)" rx="2" ry="2" />
+<text text-anchor="" x="989.02" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (193 samples, 0.05%)</title><rect x="40.2" y="229" width="0.6" height="15.0" fill="rgb(227,139,9)" rx="2" ry="2" />
+<text text-anchor="" x="43.25" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (7,537 samples, 1.78%)</title><rect x="393.8" y="309" width="21.1" height="15.0" fill="rgb(220,4,49)" rx="2" ry="2" />
+<text text-anchor="" x="396.82" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.function_exists (49 samples, 0.01%)</title><rect x="911.0" y="245" width="0.1" height="15.0" fill="rgb(233,207,3)" rx="2" ry="2" />
+<text text-anchor="" x="913.99" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.quote (74 samples, 0.02%)</title><rect x="287.5" y="53" width="0.2" height="15.0" fill="rgb(228,201,53)" rx="2" ry="2" />
+<text text-anchor="" x="290.49" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.call_if_function_exists (130 samples, 0.03%)</title><rect x="535.6" y="133" width="0.4" height="15.0" fill="rgb(213,45,36)" rx="2" ry="2" />
+<text text-anchor="" x="538.63" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (1,843 samples, 0.44%)</title><rect x="534.4" y="197" width="5.1" height="15.0" fill="rgb(220,93,4)" rx="2" ry="2" />
+<text text-anchor="" x="537.37" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (5,985 samples, 1.42%)</title><rect x="271.2" y="133" width="16.7" height="15.0" fill="rgb(244,79,44)" rx="2" ry="2" />
+<text text-anchor="" x="274.18" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.gather_files_and_directories (2,026 samples, 0.48%)</title><rect x="824.6" y="277" width="5.6" height="15.0" fill="rgb(213,12,13)" rx="2" ry="2" />
+<text text-anchor="" x="827.55" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_support_lib (40,879 samples, 9.67%)</title><rect x="215.3" y="213" width="114.1" height="15.0" fill="rgb(229,41,41)" rx="2" ry="2" />
+<text text-anchor="" x="218.27" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:command_..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.load_task_library (40,937 samples, 9.69%)</title><rect x="215.1" y="229" width="114.3" height="15.0" fill="rgb(253,202,27)" rx="2" ry="2" />
+<text text-anchor="" x="218.11" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >project.load_t..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.register_short_description (67 samples, 0.02%)</title><rect x="412.3" y="261" width="0.2" height="15.0" fill="rgb(249,146,51)" rx="2" ry="2" />
+<text text-anchor="" x="415.28" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._capture_unprotected_functions_except_pattern (3,106 samples, 0.73%)</title><rect x="1171.7" y="325" width="8.7" height="15.0" fill="rgb(232,208,24)" rx="2" ry="2" />
+<text text-anchor="" x="1174.73" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin (1,501 samples, 0.36%)</title><rect x="909.7" y="293" width="4.2" height="15.0" fill="rgb(243,170,9)" rx="2" ry="2" />
+<text text-anchor="" x="912.72" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (77 samples, 0.02%)</title><rect x="10.1" y="357" width="0.2" height="15.0" fill="rgb(210,12,16)" rx="2" ry="2" />
+<text text-anchor="" x="13.06" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command._get_required_field_from_command_struct (190 samples, 0.04%)</title><rect x="414.9" y="309" width="0.5" height="15.0" fill="rgb(209,64,19)" rx="2" ry="2" />
+<text text-anchor="" x="417.91" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.quote (47 samples, 0.01%)</title><rect x="492.6" y="101" width="0.1" height="15.0" fill="rgb(225,189,11)" rx="2" ry="2" />
+<text text-anchor="" x="495.58" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (54 samples, 0.01%)</title><rect x="1051.6" y="293" width="0.2" height="15.0" fill="rgb(242,125,1)" rx="2" ry="2" />
+<text text-anchor="" x="1054.60" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (332 samples, 0.08%)</title><rect x="927.4" y="245" width="0.9" height="15.0" fill="rgb(229,176,44)" rx="2" ry="2" />
+<text text-anchor="" x="930.40" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.find_closest_project_file (2,773 samples, 0.66%)</title><rect x="33.0" y="293" width="7.8" height="15.0" fill="rgb(248,15,32)" rx="2" ry="2" />
+<text text-anchor="" x="36.04" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin_homebrew (1,948 samples, 0.46%)</title><rect x="1067.9" y="229" width="5.5" height="15.0" fill="rgb(247,189,12)" rx="2" ry="2" />
+<text text-anchor="" x="1070.92" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (1,153 samples, 0.27%)</title><rect x="1048.4" y="261" width="3.2" height="15.0" fill="rgb(217,182,13)" rx="2" ry="2" />
+<text text-anchor="" x="1051.36" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_mycmd_local_lib (171 samples, 0.04%)</title><rect x="1077.7" y="357" width="0.5" height="15.0" fill="rgb(233,74,35)" rx="2" ry="2" />
+<text text-anchor="" x="1080.69" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.function_exists (68 samples, 0.02%)</title><rect x="535.8" y="117" width="0.2" height="15.0" fill="rgb(240,82,13)" rx="2" ry="2" />
+<text text-anchor="" x="538.80" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (3,580 samples, 0.85%)</title><rect x="529.5" y="229" width="10.0" height="15.0" fill="rgb(229,147,8)" rx="2" ry="2" />
+<text text-anchor="" x="532.54" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (1,257 samples, 0.30%)</title><rect x="1074.2" y="325" width="3.5" height="15.0" fill="rgb(211,69,0)" rx="2" ry="2" />
+<text text-anchor="" x="1077.18" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (28,137 samples, 6.66%)</title><rect x="231.3" y="197" width="78.5" height="15.0" fill="rgb(224,58,29)" rx="2" ry="2" />
+<text text-anchor="" x="234.28" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.sou..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (611 samples, 0.14%)</title><rect x="1115.1" y="309" width="1.7" height="15.0" fill="rgb(240,72,44)" rx="2" ry="2" />
+<text text-anchor="" x="1118.13" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin (1,561 samples, 0.37%)</title><rect x="534.9" y="165" width="4.4" height="15.0" fill="rgb(218,161,35)" rx="2" ry="2" />
+<text text-anchor="" x="537.92" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.is_called_by_function (38 samples, 0.01%)</title><rect x="678.0" y="261" width="0.1" height="15.0" fill="rgb(239,112,24)" rx="2" ry="2" />
+<text text-anchor="" x="680.98" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (27,465 samples, 6.50%)</title><rect x="917.8" y="261" width="76.7" height="15.0" fill="rgb(211,95,34)" rx="2" ry="2" />
+<text text-anchor="" x="920.79" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd._s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.debug (61 samples, 0.01%)</title><rect x="776.0" y="261" width="0.2" height="15.0" fill="rgb(232,223,33)" rx="2" ry="2" />
+<text text-anchor="" x="779.01" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._defer_at_startup (863 samples, 0.20%)</title><rect x="907.3" y="245" width="2.4" height="15.0" fill="rgb(216,140,38)" rx="2" ry="2" />
+<text text-anchor="" x="910.27" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.is_valid_absolute_path_of_executable_file (48 samples, 0.01%)</title><rect x="836.5" y="229" width="0.1" height="15.0" fill="rgb(223,189,49)" rx="2" ry="2" />
+<text text-anchor="" x="839.51" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd_launcher.set_mycmd_user_environment (41 samples, 0.01%)</title><rect x="564.4" y="373" width="0.1" height="15.0" fill="rgb(219,54,51)" rx="2" ry="2" />
+<text text-anchor="" x="567.36" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.source_file_path_for_directory (3,675 samples, 0.87%)</title><rect x="682.8" y="277" width="10.3" height="15.0" fill="rgb(205,60,42)" rx="2" ry="2" />
+<text text-anchor="" x="685.83" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.load_mycmd_lib_support_lib (38,368 samples, 9.08%)</title><rect x="913.9" y="293" width="107.1" height="15.0" fill="rgb(253,97,6)" rx="2" ry="2" />
+<text text-anchor="" x="916.91" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.load_my..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (145 samples, 0.03%)</title><rect x="1077.8" y="341" width="0.4" height="15.0" fill="rgb(209,67,15)" rx="2" ry="2" />
+<text text-anchor="" x="1080.77" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (36 samples, 0.01%)</title><rect x="287.9" y="149" width="0.1" height="15.0" fill="rgb(218,73,44)" rx="2" ry="2" />
+<text text-anchor="" x="290.88" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (178 samples, 0.04%)</title><rect x="854.9" y="309" width="0.5" height="15.0" fill="rgb(225,201,50)" rx="2" ry="2" />
+<text text-anchor="" x="857.93" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (193 samples, 0.05%)</title><rect x="527.4" y="149" width="0.5" height="15.0" fill="rgb(217,88,44)" rx="2" ry="2" />
+<text text-anchor="" x="530.37" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (37 samples, 0.01%)</title><rect x="778.7" y="245" width="0.1" height="15.0" fill="rgb(235,149,32)" rx="2" ry="2" />
+<text text-anchor="" x="781.69" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_support_library_file_name (758 samples, 0.18%)</title><rect x="525.8" y="181" width="2.1" height="15.0" fill="rgb(246,98,53)" rx="2" ry="2" />
+<text text-anchor="" x="528.80" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.discover_command_groups_and_commands (97,146 samples, 22.98%)</title><rect x="572.9" y="357" width="271.2" height="15.0" fill="rgb(238,194,0)" rx="2" ry="2" />
+<text text-anchor="" x="575.93" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.discover_command_groups_and_co..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (414 samples, 0.10%)</title><rect x="571.8" y="341" width="1.1" height="15.0" fill="rgb(246,224,52)" rx="2" ry="2" />
+<text text-anchor="" x="574.75" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._load_mycmd_lib_support_lib (525 samples, 0.12%)</title><rect x="982.8" y="229" width="1.5" height="15.0" fill="rgb(245,49,17)" rx="2" ry="2" />
+<text text-anchor="" x="985.85" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (82,131 samples, 19.43%)</title><rect x="844.7" y="341" width="229.3" height="15.0" fill="rgb(224,143,38)" rx="2" ry="2" />
+<text text-anchor="" x="847.75" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.source_lib_by_path_if_fo..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (112 samples, 0.03%)</title><rect x="287.2" y="37" width="0.3" height="15.0" fill="rgb(251,143,41)" rx="2" ry="2" />
+<text text-anchor="" x="290.18" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (49 samples, 0.01%)</title><rect x="994.3" y="229" width="0.2" height="15.0" fill="rgb(240,45,13)" rx="2" ry="2" />
+<text text-anchor="" x="997.33" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (390 samples, 0.09%)</title><rect x="1151.8" y="213" width="1.1" height="15.0" fill="rgb(220,109,36)" rx="2" ry="2" />
+<text text-anchor="" x="1154.78" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (172 samples, 0.04%)</title><rect x="1151.2" y="213" width="0.5" height="15.0" fill="rgb(226,82,45)" rx="2" ry="2" />
+<text text-anchor="" x="1154.23" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (1,070 samples, 0.25%)</title><rect x="155.7" y="213" width="3.0" height="15.0" fill="rgb(233,128,34)" rx="2" ry="2" />
+<text text-anchor="" x="158.71" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (37,930 samples, 8.97%)</title><rect x="915.1" y="277" width="105.9" height="15.0" fill="rgb(231,124,38)" rx="2" ry="2" />
+<text text-anchor="" x="918.14" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.source..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.walk_path (96,917 samples, 22.93%)</title><rect x="573.6" y="341" width="270.5" height="15.0" fill="rgb(232,30,36)" rx="2" ry="2" />
+<text text-anchor="" x="576.57" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:pathname.walk_path</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.register_task_with_fileset (7,382 samples, 1.75%)</title><rect x="348.4" y="229" width="20.6" height="15.0" fill="rgb(221,182,35)" rx="2" ry="2" />
+<text text-anchor="" x="351.37" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.function_exists (183 samples, 0.04%)</title><rect x="389.5" y="149" width="0.5" height="15.0" fill="rgb(247,138,34)" rx="2" ry="2" />
+<text text-anchor="" x="392.46" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (1,276 samples, 0.30%)</title><rect x="1074.1" y="341" width="3.6" height="15.0" fill="rgb(250,4,42)" rx="2" ry="2" />
+<text text-anchor="" x="1077.13" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.output (47 samples, 0.01%)</title><rect x="31.7" y="277" width="0.1" height="15.0" fill="rgb(215,24,9)" rx="2" ry="2" />
+<text text-anchor="" x="34.68" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.call_if_function_exists (51 samples, 0.01%)</title><rect x="1067.8" y="229" width="0.1" height="15.0" fill="rgb(247,160,5)" rx="2" ry="2" />
+<text text-anchor="" x="1070.77" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (7,887 samples, 1.87%)</title><rect x="371.1" y="229" width="22.0" height="15.0" fill="rgb(240,192,27)" rx="2" ry="2" />
+<text text-anchor="" x="374.13" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >e..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (836 samples, 0.20%)</title><rect x="544.3" y="261" width="2.4" height="15.0" fill="rgb(218,7,27)" rx="2" ry="2" />
+<text text-anchor="" x="547.34" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project:task._new_task (3,644 samples, 0.86%)</title><rect x="358.8" y="197" width="10.2" height="15.0" fill="rgb(220,17,13)" rx="2" ry="2" />
+<text text-anchor="" x="361.81" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>main (422,650 samples, 99.99%)</title><rect x="10.0" y="389" width="1179.9" height="15.0" fill="rgb(229,66,51)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="399.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (180 samples, 0.04%)</title><rect x="547.3" y="261" width="0.5" height="15.0" fill="rgb(230,64,9)" rx="2" ry="2" />
+<text text-anchor="" x="550.32" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (252 samples, 0.06%)</title><rect x="1019.9" y="213" width="0.8" height="15.0" fill="rgb(239,65,1)" rx="2" ry="2" />
+<text text-anchor="" x="1022.95" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (459 samples, 0.11%)</title><rect x="983.0" y="213" width="1.3" height="15.0" fill="rgb(214,201,18)" rx="2" ry="2" />
+<text text-anchor="" x="986.03" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (4,263 samples, 1.01%)</title><rect x="480.9" y="165" width="11.9" height="15.0" fill="rgb(223,104,21)" rx="2" ry="2" />
+<text text-anchor="" x="483.94" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.defer_at_startup (1,473 samples, 0.35%)</title><rect x="905.6" y="293" width="4.1" height="15.0" fill="rgb(229,164,42)" rx="2" ry="2" />
+<text text-anchor="" x="908.61" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin_homebrew (1,057 samples, 0.25%)</title><rect x="306.5" y="85" width="3.0" height="15.0" fill="rgb(238,159,13)" rx="2" ry="2" />
+<text text-anchor="" x="309.50" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.get_command (3,456 samples, 0.82%)</title><rect x="547.8" y="341" width="9.7" height="15.0" fill="rgb(225,73,40)" rx="2" ry="2" />
+<text text-anchor="" x="550.83" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._load_command_group_only (917 samples, 0.22%)</title><rect x="544.1" y="277" width="2.6" height="15.0" fill="rgb(227,202,37)" rx="2" ry="2" />
+<text text-anchor="" x="547.12" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (201 samples, 0.05%)</title><rect x="1152.3" y="181" width="0.5" height="15.0" fill="rgb(218,84,9)" rx="2" ry="2" />
+<text text-anchor="" x="1155.26" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (46 samples, 0.01%)</title><rect x="414.7" y="261" width="0.1" height="15.0" fill="rgb(214,134,1)" rx="2" ry="2" />
+<text text-anchor="" x="417.70" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (679 samples, 0.16%)</title><rect x="544.8" y="245" width="1.8" height="15.0" fill="rgb(207,64,14)" rx="2" ry="2" />
+<text text-anchor="" x="547.75" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command._get_required_field_from_command_struct (178 samples, 0.04%)</title><rect x="417.4" y="293" width="0.5" height="15.0" fill="rgb(225,197,31)" rx="2" ry="2" />
+<text text-anchor="" x="420.43" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin (7,648 samples, 1.81%)</title><rect x="371.7" y="197" width="21.3" height="15.0" fill="rgb(253,146,36)" rx="2" ry="2" />
+<text text-anchor="" x="374.68" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_source_directory (658 samples, 0.16%)</title><rect x="321.2" y="197" width="1.9" height="15.0" fill="rgb(217,84,29)" rx="2" ry="2" />
+<text text-anchor="" x="324.24" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.function_exists (96 samples, 0.02%)</title><rect x="129.5" y="181" width="0.3" height="15.0" fill="rgb(249,210,32)" rx="2" ry="2" />
+<text text-anchor="" x="132.50" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (7,992 samples, 1.89%)</title><rect x="370.8" y="245" width="22.3" height="15.0" fill="rgb(245,96,17)" rx="2" ry="2" />
+<text text-anchor="" x="373.83" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.register_task (6,518 samples, 1.54%)</title><rect x="330.2" y="229" width="18.2" height="15.0" fill="rgb(243,104,44)" rx="2" ry="2" />
+<text text-anchor="" x="333.17" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (59 samples, 0.01%)</title><rect x="1152.6" y="165" width="0.2" height="15.0" fill="rgb(231,158,0)" rx="2" ry="2" />
+<text text-anchor="" x="1155.61" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.load_project_file (126,234 samples, 29.87%)</title><rect x="40.8" y="293" width="352.4" height="15.0" fill="rgb(216,196,33)" rx="2" ry="2" />
+<text text-anchor="" x="43.78" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >project.load_project_file</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (51 samples, 0.01%)</title><rect x="789.2" y="261" width="0.1" height="15.0" fill="rgb(246,172,39)" rx="2" ry="2" />
+<text text-anchor="" x="792.17" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (7,984 samples, 1.89%)</title><rect x="497.5" y="181" width="22.3" height="15.0" fill="rgb(211,221,17)" rx="2" ry="2" />
+<text text-anchor="" x="500.48" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_name (423 samples, 0.10%)</title><rect x="326.0" y="181" width="1.2" height="15.0" fill="rgb(205,123,42)" rx="2" ry="2" />
+<text text-anchor="" x="329.04" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (492 samples, 0.12%)</title><rect x="992.8" y="181" width="1.4" height="15.0" fill="rgb(230,144,35)" rx="2" ry="2" />
+<text text-anchor="" x="995.84" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (39 samples, 0.01%)</title><rect x="393.4" y="325" width="0.2" height="15.0" fill="rgb(214,98,12)" rx="2" ry="2" />
+<text text-anchor="" x="396.45" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (95 samples, 0.02%)</title><rect x="1134.2" y="261" width="0.2" height="15.0" fill="rgb(212,131,45)" rx="2" ry="2" />
+<text text-anchor="" x="1137.18" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._output (37 samples, 0.01%)</title><rect x="31.7" y="261" width="0.1" height="15.0" fill="rgb(213,199,7)" rx="2" ry="2" />
+<text text-anchor="" x="34.71" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (53,498 samples, 12.66%)</title><rect x="902.4" y="309" width="149.4" height="15.0" fill="rgb(237,61,50)" rx="2" ry="2" />
+<text text-anchor="" x="905.40" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >source</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin (2,120 samples, 0.50%)</title><rect x="1067.4" y="261" width="6.0" height="15.0" fill="rgb(208,141,42)" rx="2" ry="2" />
+<text text-anchor="" x="1070.44" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.output (57 samples, 0.01%)</title><rect x="393.3" y="293" width="0.1" height="15.0" fill="rgb(214,9,45)" rx="2" ry="2" />
+<text text-anchor="" x="396.26" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (86 samples, 0.02%)</title><rect x="539.3" y="181" width="0.2" height="15.0" fill="rgb(205,11,48)" rx="2" ry="2" />
+<text text-anchor="" x="542.27" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (7,144 samples, 1.69%)</title><rect x="497.7" y="165" width="19.9" height="15.0" fill="rgb(210,123,13)" rx="2" ry="2" />
+<text text-anchor="" x="500.70" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_mycmd_version_and_descriptions (207 samples, 0.05%)</title><rect x="573.0" y="341" width="0.6" height="15.0" fill="rgb(246,227,36)" rx="2" ry="2" />
+<text text-anchor="" x="576.00" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project:task._new_task_with_fileset (7,078 samples, 1.67%)</title><rect x="349.2" y="213" width="19.8" height="15.0" fill="rgb(226,11,38)" rx="2" ry="2" />
+<text text-anchor="" x="352.22" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.file_is_command (1,467 samples, 0.35%)</title><rect x="675.8" y="277" width="4.1" height="15.0" fill="rgb(254,87,28)" rx="2" ry="2" />
+<text text-anchor="" x="678.84" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (85 samples, 0.02%)</title><rect x="994.0" y="149" width="0.2" height="15.0" fill="rgb(245,57,5)" rx="2" ry="2" />
+<text text-anchor="" x="996.98" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.execute_by_name (194,743 samples, 46.07%)</title><rect x="13.8" y="357" width="543.7" height="15.0" fill="rgb(208,153,9)" rx="2" ry="2" />
+<text text-anchor="" x="16.80" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:command.execute_by_name</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (1,126 samples, 0.27%)</title><rect x="345.2" y="197" width="3.2" height="15.0" fill="rgb(206,102,9)" rx="2" ry="2" />
+<text text-anchor="" x="348.23" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_source_file_path (420 samples, 0.10%)</title><rect x="540.8" y="261" width="1.2" height="15.0" fill="rgb(227,136,18)" rx="2" ry="2" />
+<text text-anchor="" x="543.84" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (40 samples, 0.01%)</title><rect x="393.0" y="213" width="0.1" height="15.0" fill="rgb(205,72,39)" rx="2" ry="2" />
+<text text-anchor="" x="396.03" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (181 samples, 0.04%)</title><rect x="370.3" y="245" width="0.5" height="15.0" fill="rgb(224,184,29)" rx="2" ry="2" />
+<text text-anchor="" x="373.33" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (477 samples, 0.11%)</title><rect x="523.8" y="165" width="1.3" height="15.0" fill="rgb(249,204,49)" rx="2" ry="2" />
+<text text-anchor="" x="526.77" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._load_mycmd_lib_support_lib (33,467 samples, 7.92%)</title><rect x="1078.2" y="341" width="93.5" height="15.0" fill="rgb(214,12,43)" rx="2" ry="2" />
+<text text-anchor="" x="1081.25" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd._load..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (2,795 samples, 0.66%)</title><rect x="986.4" y="197" width="7.8" height="15.0" fill="rgb(221,59,34)" rx="2" ry="2" />
+<text text-anchor="" x="989.42" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (789 samples, 0.19%)</title><rect x="1168.6" y="213" width="2.2" height="15.0" fill="rgb(209,217,12)" rx="2" ry="2" />
+<text text-anchor="" x="1171.61" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (694 samples, 0.16%)</title><rect x="990.9" y="181" width="1.9" height="15.0" fill="rgb(251,34,15)" rx="2" ry="2" />
+<text text-anchor="" x="993.91" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (20,162 samples, 4.77%)</title><rect x="231.7" y="181" width="56.3" height="15.0" fill="rgb(223,79,20)" rx="2" ry="2" />
+<text text-anchor="" x="234.70" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (114 samples, 0.03%)</title><rect x="414.5" y="277" width="0.3" height="15.0" fill="rgb(219,209,33)" rx="2" ry="2" />
+<text text-anchor="" x="417.51" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._init_bin (2,100 samples, 0.50%)</title><rect x="1067.5" y="245" width="5.9" height="15.0" fill="rgb(227,96,20)" rx="2" ry="2" />
+<text text-anchor="" x="1070.49" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (4,886 samples, 1.16%)</title><rect x="1137.6" y="213" width="13.6" height="15.0" fill="rgb(210,135,38)" rx="2" ry="2" />
+<text text-anchor="" x="1140.59" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (14,436 samples, 3.42%)</title><rect x="928.3" y="245" width="40.3" height="15.0" fill="rgb(233,110,9)" rx="2" ry="2" />
+<text text-anchor="" x="931.33" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >myc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_long_description (51 samples, 0.01%)</title><rect x="529.1" y="197" width="0.1" height="15.0" fill="rgb(208,14,53)" rx="2" ry="2" />
+<text text-anchor="" x="532.08" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (6,249 samples, 1.48%)</title><rect x="292.3" y="149" width="17.4" height="15.0" fill="rgb(223,164,30)" rx="2" ry="2" />
+<text text-anchor="" x="295.27" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin_homebrew (1,082 samples, 0.26%)</title><rect x="390.0" y="165" width="3.0" height="15.0" fill="rgb(237,26,18)" rx="2" ry="2" />
+<text text-anchor="" x="393.01" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (45 samples, 0.01%)</title><rect x="546.5" y="213" width="0.1" height="15.0" fill="rgb(206,69,18)" rx="2" ry="2" />
+<text text-anchor="" x="549.52" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.output (1,341 samples, 0.32%)</title><rect x="27.9" y="293" width="3.7" height="15.0" fill="rgb(240,126,8)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._protect_mycmd_lib (3,304 samples, 0.78%)</title><rect x="1180.4" y="325" width="9.2" height="15.0" fill="rgb(219,79,42)" rx="2" ry="2" />
+<text text-anchor="" x="1183.40" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (45 samples, 0.01%)</title><rect x="13.6" y="277" width="0.2" height="15.0" fill="rgb(220,60,19)" rx="2" ry="2" />
+<text text-anchor="" x="16.65" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (765 samples, 0.18%)</title><rect x="1187.5" y="309" width="2.1" height="15.0" fill="rgb(227,62,41)" rx="2" ry="2" />
+<text text-anchor="" x="1190.46" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_command_group_only (37,458 samples, 8.86%)</title><rect x="437.4" y="277" width="104.6" height="15.0" fill="rgb(241,210,51)" rx="2" ry="2" />
+<text text-anchor="" x="440.44" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:comman..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (1,010 samples, 0.24%)</title><rect x="409.9" y="277" width="2.8" height="15.0" fill="rgb(235,74,47)" rx="2" ry="2" />
+<text text-anchor="" x="412.85" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (749 samples, 0.18%)</title><rect x="517.6" y="165" width="2.1" height="15.0" fill="rgb(207,198,26)" rx="2" ry="2" />
+<text text-anchor="" x="520.64" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._protect_mycmd_lib (3,029 samples, 0.72%)</title><rect x="564.5" y="357" width="8.4" height="15.0" fill="rgb(212,157,9)" rx="2" ry="2" />
+<text text-anchor="" x="567.48" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (2,544 samples, 0.60%)</title><rect x="968.6" y="245" width="7.1" height="15.0" fill="rgb(231,36,53)" rx="2" ry="2" />
+<text text-anchor="" x="971.63" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.on (599 samples, 0.14%)</title><rect x="285.8" y="53" width="1.7" height="15.0" fill="rgb(249,11,1)" rx="2" ry="2" />
+<text text-anchor="" x="288.82" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.get_source_file_path (210 samples, 0.05%)</title><rect x="417.9" y="325" width="0.6" height="15.0" fill="rgb(225,129,16)" rx="2" ry="2" />
+<text text-anchor="" x="420.93" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.list_registered_tasks (4,294 samples, 1.02%)</title><rect x="19.8" y="309" width="12.0" height="15.0" fill="rgb(240,220,20)" rx="2" ry="2" />
+<text text-anchor="" x="22.85" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.nullglob_set_wrapper (550 samples, 0.13%)</title><rect x="842.6" y="277" width="1.5" height="15.0" fill="rgb(218,200,44)" rx="2" ry="2" />
+<text text-anchor="" x="845.60" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.call_if_function_exists (187 samples, 0.04%)</title><rect x="129.2" y="197" width="0.6" height="15.0" fill="rgb(217,27,15)" rx="2" ry="2" />
+<text text-anchor="" x="132.24" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (1,378 samples, 0.33%)</title><rect x="474.4" y="213" width="3.8" height="15.0" fill="rgb(216,57,14)" rx="2" ry="2" />
+<text text-anchor="" x="477.38" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.add_files_to_fileset (2,302 samples, 0.54%)</title><rect x="130.2" y="229" width="6.4" height="15.0" fill="rgb(213,126,18)" rx="2" ry="2" />
+<text text-anchor="" x="133.20" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (4,636 samples, 1.10%)</title><rect x="501.0" y="149" width="12.9" height="15.0" fill="rgb(252,206,33)" rx="2" ry="2" />
+<text text-anchor="" x="503.95" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (218 samples, 0.05%)</title><rect x="525.2" y="165" width="0.6" height="15.0" fill="rgb(211,155,27)" rx="2" ry="2" />
+<text text-anchor="" x="528.19" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (6,517 samples, 1.54%)</title><rect x="1171.7" y="341" width="18.2" height="15.0" fill="rgb(231,142,1)" rx="2" ry="2" />
+<text text-anchor="" x="1174.73" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (2,089 samples, 0.49%)</title><rect x="225.4" y="197" width="5.9" height="15.0" fill="rgb(221,165,14)" rx="2" ry="2" />
+<text text-anchor="" x="228.45" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.find_files_for_fileset (28,112 samples, 6.65%)</title><rect x="136.6" y="229" width="78.5" height="15.0" fill="rgb(226,167,42)" rx="2" ry="2" />
+<text text-anchor="" x="139.63" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >project.f..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (34,941 samples, 8.27%)</title><rect x="442.1" y="245" width="97.5" height="15.0" fill="rgb(236,20,16)" rx="2" ry="2" />
+<text text-anchor="" x="445.05" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.sourc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.on (145 samples, 0.03%)</title><rect x="909.2" y="197" width="0.4" height="15.0" fill="rgb(247,168,15)" rx="2" ry="2" />
+<text text-anchor="" x="912.24" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_command_group (2,126 samples, 0.50%)</title><rect x="836.6" y="261" width="6.0" height="15.0" fill="rgb(241,101,3)" rx="2" ry="2" />
+<text text-anchor="" x="839.64" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (107,555 samples, 25.45%)</title><rect x="68.7" y="245" width="300.3" height="15.0" fill="rgb(213,40,54)" rx="2" ry="2" />
+<text text-anchor="" x="71.71" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >source</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (401 samples, 0.09%)</title><rect x="67.6" y="229" width="1.1" height="15.0" fill="rgb(248,209,41)" rx="2" ry="2" />
+<text text-anchor="" x="70.56" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (166 samples, 0.04%)</title><rect x="1073.4" y="277" width="0.4" height="15.0" fill="rgb(213,223,27)" rx="2" ry="2" />
+<text text-anchor="" x="1076.36" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.call_if_function_exists (96 samples, 0.02%)</title><rect x="910.9" y="261" width="0.2" height="15.0" fill="rgb(231,3,52)" rx="2" ry="2" />
+<text text-anchor="" x="913.86" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (586 samples, 0.14%)</title><rect x="1019.0" y="229" width="1.7" height="15.0" fill="rgb(237,56,45)" rx="2" ry="2" />
+<text text-anchor="" x="1022.01" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (141 samples, 0.03%)</title><rect x="1189.2" y="293" width="0.4" height="15.0" fill="rgb(208,125,50)" rx="2" ry="2" />
+<text text-anchor="" x="1192.20" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.get_fully_qualified_name (208 samples, 0.05%)</title><rect x="415.4" y="325" width="0.6" height="15.0" fill="rgb(250,204,43)" rx="2" ry="2" />
+<text text-anchor="" x="418.44" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.find_support_library_for_command_group (779 samples, 0.18%)</title><rect x="327.2" y="197" width="2.2" height="15.0" fill="rgb(208,66,16)" rx="2" ry="2" />
+<text text-anchor="" x="330.22" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (39 samples, 0.01%)</title><rect x="994.2" y="197" width="0.1" height="15.0" fill="rgb(252,104,54)" rx="2" ry="2" />
+<text text-anchor="" x="997.22" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (818 samples, 0.19%)</title><rect x="319.0" y="181" width="2.2" height="15.0" fill="rgb(248,70,34)" rx="2" ry="2" />
+<text text-anchor="" x="321.95" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.configure_shell_trace_and_verbosity (87 samples, 0.02%)</title><rect x="18.7" y="325" width="0.2" height="15.0" fill="rgb(215,4,52)" rx="2" ry="2" />
+<text text-anchor="" x="21.67" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (2,298 samples, 0.54%)</title><rect x="1009.9" y="245" width="6.5" height="15.0" fill="rgb(227,120,2)" rx="2" ry="2" />
+<text text-anchor="" x="1012.95" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (120 samples, 0.03%)</title><rect x="975.7" y="245" width="0.4" height="15.0" fill="rgb(222,184,1)" rx="2" ry="2" />
+<text text-anchor="" x="978.73" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (2,037 samples, 0.48%)</title><rect x="63.0" y="245" width="5.7" height="15.0" fill="rgb(239,94,32)" rx="2" ry="2" />
+<text text-anchor="" x="65.99" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._load_mycmd_lib_support_lib (18,865 samples, 4.46%)</title><rect x="1118.2" y="293" width="52.7" height="15.0" fill="rgb(250,26,21)" rx="2" ry="2" />
+<text text-anchor="" x="1121.25" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_command_group (4,086 samples, 0.97%)</title><rect x="309.8" y="197" width="11.4" height="15.0" fill="rgb(227,16,18)" rx="2" ry="2" />
+<text text-anchor="" x="312.83" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (667 samples, 0.16%)</title><rect x="1075.8" y="309" width="1.9" height="15.0" fill="rgb(238,64,5)" rx="2" ry="2" />
+<text text-anchor="" x="1078.80" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (471 samples, 0.11%)</title><rect x="367.7" y="181" width="1.3" height="15.0" fill="rgb(208,70,41)" rx="2" ry="2" />
+<text text-anchor="" x="370.66" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (171 samples, 0.04%)</title><rect x="518.9" y="149" width="0.5" height="15.0" fill="rgb(209,61,43)" rx="2" ry="2" />
+<text text-anchor="" x="521.91" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (54 samples, 0.01%)</title><rect x="447.5" y="213" width="0.1" height="15.0" fill="rgb(209,56,29)" rx="2" ry="2" />
+<text text-anchor="" x="450.46" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.register_fileset (233 samples, 0.06%)</title><rect x="329.5" y="229" width="0.7" height="15.0" fill="rgb(211,60,1)" rx="2" ry="2" />
+<text text-anchor="" x="332.52" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._load_mycmd_lib_support_lib (6,451 samples, 1.53%)</title><rect x="1134.9" y="245" width="18.0" height="15.0" fill="rgb(222,113,21)" rx="2" ry="2" />
+<text text-anchor="" x="1137.85" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (49 samples, 0.01%)</title><rect x="1137.5" y="213" width="0.1" height="15.0" fill="rgb(234,169,27)" rx="2" ry="2" />
+<text text-anchor="" x="1140.46" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (5,175 samples, 1.22%)</title><rect x="1154.2" y="213" width="14.4" height="15.0" fill="rgb(229,221,9)" rx="2" ry="2" />
+<text text-anchor="" x="1157.16" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_short_description (36 samples, 0.01%)</title><rect x="573.4" y="325" width="0.1" height="15.0" fill="rgb(219,127,51)" rx="2" ry="2" />
+<text text-anchor="" x="576.38" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._init_bin (5,756 samples, 1.36%)</title><rect x="293.4" y="101" width="16.1" height="15.0" fill="rgb(230,35,14)" rx="2" ry="2" />
+<text text-anchor="" x="296.38" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (214 samples, 0.05%)</title><rect x="136.0" y="197" width="0.6" height="15.0" fill="rgb(222,15,30)" rx="2" ry="2" />
+<text text-anchor="" x="139.03" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_source_directory (249 samples, 0.06%)</title><rect x="525.1" y="181" width="0.7" height="15.0" fill="rgb(238,152,8)" rx="2" ry="2" />
+<text text-anchor="" x="528.10" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command._get_required_field_from_command_struct (186 samples, 0.04%)</title><rect x="418.0" y="309" width="0.5" height="15.0" fill="rgb(243,152,27)" rx="2" ry="2" />
+<text text-anchor="" x="420.99" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (19,622 samples, 4.64%)</title><rect x="1116.9" y="309" width="54.8" height="15.0" fill="rgb(245,134,46)" rx="2" ry="2" />
+<text text-anchor="" x="1119.90" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >source</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (609 samples, 0.14%)</title><rect x="321.4" y="181" width="1.7" height="15.0" fill="rgb(226,192,34)" rx="2" ry="2" />
+<text text-anchor="" x="324.37" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (798 samples, 0.19%)</title><rect x="435.2" y="261" width="2.2" height="15.0" fill="rgb(205,129,33)" rx="2" ry="2" />
+<text text-anchor="" x="438.21" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.source_file_path_for_directory (10,926 samples, 2.58%)</title><rect x="789.3" y="261" width="30.5" height="15.0" fill="rgb(206,58,47)" rx="2" ry="2" />
+<text text-anchor="" x="792.31" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >my..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>parse_command_line (218 samples, 0.05%)</title><rect x="19.2" y="309" width="0.6" height="15.0" fill="rgb(213,4,18)" rx="2" ry="2" />
+<text text-anchor="" x="22.24" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (169 samples, 0.04%)</title><rect x="1170.3" y="197" width="0.5" height="15.0" fill="rgb(207,67,10)" rx="2" ry="2" />
+<text text-anchor="" x="1173.34" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.on (1,239 samples, 0.29%)</title><rect x="123.7" y="133" width="3.5" height="15.0" fill="rgb(215,40,42)" rx="2" ry="2" />
+<text text-anchor="" x="126.70" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (87 samples, 0.02%)</title><rect x="1189.7" y="309" width="0.2" height="15.0" fill="rgb(253,98,26)" rx="2" ry="2" />
+<text text-anchor="" x="1192.68" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.register_help_text (641 samples, 0.15%)</title><rect x="410.5" y="261" width="1.8" height="15.0" fill="rgb(207,53,47)" rx="2" ry="2" />
+<text text-anchor="" x="413.49" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (9,380 samples, 2.22%)</title><rect x="994.5" y="261" width="26.2" height="15.0" fill="rgb(205,108,35)" rx="2" ry="2" />
+<text text-anchor="" x="997.46" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (10,905 samples, 2.58%)</title><rect x="1021.1" y="277" width="30.5" height="15.0" fill="rgb(235,173,51)" rx="2" ry="2" />
+<text text-anchor="" x="1024.13" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >my..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.register_command (2,459 samples, 0.58%)</title><rect x="773.6" y="277" width="6.9" height="15.0" fill="rgb(253,34,43)" rx="2" ry="2" />
+<text text-anchor="" x="776.64" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command._get_required_field_from_command_struct (184 samples, 0.04%)</title><rect x="415.5" y="309" width="0.5" height="15.0" fill="rgb(206,213,1)" rx="2" ry="2" />
+<text text-anchor="" x="418.51" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._load_command_group_only (35,098 samples, 8.30%)</title><rect x="441.6" y="261" width="98.0" height="15.0" fill="rgb(218,178,8)" rx="2" ry="2" />
+<text text-anchor="" x="444.62" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:comma..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (511 samples, 0.12%)</title><rect x="516.2" y="149" width="1.4" height="15.0" fill="rgb(250,109,14)" rx="2" ry="2" />
+<text text-anchor="" x="519.21" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin (589 samples, 0.14%)</title><rect x="128.2" y="229" width="1.6" height="15.0" fill="rgb(244,36,14)" rx="2" ry="2" />
+<text text-anchor="" x="131.19" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.file_is_command (1,550 samples, 0.37%)</title><rect x="776.2" y="261" width="4.3" height="15.0" fill="rgb(228,147,46)" rx="2" ry="2" />
+<text text-anchor="" x="779.18" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (773 samples, 0.18%)</title><rect x="412.7" y="293" width="2.1" height="15.0" fill="rgb(233,199,16)" rx="2" ry="2" />
+<text text-anchor="" x="415.67" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (68 samples, 0.02%)</title><rect x="1073.8" y="325" width="0.2" height="15.0" fill="rgb(217,68,38)" rx="2" ry="2" />
+<text text-anchor="" x="1076.84" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (47 samples, 0.01%)</title><rect x="1121.3" y="261" width="0.1" height="15.0" fill="rgb(252,140,38)" rx="2" ry="2" />
+<text text-anchor="" x="1124.30" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (2,533 samples, 0.60%)</title><rect x="564.7" y="341" width="7.1" height="15.0" fill="rgb(206,40,50)" rx="2" ry="2" />
+<text text-anchor="" x="567.68" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.load_mycmd_lib_support_lib (3,587 samples, 0.85%)</title><rect x="984.3" y="229" width="10.0" height="15.0" fill="rgb(245,208,22)" rx="2" ry="2" />
+<text text-anchor="" x="987.31" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_name (224 samples, 0.05%)</title><rect x="527.3" y="165" width="0.6" height="15.0" fill="rgb(226,171,27)" rx="2" ry="2" />
+<text text-anchor="" x="530.29" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (3,448 samples, 0.82%)</title><rect x="984.7" y="213" width="9.6" height="15.0" fill="rgb(227,121,15)" rx="2" ry="2" />
+<text text-anchor="" x="987.70" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (161 samples, 0.04%)</title><rect x="270.0" y="149" width="0.4" height="15.0" fill="rgb(210,92,3)" rx="2" ry="2" />
+<text text-anchor="" x="272.98" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.register_command (2,364 samples, 0.56%)</title><rect x="673.3" y="293" width="6.6" height="15.0" fill="rgb(223,108,37)" rx="2" ry="2" />
+<text text-anchor="" x="676.33" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (378 samples, 0.09%)</title><rect x="541.0" y="245" width="1.0" height="15.0" fill="rgb(209,207,7)" rx="2" ry="2" />
+<text text-anchor="" x="543.95" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (1,114 samples, 0.26%)</title><rect x="212.0" y="197" width="3.1" height="15.0" fill="rgb(227,47,30)" rx="2" ry="2" />
+<text text-anchor="" x="215.00" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.on (333 samples, 0.08%)</title><rect x="491.7" y="101" width="0.9" height="15.0" fill="rgb(248,131,24)" rx="2" ry="2" />
+<text text-anchor="" x="494.65" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.discover_command_groups_and_commands_callback (37,732 samples, 8.93%)</title><rect x="714.5" y="293" width="105.3" height="15.0" fill="rgb(228,59,31)" rx="2" ry="2" />
+<text text-anchor="" x="717.48" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.discov..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (688 samples, 0.16%)</title><rect x="537.4" y="117" width="1.9" height="15.0" fill="rgb(244,144,16)" rx="2" ry="2" />
+<text text-anchor="" x="540.35" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.walk_path_for_directory (51,635 samples, 12.22%)</title><rect x="700.0" y="309" width="144.1" height="15.0" fill="rgb(238,118,21)" rx="2" ry="2" />
+<text text-anchor="" x="702.99" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:pathname.wal..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.quote (234 samples, 0.06%)</title><rect x="127.2" y="133" width="0.6" height="15.0" fill="rgb(211,117,29)" rx="2" ry="2" />
+<text text-anchor="" x="130.16" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (8,666 samples, 2.05%)</title><rect x="369.0" y="261" width="24.2" height="15.0" fill="rgb(221,158,1)" rx="2" ry="2" />
+<text text-anchor="" x="371.98" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (486 samples, 0.11%)</title><rect x="974.4" y="229" width="1.3" height="15.0" fill="rgb(250,167,36)" rx="2" ry="2" />
+<text text-anchor="" x="977.37" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (181 samples, 0.04%)</title><rect x="1076.8" y="293" width="0.5" height="15.0" fill="rgb(228,14,24)" rx="2" ry="2" />
+<text text-anchor="" x="1079.83" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_command_group_by_name_only (41,419 samples, 9.80%)</title><rect x="426.4" y="293" width="115.6" height="15.0" fill="rgb(238,15,22)" rx="2" ry="2" />
+<text text-anchor="" x="429.38" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:command_..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (5,000 samples, 1.18%)</title><rect x="1021.9" y="261" width="14.0" height="15.0" fill="rgb(244,100,38)" rx="2" ry="2" />
+<text text-anchor="" x="1024.90" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_fully_qualified_name (190 samples, 0.04%)</title><rect x="425.8" y="277" width="0.6" height="15.0" fill="rgb(236,174,16)" rx="2" ry="2" />
+<text text-anchor="" x="428.85" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (594 samples, 0.14%)</title><rect x="912.3" y="245" width="1.6" height="15.0" fill="rgb(211,63,32)" rx="2" ry="2" />
+<text text-anchor="" x="915.26" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.gather_files_and_directories (279 samples, 0.07%)</title><rect x="843.4" y="261" width="0.7" height="15.0" fill="rgb(239,138,20)" rx="2" ry="2" />
+<text text-anchor="" x="846.36" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (14,612 samples, 3.46%)</title><rect x="855.4" y="309" width="40.8" height="15.0" fill="rgb(215,68,13)" rx="2" ry="2" />
+<text text-anchor="" x="858.42" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >myc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (85 samples, 0.02%)</title><rect x="544.5" y="245" width="0.3" height="15.0" fill="rgb(231,149,2)" rx="2" ry="2" />
+<text text-anchor="" x="547.52" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._defer_at_startup (2,516 samples, 0.60%)</title><rect x="485.7" y="149" width="7.0" height="15.0" fill="rgb(221,177,44)" rx="2" ry="2" />
+<text text-anchor="" x="488.69" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (87 samples, 0.02%)</title><rect x="1189.7" y="325" width="0.2" height="15.0" fill="rgb(240,21,46)" rx="2" ry="2" />
+<text text-anchor="" x="1192.68" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (1,311 samples, 0.31%)</title><rect x="1074.0" y="357" width="3.7" height="15.0" fill="rgb(217,220,6)" rx="2" ry="2" />
+<text text-anchor="" x="1077.03" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.register_version (74 samples, 0.02%)</title><rect x="412.5" y="261" width="0.2" height="15.0" fill="rgb(234,132,26)" rx="2" ry="2" />
+<text text-anchor="" x="415.47" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (107 samples, 0.03%)</title><rect x="546.4" y="229" width="0.2" height="15.0" fill="rgb(238,6,13)" rx="2" ry="2" />
+<text text-anchor="" x="549.35" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (6,390 samples, 1.51%)</title><rect x="1153.0" y="229" width="17.8" height="15.0" fill="rgb(225,47,0)" rx="2" ry="2" />
+<text text-anchor="" x="1156.00" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (460 samples, 0.11%)</title><rect x="422.9" y="293" width="1.3" height="15.0" fill="rgb(236,78,46)" rx="2" ry="2" />
+<text text-anchor="" x="425.88" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (865 samples, 0.20%)</title><rect x="285.3" y="69" width="2.4" height="15.0" fill="rgb(214,114,21)" rx="2" ry="2" />
+<text text-anchor="" x="288.28" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (1,566 samples, 0.37%)</title><rect x="1060.8" y="309" width="4.4" height="15.0" fill="rgb(251,96,32)" rx="2" ry="2" />
+<text text-anchor="" x="1063.80" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (135 samples, 0.03%)</title><rect x="1020.7" y="261" width="0.3" height="15.0" fill="rgb(206,106,31)" rx="2" ry="2" />
+<text text-anchor="" x="1023.65" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_command_group (4,714 samples, 1.12%)</title><rect x="679.9" y="293" width="13.2" height="15.0" fill="rgb(222,26,18)" rx="2" ry="2" />
+<text text-anchor="" x="682.93" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (64 samples, 0.02%)</title><rect x="1086.8" y="309" width="0.2" height="15.0" fill="rgb(219,104,13)" rx="2" ry="2" />
+<text text-anchor="" x="1089.83" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (390 samples, 0.09%)</title><rect x="539.7" y="245" width="1.1" height="15.0" fill="rgb(250,171,39)" rx="2" ry="2" />
+<text text-anchor="" x="542.75" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.file_is_command (107 samples, 0.03%)</title><rect x="836.3" y="245" width="0.3" height="15.0" fill="rgb(225,135,14)" rx="2" ry="2" />
+<text text-anchor="" x="839.35" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._load_mycmd_lib_support_lib (273 samples, 0.06%)</title><rect x="1152.1" y="197" width="0.7" height="15.0" fill="rgb(225,139,3)" rx="2" ry="2" />
+<text text-anchor="" x="1155.06" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.get_fully_qualified_command_group_name (208 samples, 0.05%)</title><rect x="414.9" y="325" width="0.5" height="15.0" fill="rgb(238,118,54)" rx="2" ry="2" />
+<text text-anchor="" x="417.86" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (2,439 samples, 0.58%)</title><rect x="1180.7" y="309" width="6.8" height="15.0" fill="rgb(240,136,7)" rx="2" ry="2" />
+<text text-anchor="" x="1183.65" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.walk_path_for_directory (4,990 samples, 1.18%)</title><rect x="830.2" y="293" width="13.9" height="15.0" fill="rgb(235,127,32)" rx="2" ry="2" />
+<text text-anchor="" x="833.21" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (40,003 samples, 9.46%)</title><rect x="1078.2" y="357" width="111.7" height="15.0" fill="rgb(232,56,11)" rx="2" ry="2" />
+<text text-anchor="" x="1081.25" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >source</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.register_command (179 samples, 0.04%)</title><rect x="836.1" y="261" width="0.5" height="15.0" fill="rgb(232,208,53)" rx="2" ry="2" />
+<text text-anchor="" x="839.14" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (224,036 samples, 53.00%)</title><rect x="564.5" y="373" width="625.4" height="15.0" fill="rgb(243,24,48)" rx="2" ry="2" />
+<text text-anchor="" x="567.48" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >source</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (671 samples, 0.16%)</title><rect x="555.6" y="325" width="1.9" height="15.0" fill="rgb(252,171,23)" rx="2" ry="2" />
+<text text-anchor="" x="558.60" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (123 samples, 0.03%)</title><rect x="519.4" y="149" width="0.3" height="15.0" fill="rgb(242,77,13)" rx="2" ry="2" />
+<text text-anchor="" x="522.39" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.nullglob_set_wrapper (2,322 samples, 0.55%)</title><rect x="693.5" y="309" width="6.5" height="15.0" fill="rgb(218,205,18)" rx="2" ry="2" />
+<text text-anchor="" x="696.51" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.debug (104 samples, 0.02%)</title><rect x="677.7" y="261" width="0.3" height="15.0" fill="rgb(206,94,20)" rx="2" ry="2" />
+<text text-anchor="" x="680.69" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._init_bin (1,519 samples, 0.36%)</title><rect x="535.0" y="149" width="4.3" height="15.0" fill="rgb(205,53,22)" rx="2" ry="2" />
+<text text-anchor="" x="538.03" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (469 samples, 0.11%)</title><rect x="357.5" y="197" width="1.3" height="15.0" fill="rgb(236,33,10)" rx="2" ry="2" />
+<text text-anchor="" x="360.50" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (5,921 samples, 1.40%)</title><rect x="271.4" y="117" width="16.5" height="15.0" fill="rgb(234,164,44)" rx="2" ry="2" />
+<text text-anchor="" x="274.35" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.fire (7,801 samples, 1.85%)</title><rect x="371.3" y="213" width="21.7" height="15.0" fill="rgb(230,220,34)" rx="2" ry="2" />
+<text text-anchor="" x="374.26" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >_..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (18,771 samples, 4.44%)</title><rect x="1118.5" y="277" width="52.4" height="15.0" fill="rgb(238,223,36)" rx="2" ry="2" />
+<text text-anchor="" x="1121.51" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.fire (2,215 samples, 0.52%)</title><rect x="1067.2" y="277" width="6.2" height="15.0" fill="rgb(236,46,13)" rx="2" ry="2" />
+<text text-anchor="" x="1070.17" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (5,471 samples, 1.29%)</title><rect x="47.7" y="245" width="15.3" height="15.0" fill="rgb(217,218,45)" rx="2" ry="2" />
+<text text-anchor="" x="50.72" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_command_group (1,948 samples, 0.46%)</title><rect x="418.7" y="309" width="5.5" height="15.0" fill="rgb(221,80,32)" rx="2" ry="2" />
+<text text-anchor="" x="421.73" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_command_group (44,295 samples, 10.48%)</title><rect x="424.2" y="309" width="123.6" height="15.0" fill="rgb(213,14,38)" rx="2" ry="2" />
+<text text-anchor="" x="427.17" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:command_g..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.main (134,135 samples, 31.73%)</title><rect x="19.0" y="325" width="374.4" height="15.0" fill="rgb(221,130,6)" rx="2" ry="2" />
+<text text-anchor="" x="21.98" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (10,073 samples, 2.38%)</title><rect x="1087.0" y="309" width="28.1" height="15.0" fill="rgb(211,10,1)" rx="2" ry="2" />
+<text text-anchor="" x="1090.01" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (5,035 samples, 1.19%)</title><rect x="395.2" y="277" width="14.0" height="15.0" fill="rgb(246,125,15)" rx="2" ry="2" />
+<text text-anchor="" x="398.18" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (117 samples, 0.03%)</title><rect x="1077.3" y="293" width="0.4" height="15.0" fill="rgb(238,197,42)" rx="2" ry="2" />
+<text text-anchor="" x="1080.34" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (270 samples, 0.06%)</title><rect x="477.5" y="197" width="0.7" height="15.0" fill="rgb(238,215,34)" rx="2" ry="2" />
+<text text-anchor="" x="480.48" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (148 samples, 0.04%)</title><rect x="693.1" y="309" width="0.4" height="15.0" fill="rgb(208,179,23)" rx="2" ry="2" />
+<text text-anchor="" x="696.09" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (187 samples, 0.04%)</title><rect x="908.4" y="229" width="0.5" height="15.0" fill="rgb(251,51,52)" rx="2" ry="2" />
+<text text-anchor="" x="911.38" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._run_at_exit_deferreds (99 samples, 0.02%)</title><rect x="10.0" y="373" width="0.3" height="15.0" fill="rgb(252,59,35)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (17,698 samples, 4.19%)</title><rect x="78.8" y="197" width="49.4" height="15.0" fill="rgb(242,13,17)" rx="2" ry="2" />
+<text text-anchor="" x="81.78" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycm..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.is_called_by_function (209 samples, 0.05%)</title><rect x="778.1" y="245" width="0.6" height="15.0" fill="rgb(241,121,5)" rx="2" ry="2" />
+<text text-anchor="" x="781.10" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.get_fully_qualified_name (202 samples, 0.05%)</title><rect x="417.4" y="309" width="0.5" height="15.0" fill="rgb(234,38,41)" rx="2" ry="2" />
+<text text-anchor="" x="420.36" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_source_file_path (198 samples, 0.05%)</title><rect x="547.3" y="277" width="0.5" height="15.0" fill="rgb(251,95,21)" rx="2" ry="2" />
+<text text-anchor="" x="550.27" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.bin_execute (1,826 samples, 0.43%)</title><rect x="131.5" y="213" width="5.1" height="15.0" fill="rgb(226,102,37)" rx="2" ry="2" />
+<text text-anchor="" x="134.53" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_command_group (1,910 samples, 0.45%)</title><rect x="519.8" y="181" width="5.3" height="15.0" fill="rgb(225,148,13)" rx="2" ry="2" />
+<text text-anchor="" x="522.77" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:environment.set_mycmd_search_path (196 samples, 0.05%)</title><rect x="1171.1" y="293" width="0.6" height="15.0" fill="rgb(214,218,26)" rx="2" ry="2" />
+<text text-anchor="" x="1174.13" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._output (46 samples, 0.01%)</title><rect x="393.3" y="277" width="0.1" height="15.0" fill="rgb(205,228,13)" rx="2" ry="2" />
+<text text-anchor="" x="396.29" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (4,564 samples, 1.08%)</title><rect x="1121.4" y="261" width="12.8" height="15.0" fill="rgb(218,132,5)" rx="2" ry="2" />
+<text text-anchor="" x="1124.43" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_version (57 samples, 0.01%)</title><rect x="529.4" y="197" width="0.1" height="15.0" fill="rgb(219,48,12)" rx="2" ry="2" />
+<text text-anchor="" x="532.39" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (11,023 samples, 2.61%)</title><rect x="237.0" y="165" width="30.8" height="15.0" fill="rgb(205,55,34)" rx="2" ry="2" />
+<text text-anchor="" x="240.03" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >my..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._output (1,060 samples, 0.25%)</title><rect x="28.7" y="277" width="2.9" height="15.0" fill="rgb(239,138,33)" rx="2" ry="2" />
+<text text-anchor="" x="31.66" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (941 samples, 0.22%)</title><rect x="267.8" y="165" width="2.6" height="15.0" fill="rgb(216,112,13)" rx="2" ry="2" />
+<text text-anchor="" x="270.80" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.output_only_if_not_quiet (89 samples, 0.02%)</title><rect x="393.2" y="309" width="0.2" height="15.0" fill="rgb(254,84,10)" rx="2" ry="2" />
+<text text-anchor="" x="396.20" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (1,205 samples, 0.29%)</title><rect x="10.4" y="325" width="3.4" height="15.0" fill="rgb(221,153,10)" rx="2" ry="2" />
+<text text-anchor="" x="13.44" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (98 samples, 0.02%)</title><rect x="13.5" y="293" width="0.3" height="15.0" fill="rgb(241,8,41)" rx="2" ry="2" />
+<text text-anchor="" x="16.50" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (48 samples, 0.01%)</title><rect x="236.9" y="165" width="0.1" height="15.0" fill="rgb(215,113,17)" rx="2" ry="2" />
+<text text-anchor="" x="239.89" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.is_valid_absolute_path_of_executable_file (653 samples, 0.15%)</title><rect x="678.1" y="261" width="1.8" height="15.0" fill="rgb(212,162,45)" rx="2" ry="2" />
+<text text-anchor="" x="681.11" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.defer_at_startup (17,952 samples, 4.25%)</title><rect x="78.1" y="229" width="50.1" height="15.0" fill="rgb(206,140,17)" rx="2" ry="2" />
+<text text-anchor="" x="81.07" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (658 samples, 0.16%)</title><rect x="11.9" y="309" width="1.9" height="15.0" fill="rgb(226,190,50)" rx="2" ry="2" />
+<text text-anchor="" x="14.94" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (33,375 samples, 7.90%)</title><rect x="1078.5" y="325" width="93.2" height="15.0" fill="rgb(205,65,43)" rx="2" ry="2" />
+<text text-anchor="" x="1081.51" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd._sour..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (202 samples, 0.05%)</title><rect x="909.1" y="213" width="0.6" height="15.0" fill="rgb(249,218,34)" rx="2" ry="2" />
+<text text-anchor="" x="912.12" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (7,913 samples, 1.87%)</title><rect x="1051.8" y="325" width="22.0" height="15.0" fill="rgb(205,103,9)" rx="2" ry="2" />
+<text text-anchor="" x="1054.75" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (186 samples, 0.04%)</title><rect x="13.0" y="293" width="0.5" height="15.0" fill="rgb(238,180,50)" rx="2" ry="2" />
+<text text-anchor="" x="15.98" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>all (422,676 samples, 100%)</title><rect x="10.0" y="405" width="1180.0" height="15.0" fill="rgb(248,194,21)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="415.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin (5,834 samples, 1.38%)</title><rect x="293.2" y="117" width="16.3" height="15.0" fill="rgb(207,165,48)" rx="2" ry="2" />
+<text text-anchor="" x="296.17" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (4,462 samples, 1.06%)</title><rect x="1035.9" y="261" width="12.4" height="15.0" fill="rgb(219,176,29)" rx="2" ry="2" />
+<text text-anchor="" x="1038.86" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.is_called_by_function (44 samples, 0.01%)</title><rect x="837.9" y="245" width="0.1" height="15.0" fill="rgb(229,106,10)" rx="2" ry="2" />
+<text text-anchor="" x="840.92" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (194 samples, 0.05%)</title><rect x="546.7" y="261" width="0.6" height="15.0" fill="rgb(241,183,37)" rx="2" ry="2" />
+<text text-anchor="" x="549.73" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.discover_command_groups_and_commands_callback (31,710 samples, 7.50%)</title><rect x="604.6" y="309" width="88.5" height="15.0" fill="rgb(216,116,29)" rx="2" ry="2" />
+<text text-anchor="" x="607.57" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.disc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.register_default_task (46 samples, 0.01%)</title><rect x="329.4" y="229" width="0.1" height="15.0" fill="rgb(243,77,2)" rx="2" ry="2" />
+<text text-anchor="" x="332.39" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (706 samples, 0.17%)</title><rect x="282.3" y="85" width="2.0" height="15.0" fill="rgb(206,89,26)" rx="2" ry="2" />
+<text text-anchor="" x="285.31" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (168 samples, 0.04%)</title><rect x="425.9" y="261" width="0.5" height="15.0" fill="rgb(234,137,47)" rx="2" ry="2" />
+<text text-anchor="" x="428.91" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (132 samples, 0.03%)</title><rect x="129.8" y="229" width="0.4" height="15.0" fill="rgb(230,13,46)" rx="2" ry="2" />
+<text text-anchor="" x="132.83" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_support_library_file_name (1,485 samples, 0.35%)</title><rect x="323.1" y="197" width="4.1" height="15.0" fill="rgb(245,193,26)" rx="2" ry="2" />
+<text text-anchor="" x="326.07" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (280 samples, 0.07%)</title><rect x="908.9" y="229" width="0.8" height="15.0" fill="rgb(245,13,37)" rx="2" ry="2" />
+<text text-anchor="" x="911.90" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (308 samples, 0.07%)</title><rect x="126.3" y="117" width="0.9" height="15.0" fill="rgb(219,112,35)" rx="2" ry="2" />
+<text text-anchor="" x="129.30" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command._load_command (7,632 samples, 1.81%)</title><rect x="393.6" y="325" width="21.3" height="15.0" fill="rgb(221,48,23)" rx="2" ry="2" />
+<text text-anchor="" x="396.55" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (96 samples, 0.02%)</title><rect x="1077.9" y="325" width="0.3" height="15.0" fill="rgb(252,112,54)" rx="2" ry="2" />
+<text text-anchor="" x="1080.88" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._defer_at_startup (3,545 samples, 0.84%)</title><rect x="277.8" y="101" width="9.9" height="15.0" fill="rgb(206,9,40)" rx="2" ry="2" />
+<text text-anchor="" x="280.80" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd_launcher.set_mycmd_system_environment (2,468 samples, 0.58%)</title><rect x="557.5" y="373" width="6.9" height="15.0" fill="rgb(210,23,0)" rx="2" ry="2" />
+<text text-anchor="" x="560.47" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (115,345 samples, 27.29%)</title><rect x="47.0" y="261" width="322.0" height="15.0" fill="rgb(209,199,9)" rx="2" ry="2" />
+<text text-anchor="" x="49.97" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd._source_lib_by_path_if_found</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.call_if_function_exists (359 samples, 0.08%)</title><rect x="389.0" y="165" width="1.0" height="15.0" fill="rgb(236,126,3)" rx="2" ry="2" />
+<text text-anchor="" x="391.97" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._init_bin (1,472 samples, 0.35%)</title><rect x="909.8" y="277" width="4.1" height="15.0" fill="rgb(238,141,29)" rx="2" ry="2" />
+<text text-anchor="" x="912.80" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.function_exists (120 samples, 0.03%)</title><rect x="306.2" y="69" width="0.3" height="15.0" fill="rgb(221,165,22)" rx="2" ry="2" />
+<text text-anchor="" x="309.17" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.defer_at_startup (4,339 samples, 1.03%)</title><rect x="480.7" y="197" width="12.1" height="15.0" fill="rgb(213,77,47)" rx="2" ry="2" />
+<text text-anchor="" x="483.73" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_fully_qualified_name (214 samples, 0.05%)</title><rect x="546.7" y="277" width="0.6" height="15.0" fill="rgb(217,25,23)" rx="2" ry="2" />
+<text text-anchor="" x="549.68" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (540 samples, 0.13%)</title><rect x="489.1" y="133" width="1.5" height="15.0" fill="rgb(222,37,8)" rx="2" ry="2" />
+<text text-anchor="" x="492.14" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.is_called_by_function (72 samples, 0.02%)</title><rect x="682.6" y="277" width="0.2" height="15.0" fill="rgb(249,142,45)" rx="2" ry="2" />
+<text text-anchor="" x="685.59" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (176 samples, 0.04%)</title><rect x="545.9" y="229" width="0.5" height="15.0" fill="rgb(237,97,11)" rx="2" ry="2" />
+<text text-anchor="" x="548.86" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.execute (191,235 samples, 45.24%)</title><rect x="13.9" y="341" width="533.9" height="15.0" fill="rgb(232,214,9)" rx="2" ry="2" />
+<text text-anchor="" x="16.95" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:command.execute</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (185 samples, 0.04%)</title><rect x="414.0" y="277" width="0.5" height="15.0" fill="rgb(231,223,6)" rx="2" ry="2" />
+<text text-anchor="" x="417.00" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (938 samples, 0.22%)</title><rect x="1045.7" y="245" width="2.6" height="15.0" fill="rgb(228,228,11)" rx="2" ry="2" />
+<text text-anchor="" x="1048.70" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (2,046 samples, 0.48%)</title><rect x="533.8" y="213" width="5.7" height="15.0" fill="rgb(254,9,22)" rx="2" ry="2" />
+<text text-anchor="" x="536.80" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.source_file_path_for_directory (1,617 samples, 0.38%)</title><rect x="838.1" y="245" width="4.5" height="15.0" fill="rgb(215,86,17)" rx="2" ry="2" />
+<text text-anchor="" x="841.07" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (100 samples, 0.02%)</title><rect x="819.8" y="293" width="0.3" height="15.0" fill="rgb(234,197,47)" rx="2" ry="2" />
+<text text-anchor="" x="822.81" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.load_closest_project_file (129,439 samples, 30.62%)</title><rect x="31.8" y="309" width="361.4" height="15.0" fill="rgb(218,31,37)" rx="2" ry="2" />
+<text text-anchor="" x="34.84" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >project.load_closest_project_file</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.load_mycmd_lib_support_lib (82,348 samples, 19.48%)</title><rect x="844.1" y="357" width="229.9" height="15.0" fill="rgb(240,15,23)" rx="2" ry="2" />
+<text text-anchor="" x="847.14" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.load_mycmd_lib_support_lib</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd_launcher.main (196,006 samples, 46.37%)</title><rect x="10.3" y="373" width="547.2" height="15.0" fill="rgb(208,103,7)" rx="2" ry="2" />
+<text text-anchor="" x="13.28" y="383.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd_launcher.main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (345 samples, 0.08%)</title><rect x="985.5" y="197" width="0.9" height="15.0" fill="rgb(243,83,24)" rx="2" ry="2" />
+<text text-anchor="" x="988.45" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (1,243 samples, 0.29%)</title><rect x="10.3" y="357" width="3.5" height="15.0" fill="rgb(211,114,49)" rx="2" ry="2" />
+<text text-anchor="" x="13.33" y="367.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (31,177 samples, 7.38%)</title><rect x="442.5" y="229" width="87.0" height="15.0" fill="rgb(243,102,21)" rx="2" ry="2" />
+<text text-anchor="" x="445.51" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd._sou..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (740 samples, 0.18%)</title><rect x="490.6" y="133" width="2.1" height="15.0" fill="rgb(214,204,4)" rx="2" ry="2" />
+<text text-anchor="" x="493.65" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_command_group (3,835 samples, 0.91%)</title><rect x="426.7" y="277" width="10.7" height="15.0" fill="rgb(222,216,45)" rx="2" ry="2" />
+<text text-anchor="" x="429.73" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (513 samples, 0.12%)</title><rect x="491.3" y="117" width="1.4" height="15.0" fill="rgb(220,106,34)" rx="2" ry="2" />
+<text text-anchor="" x="494.28" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (89 samples, 0.02%)</title><rect x="1116.6" y="293" width="0.2" height="15.0" fill="rgb(210,76,45)" rx="2" ry="2" />
+<text text-anchor="" x="1119.59" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (49 samples, 0.01%)</title><rect x="1077.5" y="277" width="0.2" height="15.0" fill="rgb(245,13,1)" rx="2" ry="2" />
+<text text-anchor="" x="1080.53" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (93 samples, 0.02%)</title><rect x="309.5" y="133" width="0.2" height="15.0" fill="rgb(210,6,3)" rx="2" ry="2" />
+<text text-anchor="" x="312.45" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (1,536 samples, 0.36%)</title><rect x="1016.4" y="245" width="4.3" height="15.0" fill="rgb(246,89,27)" rx="2" ry="2" />
+<text text-anchor="" x="1019.36" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (66 samples, 0.02%)</title><rect x="287.7" y="101" width="0.2" height="15.0" fill="rgb(249,173,20)" rx="2" ry="2" />
+<text text-anchor="" x="290.70" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command.get_namespaced_parts_as_string (682 samples, 0.16%)</title><rect x="416.0" y="325" width="1.9" height="15.0" fill="rgb(242,40,9)" rx="2" ry="2" />
+<text text-anchor="" x="419.02" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_command_group_from_file (863 samples, 0.20%)</title><rect x="228.9" y="165" width="2.4" height="15.0" fill="rgb(222,110,50)" rx="2" ry="2" />
+<text text-anchor="" x="231.87" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (442 samples, 0.10%)</title><rect x="532.6" y="213" width="1.2" height="15.0" fill="rgb(220,167,38)" rx="2" ry="2" />
+<text text-anchor="" x="535.57" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.source_lib_by_path_if_found (124,088 samples, 29.36%)</title><rect x="46.8" y="277" width="346.4" height="15.0" fill="rgb(244,229,17)" rx="2" ry="2" />
+<text text-anchor="" x="49.78" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd.source_lib_by_path_if_found</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (6,692 samples, 1.58%)</title><rect x="394.0" y="293" width="18.7" height="15.0" fill="rgb(240,24,15)" rx="2" ry="2" />
+<text text-anchor="" x="396.99" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (79 samples, 0.02%)</title><rect x="1170.9" y="293" width="0.2" height="15.0" fill="rgb(244,215,12)" rx="2" ry="2" />
+<text text-anchor="" x="1173.91" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (631 samples, 0.15%)</title><rect x="391.3" y="149" width="1.7" height="15.0" fill="rgb(246,112,27)" rx="2" ry="2" />
+<text text-anchor="" x="394.27" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.fire (1,668 samples, 0.39%)</title><rect x="534.6" y="181" width="4.7" height="15.0" fill="rgb(253,223,46)" rx="2" ry="2" />
+<text text-anchor="" x="537.62" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__ev.has (92 samples, 0.02%)</title><rect x="492.3" y="85" width="0.3" height="15.0" fill="rgb(238,104,46)" rx="2" ry="2" />
+<text text-anchor="" x="495.33" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._init_bin (7,530 samples, 1.78%)</title><rect x="372.0" y="181" width="21.0" height="15.0" fill="rgb(248,10,46)" rx="2" ry="2" />
+<text text-anchor="" x="375.01" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.bin_execute (20,205 samples, 4.78%)</title><rect x="158.7" y="213" width="56.4" height="15.0" fill="rgb(205,48,3)" rx="2" ry="2" />
+<text text-anchor="" x="161.70" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project:task._new_task (5,637 samples, 1.33%)</title><rect x="332.6" y="213" width="15.8" height="15.0" fill="rgb(227,42,22)" rx="2" ry="2" />
+<text text-anchor="" x="335.63" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (73,644 samples, 17.42%)</title><rect x="846.2" y="325" width="205.6" height="15.0" fill="rgb(231,88,8)" rx="2" ry="2" />
+<text text-anchor="" x="849.16" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd._source_lib_by_path_i..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (378 samples, 0.09%)</title><rect x="901.2" y="293" width="1.0" height="15.0" fill="rgb(230,162,54)" rx="2" ry="2" />
+<text text-anchor="" x="904.18" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_command_group (14,079 samples, 3.33%)</title><rect x="780.5" y="277" width="39.3" height="15.0" fill="rgb(212,205,33)" rx="2" ry="2" />
+<text text-anchor="" x="783.51" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >myc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.capture_unprotected_functions (9,589 samples, 2.27%)</title><rect x="447.6" y="213" width="26.8" height="15.0" fill="rgb(237,110,51)" rx="2" ry="2" />
+<text text-anchor="" x="450.61" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.output_only_if_not_quiet (78 samples, 0.02%)</title><rect x="31.6" y="293" width="0.2" height="15.0" fill="rgb(248,94,23)" rx="2" ry="2" />
+<text text-anchor="" x="34.62" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (4,297 samples, 1.02%)</title><rect x="480.8" y="181" width="12.0" height="15.0" fill="rgb(249,173,9)" rx="2" ry="2" />
+<text text-anchor="" x="483.84" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (210 samples, 0.05%)</title><rect x="409.2" y="277" width="0.6" height="15.0" fill="rgb(234,84,3)" rx="2" ry="2" />
+<text text-anchor="" x="412.24" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_command_group_by_name (46,320 samples, 10.96%)</title><rect x="418.5" y="325" width="129.3" height="15.0" fill="rgb(229,196,18)" rx="2" ry="2" />
+<text text-anchor="" x="421.51" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:command_gr..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_fully_qualified_name (443 samples, 0.10%)</title><rect x="539.6" y="261" width="1.2" height="15.0" fill="rgb(222,72,17)" rx="2" ry="2" />
+<text text-anchor="" x="542.60" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._get_file_startup_event_name (2,235 samples, 0.53%)</title><rect x="113.5" y="165" width="6.2" height="15.0" fill="rgb(224,43,4)" rx="2" ry="2" />
+<text text-anchor="" x="116.47" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin_homebrew (1,167 samples, 0.28%)</title><rect x="536.0" y="133" width="3.3" height="15.0" fill="rgb(235,66,48)" rx="2" ry="2" />
+<text text-anchor="" x="539.02" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.gather_files_and_directories (1,799 samples, 0.43%)</title><rect x="695.0" y="293" width="5.0" height="15.0" fill="rgb(230,49,47)" rx="2" ry="2" />
+<text text-anchor="" x="697.97" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_support_lib (12,968 samples, 3.07%)</title><rect x="492.9" y="197" width="36.2" height="15.0" fill="rgb(235,171,13)" rx="2" ry="2" />
+<text text-anchor="" x="495.88" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >myc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (134 samples, 0.03%)</title><rect x="127.8" y="181" width="0.4" height="15.0" fill="rgb(207,84,14)" rx="2" ry="2" />
+<text text-anchor="" x="130.81" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (2,581 samples, 0.61%)</title><rect x="1066.6" y="293" width="7.2" height="15.0" fill="rgb(218,214,22)" rx="2" ry="2" />
+<text text-anchor="" x="1069.61" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (6,590 samples, 1.56%)</title><rect x="976.1" y="245" width="18.4" height="15.0" fill="rgb(245,36,7)" rx="2" ry="2" />
+<text text-anchor="" x="979.07" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (60 samples, 0.01%)</title><rect x="902.2" y="309" width="0.2" height="15.0" fill="rgb(222,38,32)" rx="2" ry="2" />
+<text text-anchor="" x="905.23" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (18,349 samples, 4.34%)</title><rect x="478.3" y="213" width="51.2" height="15.0" fill="rgb(220,87,19)" rx="2" ry="2" />
+<text text-anchor="" x="481.32" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >source</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.register_short_description (59 samples, 0.01%)</title><rect x="529.2" y="197" width="0.2" height="15.0" fill="rgb(238,99,41)" rx="2" ry="2" />
+<text text-anchor="" x="532.22" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.call_if_function_exists (249 samples, 0.06%)</title><rect x="305.8" y="85" width="0.7" height="15.0" fill="rgb(236,175,26)" rx="2" ry="2" />
+<text text-anchor="" x="308.81" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.load_vendor_library (6,450 samples, 1.53%)</title><rect x="1152.9" y="245" width="18.0" height="15.0" fill="rgb(243,70,5)" rx="2" ry="2" />
+<text text-anchor="" x="1155.86" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.discover_command_groups_and_commands_callback (3,897 samples, 0.92%)</title><rect x="831.7" y="277" width="10.9" height="15.0" fill="rgb(221,16,37)" rx="2" ry="2" />
+<text text-anchor="" x="834.70" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (1,451 samples, 0.34%)</title><rect x="905.7" y="261" width="4.0" height="15.0" fill="rgb(254,118,53)" rx="2" ry="2" />
+<text text-anchor="" x="908.67" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._init_bin (541 samples, 0.13%)</title><rect x="128.3" y="213" width="1.5" height="15.0" fill="rgb(243,13,32)" rx="2" ry="2" />
+<text text-anchor="" x="131.32" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (71 samples, 0.02%)</title><rect x="572.7" y="325" width="0.2" height="15.0" fill="rgb(236,56,50)" rx="2" ry="2" />
+<text text-anchor="" x="575.71" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (17,824 samples, 4.22%)</title><rect x="78.4" y="213" width="49.8" height="15.0" fill="rgb(253,200,13)" rx="2" ry="2" />
+<text text-anchor="" x="81.43" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._file_has_been_loaded (53 samples, 0.01%)</title><rect x="984.1" y="197" width="0.2" height="15.0" fill="rgb(230,111,44)" rx="2" ry="2" />
+<text text-anchor="" x="987.12" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.is_valid_absolute_path_of_executable_file (616 samples, 0.15%)</title><rect x="778.8" y="245" width="1.7" height="15.0" fill="rgb(245,153,49)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (45 samples, 0.01%)</title><rect x="492.7" y="149" width="0.1" height="15.0" fill="rgb(253,12,25)" rx="2" ry="2" />
+<text text-anchor="" x="495.71" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.walk_path_for_directory (96,782 samples, 22.90%)</title><rect x="574.0" y="325" width="270.1" height="15.0" fill="rgb(240,192,21)" rx="2" ry="2" />
+<text text-anchor="" x="576.95" y="335.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >mycmd:pathname.walk_path_for_directory</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (1,546 samples, 0.37%)</title><rect x="1069.0" y="213" width="4.4" height="15.0" fill="rgb(223,62,44)" rx="2" ry="2" />
+<text text-anchor="" x="1072.04" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.init_bin_homebrew (988 samples, 0.23%)</title><rect x="911.2" y="261" width="2.7" height="15.0" fill="rgb(224,79,16)" rx="2" ry="2" />
+<text text-anchor="" x="914.16" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (13,049 samples, 3.09%)</title><rect x="1134.5" y="261" width="36.4" height="15.0" fill="rgb(234,117,25)" rx="2" ry="2" />
+<text text-anchor="" x="1137.48" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sou..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:pathname.nullglob_set_wrapper (3,624 samples, 0.86%)</title><rect x="820.1" y="293" width="10.1" height="15.0" fill="rgb(227,114,8)" rx="2" ry="2" />
+<text text-anchor="" x="823.09" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._locate_bin (623 samples, 0.15%)</title><rect x="307.7" y="69" width="1.8" height="15.0" fill="rgb(205,147,18)" rx="2" ry="2" />
+<text text-anchor="" x="310.71" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.is_called_by_function (260 samples, 0.06%)</title><rect x="788.4" y="261" width="0.8" height="15.0" fill="rgb(250,135,41)" rx="2" ry="2" />
+<text text-anchor="" x="791.44" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.protect_library_functions (813 samples, 0.19%)</title><rect x="513.9" y="149" width="2.3" height="15.0" fill="rgb(209,138,15)" rx="2" ry="2" />
+<text text-anchor="" x="516.89" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (152 samples, 0.04%)</title><rect x="515.7" y="133" width="0.5" height="15.0" fill="rgb(248,149,14)" rx="2" ry="2" />
+<text text-anchor="" x="518.74" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (1,463 samples, 0.35%)</title><rect x="905.6" y="277" width="4.1" height="15.0" fill="rgb(220,159,29)" rx="2" ry="2" />
+<text text-anchor="" x="908.64" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (46 samples, 0.01%)</title><rect x="228.7" y="165" width="0.2" height="15.0" fill="rgb(248,219,42)" rx="2" ry="2" />
+<text text-anchor="" x="231.74" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file (1,214 samples, 0.29%)</title><rect x="10.4" y="341" width="3.4" height="15.0" fill="rgb(218,78,24)" rx="2" ry="2" />
+<text text-anchor="" x="13.41" y="351.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>source (6,267 samples, 1.48%)</title><rect x="270.5" y="165" width="17.5" height="15.0" fill="rgb(252,115,52)" rx="2" ry="2" />
+<text text-anchor="" x="273.49" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.bin_execute (2,168 samples, 0.51%)</title><rect x="34.7" y="245" width="6.1" height="15.0" fill="rgb(207,99,38)" rx="2" ry="2" />
+<text text-anchor="" x="37.73" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (3,096 samples, 0.73%)</title><rect x="1065.2" y="309" width="8.6" height="15.0" fill="rgb(241,147,24)" rx="2" ry="2" />
+<text text-anchor="" x="1068.18" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (49 samples, 0.01%)</title><rect x="519.6" y="133" width="0.1" height="15.0" fill="rgb(227,197,54)" rx="2" ry="2" />
+<text text-anchor="" x="522.60" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (2,903 samples, 0.69%)</title><rect x="119.7" y="165" width="8.1" height="15.0" fill="rgb(219,139,8)" rx="2" ry="2" />
+<text text-anchor="" x="122.71" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._source_lib_by_path_if_found (6,382 samples, 1.51%)</title><rect x="1135.0" y="229" width="17.9" height="15.0" fill="rgb(235,132,10)" rx="2" ry="2" />
+<text text-anchor="" x="1138.05" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._dispatch_with_calling_file_up_frames (2,038 samples, 0.48%)</title><rect x="225.6" y="181" width="5.7" height="15.0" fill="rgb(239,165,50)" rx="2" ry="2" />
+<text text-anchor="" x="228.59" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd._defer_at_startup (10,420 samples, 2.47%)</title><rect x="98.7" y="181" width="29.1" height="15.0" fill="rgb(210,59,29)" rx="2" ry="2" />
+<text text-anchor="" x="101.72" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >my..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.event (6,490 samples, 1.54%)</title><rect x="291.6" y="165" width="18.1" height="15.0" fill="rgb(232,45,7)" rx="2" ry="2" />
+<text text-anchor="" x="294.59" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.debug (67 samples, 0.02%)</title><rect x="777.9" y="245" width="0.2" height="15.0" fill="rgb(221,207,18)" rx="2" ry="2" />
+<text text-anchor="" x="780.91" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.load_command_group_only (2,083 samples, 0.49%)</title><rect x="542.0" y="293" width="5.8" height="15.0" fill="rgb(211,41,8)" rx="2" ry="2" />
+<text text-anchor="" x="545.01" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.defer_at_startup (6,049 samples, 1.43%)</title><rect x="271.0" y="149" width="16.9" height="15.0" fill="rgb(206,91,52)" rx="2" ry="2" />
+<text text-anchor="" x="274.00" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (1,987 samples, 0.47%)</title><rect x="122.3" y="149" width="5.5" height="15.0" fill="rgb(217,81,28)" rx="2" ry="2" />
+<text text-anchor="" x="125.27" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>event (207 samples, 0.05%)</title><rect x="993.6" y="165" width="0.6" height="15.0" fill="rgb(222,163,13)" rx="2" ry="2" />
+<text text-anchor="" x="996.64" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>project.find_up (2,737 samples, 0.65%)</title><rect x="33.1" y="277" width="7.7" height="15.0" fill="rgb(233,73,42)" rx="2" ry="2" />
+<text text-anchor="" x="36.14" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.run_startup_deferreds (7,804 samples, 1.85%)</title><rect x="288.0" y="181" width="21.8" height="15.0" fill="rgb(217,33,29)" rx="2" ry="2" />
+<text text-anchor="" x="290.98" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group._get_required_field_from_command_group_struct (372 samples, 0.09%)</title><rect x="326.2" y="165" width="1.0" height="15.0" fill="rgb(224,8,25)" rx="2" ry="2" />
+<text text-anchor="" x="329.18" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd:command_group.get_parent_tree (673 samples, 0.16%)</title><rect x="424.5" y="293" width="1.9" height="15.0" fill="rgb(234,193,52)" rx="2" ry="2" />
+<text text-anchor="" x="427.50" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.trace (46 samples, 0.01%)</title><rect x="1151.6" y="197" width="0.1" height="15.0" fill="rgb(216,188,34)" rx="2" ry="2" />
+<text text-anchor="" x="1154.59" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.configure_shell_trace (36 samples, 0.01%)</title><rect x="18.7" y="309" width="0.1" height="15.0" fill="rgb(210,67,33)" rx="2" ry="2" />
+<text text-anchor="" x="21.73" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>mycmd.load_vendor_library (10,952 samples, 2.59%)</title><rect x="1021.0" y="293" width="30.6" height="15.0" fill="rgb(223,30,22)" rx="2" ry="2" />
+<text text-anchor="" x="1024.03" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >my..</text>
+</g>
+</svg>
