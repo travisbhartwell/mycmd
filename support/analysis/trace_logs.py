@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -55,6 +52,22 @@ def trace_line(
     )
 
 
+def get_trace_lines(trace_log_file: Path) -> list[TraceLine]:
+    lines = []
+
+    with trace_log_file.open() as f:
+        for line in f:
+            if match := log_line_re.match(line):
+                lines.append(match.groupdict())
+
+    trace_lines = []
+
+    for match, next_match in zip(lines, lines[1:]):
+        trace_lines.append(trace_line(match, next_match))
+
+    return trace_lines
+
+
 @dataclass(frozen=True)
 class StackFrame:
     call_stack: list[str]
@@ -80,56 +93,7 @@ def get_stack_frames(trace_lines: list[TraceLine]) -> list[StackFrame]:
     return stack_frames
 
 
-def write_perf_file(stack_frames: list[StackFrame], perf_file_name: Path):
-    with perf_file_name.open("w") as f:
-        for frame in stack_frames:
-            if frame.call_stack != [""]:
-                call_stack = ";".join(frame.call_stack)
-                microseconds = int(frame.duration.total_seconds() * 1_000_000)
-
-                f.write(f"{call_stack} {microseconds}\n")
-
-
-def get_trace_lines(trace_log_file: Path) -> list[TraceLine]:
-    lines = []
-
-    with trace_log_file.open() as f:
-        for line in f:
-            if match := log_line_re.match(line):
-                lines.append(match.groupdict())
-
-    trace_lines = []
-
-    for match, next_match in zip(lines, lines[1:]):
-        trace_lines.append(trace_line(match, next_match))
-
-    return trace_lines
-
-
-def transform_trace_log(trace_log_file: Path, perf_file: Path):
+def load_stack_frames_from_trace_log(trace_log_file: Path) -> list[StackFrame]:
     trace_lines = get_trace_lines(trace_log_file)
     stack_frames = get_stack_frames(trace_lines)
-    write_perf_file(stack_frames, perf_file)
-
-
-def main():
-    if len(sys.argv) < 3:
-        print(
-            "Usage: python process-trace-logs.py <trace-log-file> <perf-output-file>",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    trace_log_file = Path(sys.argv[1])
-
-    if not trace_log_file.exists():
-        print(f"Trace log file '{trace_log_file}' does not exist.", file=sys.stderr)
-        sys.exit(1)
-
-    perf_file = Path(sys.argv[2])
-
-    transform_trace_log(trace_log_file, perf_file)
-
-
-if __name__ == "__main__":
-    main()
+    return stack_frames
