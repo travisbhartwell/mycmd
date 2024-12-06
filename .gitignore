@@ -1,3 +1,4 @@
 vendor/.working
 *.log
 tmp/
+__pycache__

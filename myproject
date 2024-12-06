@@ -163,9 +163,9 @@ mycmd.defer_at_startup mycmd.init_bin sed
 function list-mycmd-lib-functions() {
     local -n fileset="${1}"
 
-    grep -E '^[[:space:]]*function' "${fileset[@]}" \
-        | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
-        | sort -u
+    grep -E '^[[:space:]]*function' "${fileset[@]}" |
+        mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' |
+        sort -u
 }
 project.register_task_with_fileset list-mycmd-lib-functions \
     list-mycmd-lib-functions \
@@ -176,9 +176,9 @@ mycmd.defer_at_startup mycmd.init_bin grep
 function list-mycmd-lib-functions-with-source-file() {
     local -n fileset="${1}"
 
-    mycmd.bin_execute grep -H -E '^[[:space:]]*function' "${fileset[@]}" \
-        | mycmd.bin_execute sed -r -n 's/^([^:]+):.*function (.*)\(\) \{/\1,\2/p' \
-        | sort -u
+    mycmd.bin_execute grep -H -E '^[[:space:]]*function' "${fileset[@]}" |
+        mycmd.bin_execute sed -r -n 's/^([^:]+):.*function (.*)\(\) \{/\1,\2/p' |
+        sort -u
 }
 project.register_task_with_fileset list-mycmd-lib-functions-with-source-file list-mycmd-lib-functions-with-source-file MYCMD_LIB_FILES
 
@@ -223,8 +223,8 @@ function catalog-mycmd-lib-function-call-tree() {
             file="$(echo "${match_line}" | cut -d: -f1)"
             line_number="$(echo "${match_line}" | cut -d: -f2)"
             data+=("${fn},${file},${line_number}")
-        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${fileset[@]}" \
-            | mycmd.bin_execute grep -P -v "^[^:]+:[[:digit:]]+:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
+        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${fileset[@]}" |
+            mycmd.bin_execute grep -P -v "^[^:]+:[[:digit:]]+:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
     done
 
     local -r output_file="${TMP_WORKING_DIR}/fn-callers.csv"
@@ -264,8 +264,8 @@ function catalog-mycmd-lib-function-callers() {
             project.verbose "Searching for function '${fn}' in file '${impl_file}'."
 
             fn_pattern="${fn/./\\.}"
-            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" \
-                | mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
+            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" |
+                mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
             data+=("${fn},${impl_file},${count}")
         done
     done
@@ -514,9 +514,7 @@ function remove-temporary-file() {
 }
 
 mycmd.defer_at_startup mycmd.init_bin flamegraph.pl
-
-readonly PROCESS_TRACE_LOGS="${SUPPORT_DIR}/process-trace-logs.py"
-
+readonly GENERATE_PERF_FILE="${SUPPORT_DIR}/analysis/generate-perf-file.py"
 function create-flamegraph-from-shell-trace() {
     local -r shell_trace_log="${1}"
     local -r flamegraph_svg_file="${2}"
@@ -529,7 +527,7 @@ function create-flamegraph-from-shell-trace() {
     readonly shell_perf_file
     mycmd.defer_at_exit remove-temporary-file "${shell_perf_file}"
 
-    if ! python "${PROCESS_TRACE_LOGS}" "${shell_trace_log}" "${shell_perf_file}"; then
+    if ! python "${GENERATE_PERF_FILE}" "${shell_trace_log}" "${shell_perf_file}"; then
         mycmd.log "Error converting trace log to a perf file."
         return 1
     fi
@@ -541,13 +539,28 @@ function create-flamegraph-from-shell-trace() {
 }
 project.register_task create-flamegraph-from-shell-trace
 
+readonly QUERY_CALL_HIERARCHY="${SUPPORT_DIR}/analysis/query-call-hierarchy.py"
+function query-call-hierarchy() {
+    local -r shell_trace_log="${1}"
+    local -r target_function="${2}"
+
+    python "${QUERY_CALL_HIERARCHY}" "${shell_trace_log}" "${target_function}"
+}
+project.register_task query-call-hierarchy
+
 # Calling in Development Version
 function mycmd-devel() {
+    local -r trace_log_file="${TMP_WORKING_DIR}/shell-log-trace"
+
+    if [[ -e "${trace_log_file}" ]]; then
+        rm -rf "${trace_log_file}" || true
+    fi
+
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         PATH="${BIN_DIR}:${PATH}" \
-        MYCMD_SHELL_TRACE=1 \
-        MYCMD_TRACE_LOG_FILE="${TMP_WORKING_DIR}/shell-log-trace" \
+        _MYCMD_EARLY_SHELL_TRACE=1 \
+        _MYCMD_EARLY_TRACE_LOG_FILE="${trace_log_file}" \
         "${BIN_DIR}"/mycmd "${@}"
 }
 project.register_task mycmd-devel
