@@ -15,7 +15,7 @@ shopt -s inherit_errexit
 
 if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
     if [[ -n "${_MYCMD_EARLY_TRACE_LOG_FILE-}" ]]; then
-        PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[0]:+${FUNCNAME[0]}()}]:[${FUNCNAME[*]}]:'
+        PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[*]}]:'
         export PS4
 
         exec {_MYCMD_EARLY_TRACE_LOG_FD}>>"${_MYCMD_EARLY_TRACE_LOG_FILE}"

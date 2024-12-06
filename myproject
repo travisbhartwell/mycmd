@@ -503,12 +503,51 @@ project.register_task_with_fileset lint \
     ALL_FILES
 
 #----------------------------------------
+# Processing Trace Logs
+
+function remove-temporary-file() {
+    local -r f="${1}"
+
+    if [[ -e "${f}" ]]; then
+        rm -f "${f}" || true
+    fi
+}
+
+mycmd.defer_at_startup mycmd.init_bin flamegraph.pl
+
+readonly PROCESS_TRACE_LOGS="${SUPPORT_DIR}/process-trace-logs.py"
+
+function create-flamegraph-from-shell-trace() {
+    local -r shell_trace_log="${1}"
+    local -r flamegraph_svg_file="${2}"
+
+    local shell_perf_file
+    if ! shell_perf_file="$(mktemp -q -t "shell-trace-XXXXXX.perf")"; then
+        mycmd.log "Error creating temporary file for shell trace perf."
+        return 1
+    fi
+    readonly shell_perf_file
+    mycmd.defer_at_exit remove-temporary-file "${shell_perf_file}"
+
+    if ! python "${PROCESS_TRACE_LOGS}" "${shell_trace_log}" "${shell_perf_file}"; then
+        mycmd.log "Error converting trace log to a perf file."
+        return 1
+    fi
+
+    if ! mycmd.bin_execute flamegraph.pl "${shell_perf_file}" >"${flamegraph_svg_file}"; then
+        mycmd.log "Error generating flamegraph file"
+        return 1
+    fi
+}
+project.register_task create-flamegraph-from-shell-trace
+
 # Calling in Development Version
 function mycmd-devel() {
-    # /usr/bin/env -u MYCMD_SEARCH_PATH \
     /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         PATH="${BIN_DIR}:${PATH}" \
+        MYCMD_SHELL_TRACE=1 \
+        MYCMD_TRACE_LOG_FILE="${TMP_WORKING_DIR}/shell-log-trace" \
         "${BIN_DIR}"/mycmd "${@}"
 }
 project.register_task mycmd-devel
