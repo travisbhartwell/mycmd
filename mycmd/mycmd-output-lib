@@ -112,7 +112,7 @@ function mycmd.configure_shell_trace() {
 
     if [[ -n "${MYCMD_SHELL_TRACE-}" ]]; then
         if [[ -n "${MYCMD_TRACE_LOG_FILE-}" ]]; then
-            PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[0]:+${FUNCNAME[0]}()}]:[${FUNCNAME[*]}]:'
+            PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[*]}]:'
             export PS4
 
             exec {_MYCMD_TRACE_LOG_FD}>>"${MYCMD_TRACE_LOG_FILE}"
