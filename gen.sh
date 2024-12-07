@@ -36,7 +36,7 @@ find "$sources_root" -type f -name 'page-list*' -delete
            dest="$filename/index.html" ;;
     esac
 
-    CONTENT="$(pandoc --from commonmark --to html5 "$content")"
+    CONTENT="$(pandoc --from markdown --to html5 "$content")"
     ROOT="$(dirname "$path/$dest" | sed -E 's/\/[^\/]+/\/../g')"
 
     export TITLE
