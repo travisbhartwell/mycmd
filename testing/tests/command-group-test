@@ -29,25 +29,25 @@ function test_mycmd_command_group_lib_is_loaded() {
 # shellcheck disable=SC2312
 function test_directory_is_command_group() {
     assertTrue "Directory '${MYCMD_LIB_DIRECTORY}' is a command group" \
-        "mycmd:command_group.validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}"
+        "mycmd:command_group_registry._validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}"
 
     assertTrue "Directory '${MYCMD_LIB_DIRECTORY}/shell' is a command group" \
-        "mycmd:command_group.validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/shell"
+        "mycmd:command_group_registry._validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/shell"
 
     assertTrue "Directory '${TEST_USER_LIB_DIRECTORY}/shell/extended' is a command group" \
-        "mycmd:command_group.validate_directory_contains_command_group  ${TEST_USER_LIB_DIRECTORY}/shell/extended"
+        "mycmd:command_group_registry._validate_directory_contains_command_group  ${TEST_USER_LIB_DIRECTORY}/shell/extended"
 
     assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/foo' is a not command group" \
-        "mycmd:command_group.validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/foo"
+        "mycmd:command_group_registry._validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/foo"
 }
 
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_base_mycmd_command_group() {
     assertTrue 'mycmd can be loaded as a command group' \
-        'mycmd:command_group.register_command_group "${MYCMD_LIB_DIRECTORY}" mycmd'
+        'mycmd:command_group_registry.register_command_group "${MYCMD_LIB_DIRECTORY}" mycmd'
 
     local -A mycmd_command_group
-    mycmd:command_group.get_command_group mycmd mycmd_command_group
+    mycmd:command_group_registry.get_command_group mycmd mycmd_command_group
     assertEquals "mycmd" "$(mycmd:command_group.get_name mycmd_command_group)"
     assertEquals "mycmd" "$(mycmd:command_group.get_fully_qualified_name mycmd_command_group)"
     assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
@@ -67,13 +67,13 @@ function test_base_mycmd_command_group() {
 # shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_shell_extended_command_group() {
     assertTrue "${MYCMD_LIB_DIRECTORY}/shell can be loaded as a command group" \
-        'mycmd:command_group.register_command_group "${MYCMD_LIB_DIRECTORY}/shell" "mycmd/shell"'
+        'mycmd:command_group_registry.register_command_group "${MYCMD_LIB_DIRECTORY}/shell" "mycmd/shell"'
 
     assertTrue "${TEST_USER_LIB_DIRECTORY}/shell/extended can be loaded as a command group" \
-        'mycmd:command_group.register_command_group "${TEST_USER_LIB_DIRECTORY}/shell/extended" "mycmd/shell/extended"'
+        'mycmd:command_group_registry.register_command_group "${TEST_USER_LIB_DIRECTORY}/shell/extended" "mycmd/shell/extended"'
 
     local -A shell_extended_command_group
-    mycmd:command_group.get_command_group "mycmd/shell/extended" shell_extended_command_group
+    mycmd:command_group_registry.get_command_group "mycmd/shell/extended" shell_extended_command_group
     assertEquals "extended" "$(mycmd:command_group.get_name shell_extended_command_group)"
     assertEquals "mycmd/shell/extended" "$(mycmd:command_group.get_fully_qualified_name shell_extended_command_group)"
     assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
@@ -92,7 +92,7 @@ function test_shell_extended_command_group() {
     assertSame 'third element in parent tree is "mycmd/shell/extended"' "${parent_tree[2]}" "mycmd/shell/extended"
 
     local -A shell_command_group
-    mycmd:command_group.get_command_group "mycmd/shell" shell_command_group
+    mycmd:command_group_registry.get_command_group "mycmd/shell" shell_command_group
 
     local -a child_groups
     mycmd:command_group.get_child_command_groups shell_command_group child_groups

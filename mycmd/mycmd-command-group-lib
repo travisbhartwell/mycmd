@@ -112,7 +112,7 @@ declare -Agx _MYCMD_COMMAND_GROUP_METADATA_LOADED=()
 # TODO: Handle this cleaner, but this is to avoid trying to load mycmd-lib
 _MYCMD_COMMAND_GROUP_METADATA_LOADED["mycmd"]=1
 
-function mycmd:command_group.register_command_group() {
+function mycmd:command_group_registry.register_command_group() {
     local -r source_directory="${1}"
     local -r fully_qualified_name="${2}"
 
@@ -120,14 +120,14 @@ function mycmd:command_group.register_command_group() {
     if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
         mycmd.trace "Skipping validation of parameters, assuming they are valid, as called from 'mycmd:pathname.walk_path'."
     else
-        if ! mycmd:command_group.validate_directory_contains_command_group "${source_directory}"; then
+        if ! mycmd:command_group_registry._validate_directory_contains_command_group "${source_directory}"; then
             mycmd.debug "Directory ${source_directory} does not contain a command group."
             return 0
         fi
     fi
 
     local source_file_path
-    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${source_directory}")"; then
+    if ! source_file_path="$(mycmd:command_group_registry._source_file_path_for_directory "${source_directory}")"; then
         mycmd.debug "Error getting source file name for command group library '${source_directory}'."
         return 1
     fi
@@ -155,7 +155,7 @@ function mycmd:command_group.register_command_group() {
     return 0
 }
 
-function mycmd:command_group.register_short_description() {
+function mycmd:command_group_registry.register_short_description() {
     if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
         mycmd.debug "This should only be called when sourcing a command group for registering help."
         return 1
@@ -167,7 +167,7 @@ function mycmd:command_group.register_short_description() {
     return 0
 }
 
-function mycmd:command_group.register_long_description() {
+function mycmd:command_group_registry.register_long_description() {
     if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
         mycmd.debug "This should only be called when sourcing a command group for registering help."
         return 1
@@ -179,7 +179,7 @@ function mycmd:command_group.register_long_description() {
     return 0
 }
 
-function mycmd:command_group.register_version() {
+function mycmd:command_group_registry.register_version() {
     if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
         mycmd.debug "This should only be called when sourcing a command group for registering versions."
         return 1
@@ -191,7 +191,7 @@ function mycmd:command_group.register_version() {
     return 0
 }
 
-function mycmd:command_group.register_mycmd_version_and_descriptions() {
+function mycmd:command_group_registry.register_mycmd_version_and_descriptions() {
     local -r version="${1}"
     local -r short_description="${2}"
     local -r long_description="${3}"
@@ -199,9 +199,9 @@ function mycmd:command_group.register_mycmd_version_and_descriptions() {
     declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="mycmd"
     declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
 
-    mycmd:command_group.register_version "${version}"
-    mycmd:command_group.register_short_description "${short_description}"
-    mycmd:command_group.register_long_description "${long_description}"
+    mycmd:command_group_registry.register_version "${version}"
+    mycmd:command_group_registry.register_short_description "${short_description}"
+    mycmd:command_group_registry.register_long_description "${long_description}"
 
     unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
     unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
@@ -211,7 +211,7 @@ function mycmd:command_group.register_mycmd_version_and_descriptions() {
     return 0
 }
 
-function mycmd:command_group.get_command_group() {
+function mycmd:command_group_registry.get_command_group() {
     local -r fully_qualified_name="${1}"
     local -n command_group_struct_ref="${2}"
 
@@ -263,7 +263,7 @@ function mycmd:command_group.get_command_group() {
     fi
 }
 
-function mycmd:command_group.source_file_path_for_directory() {
+function mycmd:command_group_registry._source_file_path_for_directory() {
     local -r source_directory="${1}"
 
     local name
@@ -278,7 +278,7 @@ function mycmd:command_group.source_file_path_for_directory() {
     return 0
 }
 
-function mycmd:command_group.validate_directory_contains_command_group() {
+function mycmd:command_group_registry._validate_directory_contains_command_group() {
     # A directory is a command group if:
     # - it is valid directory
     # - it is a child of one of the top-level MyCmd directories on the path
@@ -296,7 +296,7 @@ function mycmd:command_group.validate_directory_contains_command_group() {
     fi
 
     local source_file_path
-    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${source_directory}")"; then
+    if ! source_file_path="$(mycmd:command_group_registry._source_file_path_for_directory "${source_directory}")"; then
         mycmd.debug "Error getting source file name for command group library '${source_directory}'."
         return 1
     fi
@@ -364,7 +364,7 @@ function mycmd:command_group.load_command_group_help_and_version() {
         fi
 
         # Reload the command group struct to get the updated metadata
-        mycmd:command_group.get_command_group "${fully_qualified_name}" "${!command_group_struct_ref}"
+        mycmd:command_group_registry.get_command_group "${fully_qualified_name}" "${!command_group_struct_ref}"
     fi
 
     return 0
@@ -375,7 +375,7 @@ function mycmd:command_group.load_command_group_by_name() {
     # shellcheck disable=SC2034
     local -A command_group_struct
 
-    if ! mycmd:command_group.get_command_group "${name}" command_group_struct; then
+    if ! mycmd:command_group_registry.get_command_group "${name}" command_group_struct; then
         mycmd.debug "Error getting command group struct for '${name}'."
         return 1
     fi
@@ -394,7 +394,7 @@ function mycmd:command_group.load_command_group_by_name_only() {
     # shellcheck disable=SC2034
     local -A command_group_struct
 
-    if ! mycmd:command_group.get_command_group "${name}" command_group_struct; then
+    if ! mycmd:command_group_registry.get_command_group "${name}" command_group_struct; then
         mycmd.debug "Error getting command group struct for '${name}'."
         return 1
     fi
@@ -419,7 +419,7 @@ function mycmd:command_group.get_support_library_file_name() {
     echo "${command_group_name}-${support_library_name}-lib"
 }
 
-function mycmd:command_group.get_command_group_from_file() {
+function mycmd:command_group_registry.get_command_group_from_file() {
     local -r source_file_path="${1}"
 
     local potential_command_group
@@ -446,7 +446,7 @@ function mycmd:command_group.load_support_lib() {
     if [[ -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
         fully_qualified_name="${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"
     else
-        if ! fully_qualified_name="$(mycmd._dispatch_with_calling_file mycmd:command_group.get_command_group_from_file)"; then
+        if ! fully_qualified_name="$(mycmd._dispatch_with_calling_file mycmd:command_group_registry.get_command_group_from_file)"; then
             mycmd.debug "Error getting command group from file '${BASH_SOURCE[1]}'."
             return 1
         fi
@@ -455,7 +455,7 @@ function mycmd:command_group.load_support_lib() {
 
     # shellcheck disable=SC2034
     local -A command_group_struct
-    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group_struct; then
+    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group_struct; then
         mycmd.debug "Error getting command group struct for '${fully_qualified_name}'."
         return 1
     fi
