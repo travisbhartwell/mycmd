@@ -163,9 +163,9 @@ mycmd.defer_at_startup mycmd.init_bin sed
 function list-mycmd-lib-functions() {
     local -n fileset="${1}"
 
-    grep -E '^[[:space:]]*function' "${fileset[@]}" |
-        mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' |
-        sort -u
+    grep -E '^[[:space:]]*function' "${fileset[@]}" \
+        | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
+        | sort -u
 }
 project.register_task_with_fileset list-mycmd-lib-functions \
     list-mycmd-lib-functions \
@@ -176,9 +176,9 @@ mycmd.defer_at_startup mycmd.init_bin grep
 function list-mycmd-lib-functions-with-source-file() {
     local -n fileset="${1}"
 
-    mycmd.bin_execute grep -H -E '^[[:space:]]*function' "${fileset[@]}" |
-        mycmd.bin_execute sed -r -n 's/^([^:]+):.*function (.*)\(\) \{/\1,\2/p' |
-        sort -u
+    mycmd.bin_execute grep -H -E '^[[:space:]]*function' "${fileset[@]}" \
+        | mycmd.bin_execute sed -r -n 's/^([^:]+):.*function (.*)\(\) \{/\1,\2/p' \
+        | sort -u
 }
 project.register_task_with_fileset list-mycmd-lib-functions-with-source-file list-mycmd-lib-functions-with-source-file MYCMD_LIB_FILES
 
@@ -223,8 +223,8 @@ function catalog-mycmd-lib-function-call-tree() {
             file="$(echo "${match_line}" | cut -d: -f1)"
             line_number="$(echo "${match_line}" | cut -d: -f2)"
             data+=("${fn},${file},${line_number}")
-        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${fileset[@]}" |
-            mycmd.bin_execute grep -P -v "^[^:]+:[[:digit:]]+:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
+        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${fileset[@]}" \
+            | mycmd.bin_execute grep -P -v "^[^:]+:[[:digit:]]+:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
     done
 
     local -r output_file="${TMP_WORKING_DIR}/fn-callers.csv"
@@ -264,8 +264,8 @@ function catalog-mycmd-lib-function-callers() {
             project.verbose "Searching for function '${fn}' in file '${impl_file}'."
 
             fn_pattern="${fn/./\\.}"
-            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" |
-                mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
+            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" \
+                | mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
             data+=("${fn},${impl_file},${count}")
         done
     done
