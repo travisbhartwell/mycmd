@@ -7,11 +7,16 @@ Concepts and Conventions in MyCmd
 
 A command group is a unit of hierarchy in MyCmd. It provides common code shared by the commands and command groups that it might contain.
 
+** Command Group Registry
+
+The command group registry is the global registry containing the metadata for all discovered command groups.
+
 ** Commands
 
 A command is a script executed by MyCmd.
 
 * General Conventions
+
 ** Naming
 Since Bash allows for periods, colons, and dashes in function names, I use them in this fashion:
 - All top-level MyCmd functionality (in other words, functions from =mycmd/mycmd-lib= and its support libraries) have the =mycmd= prefix.
@@ -23,6 +28,10 @@ Since Bash allows for periods, colons, and dashes in function names, I use them 
 - For functions that a purely internal, an underscore precedes the function name. Nothing outside of the file of those functions should call them.
 
 ** Specific Naming Conventions
+- All functions related to the Command Group Registry has the prefix =mycmd:command_group_registry=.
+
+- All functions related to a Command Group has the prefix =mycmd:command_group=.
+
 - When referring to the names of Command Groups or Commands, use the variable name =name=, unless the function refers to both a command group and a command at the same time. In that case, use =command_group_name= and =command_name=.
 
 - When referring to a fully qualified name follow the same pattern, but using the name =fully_qualified_name=, with similar exceptions.
@@ -44,3 +53,5 @@ Since Bash allows for periods, colons, and dashes in function names, I use them 
 - When referring to the help text of a Command, use the variable name =help_text=.
 
 - When referring to the version of a Command Group or a Command, use the variable name =version=.
+
+** Code Organization

@@ -42,11 +42,17 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ## of the Commands and Command Groups it contains will inherit the Command Group's provided
 ## code.
 ##
+## A Command Group is accessed via an associative array that contains all of the scalar values.
+## For data that is not scalar -- such as the list of child commands -- a separate array reference
+## is passed in to get the array, and so there is not a corresponding field name defined for those.
+##
 ## A Command Group is described by the following attributes:
 ## - A name, for example, 'import'.
+readonly _COMMAND_GROUP_NAME_FIELD='command-group-name'
 ##
 ## - A fully qualified name, representing the fully path in the hierarchy, for example,
 ##   'mycmd/financial/import'.
+readonly _COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD='command-group-fully-qualified-name'
 ##
 ## - The namespaced parts of the name, are the individual parts of the hierarchy,
 ##   for example, [mycmd, financial, import] for the array version, or
@@ -54,178 +60,57 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 ##
 ## - A source directory, the directory containing the source file of the command group, for example,
 ##   $HOME/mycmd/financial/import/.
+readonly _COMMAND_GROUP_SOURCE_DIRECTORY_FIELD='command-group-source-directory'
 ##
 ## - A source file, the source of the shared library code for the Command Group, for example,
 ##   $HOME/mycmd/financial/import/import-lib. The source file is named with the name of the
 ##   Command Group with "-lib" appended to it.
+readonly _COMMAND_GROUP_SOURCE_FILE_FIELD='command-group-source-file'
 ##
 ## - Any number of child commands.
 ##
 ## - Any number of child command groups.
 ##
 ## - A short description used in displaying help.
+readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
 ##
 ## - A long description used in displaying help.
+readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
 ##
 ## - A version string used in displaying help and version information.
+readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
+##
+## - Whether or not the metadata (help and version information) has been fully loaded.
+readonly _COMMAND_GROUP_METADATA_LOADED_FIELD='command-group-metadata-loaded'
 
-# Global Data Structures
-# - All Registered Command Group Names
+# ------------------------------------------------------------------------------
+## Command Group Registry
+##
+## The Command Group Registry contains the data for all discovered Command Groups.
+##
+## This data is contained in a set of global arrays, including the following:
+##
+## - All of the registered Command Group names
 declare -agx _MYCMD_COMMAND_GROUPS=()
-# The rest are all keyed by the fully qualified name
-# - Command Group Source Directories
+##
+## The rest of this data is contained in associative arrays. The keys in each of these arrays are
+## the fully qualified names of the command groups.
+##
+## - The Command Group source directories
 declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES=()
-# - Command Group Source Files
+## - The Command Group source files
 declare -Agx _MYCMD_COMMAND_GROUP_SOURCE_FILES=()
-# - Command Group Short Descriptions
+## - The Command Group short descriptions
 declare -Agx _MYCMD_COMMAND_GROUP_SHORT_DESCS=()
-# - Command Group Long Descriptions
+## - The Command Group long descriptions
 declare -Agx _MYCMD_COMMAND_GROUP_LONG_DESCS=()
-# - Command Group Versions
+## - The Command Group versions
 declare -Agx _MYCMD_COMMAND_GROUP_VERSIONS=()
-# - Command Groups with fully loaded metadata
+## - The Command Groups with fully loaded metadata
 declare -Agx _MYCMD_COMMAND_GROUP_METADATA_LOADED=()
 
 # TODO: Handle this cleaner, but this is to avoid trying to load mycmd-lib
 _MYCMD_COMMAND_GROUP_METADATA_LOADED["mycmd"]=1
-
-# Command Group Data Structure
-readonly _COMMAND_GROUP_NAME_FIELD='command-group-name'
-readonly _COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD='command-group-fully-qualified-name'
-readonly _COMMAND_GROUP_SOURCE_DIRECTORY_FIELD='command-group-source-directory'
-readonly _COMMAND_GROUP_SOURCE_FILE_FIELD='command-group-source-file'
-readonly _COMMAND_GROUP_SHORT_DESC_FIELD='command-group-short-description'
-readonly _COMMAND_GROUP_LONG_DESC_FIELD='command-group-long-description'
-readonly _COMMAND_GROUP_VERSION_FIELD='command-group-version'
-readonly _COMMAND_GROUP_METADATA_LOADED_FIELD='command-group-metadata-loaded'
-
-function mycmd:command_group.source_file_path_for_directory() {
-    local -r source_directory="${1}"
-
-    local name
-    if ! name="$(basename "${source_directory}")"; then
-        mycmd.debug "Error getting basename of '${source_directory}'."
-        return 1
-    fi
-    readonly name
-
-    local -r source_file_path="${source_directory}/${name}-lib"
-    echo "${source_file_path}"
-    return 0
-}
-
-function mycmd:command_group.validate_directory_contains_command_group() {
-    # A directory is a command group if:
-    # - it is valid directory
-    # - it is a child of one of the top-level MyCmd directories on the path
-    # - it has a file named <command-group>/<command-group>-lib matching the directory
-    local -r source_directory="${1}"
-
-    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${source_directory}"; then
-        mycmd.debug "${source_directory} is not a valid absolute path of a directory."
-        return 1
-    fi
-
-    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_directory}"; then
-        mycmd.debug "${source_directory} is not a descendant of any of the MyCmd base directories."
-        return 1
-    fi
-
-    local source_file_path
-    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${source_directory}")"; then
-        mycmd.debug "Error getting source file name for command group library '${source_directory}'."
-        return 1
-    fi
-    readonly source_file_path
-
-    if [[ ! -f "${source_file_path}" ]]; then
-        mycmd.debug "Expected command group library file '${source_file_path}' does not exist."
-        return 1
-    fi
-
-    return 0
-}
-
-function mycmd:command_group.register_version() {
-    if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.debug "This should only be called when sourcing a command group for registering versions."
-        return 1
-    fi
-
-    local -r version="${1}"
-    _MYCMD_COMMAND_GROUP_VERSIONS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${version}"
-
-    return 0
-}
-
-function mycmd:command_group.register_short_description() {
-    if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.debug "This should only be called when sourcing a command group for registering help."
-        return 1
-    fi
-
-    local -r short_description="${1}"
-    _MYCMD_COMMAND_GROUP_SHORT_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${short_description}"
-
-    return 0
-}
-
-# TODO: How should I handle multiple line help messages?
-function mycmd:command_group.register_long_description() {
-    if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.debug "This should only be called when sourcing a command group for registering help."
-        return 1
-    fi
-
-    local -r long_description="${1}"
-    _MYCMD_COMMAND_GROUP_LONG_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${long_description}"
-
-    return 0
-}
-
-function mycmd:command_group._load_command_group_help_and_version() {
-    local -r fully_qualified_name="${1}"
-    local -r source_file_path="${2}"
-
-    local result=0
-    mycmd.trace "Loading help and version information for command group '${fully_qualified_name}' at file '${source_file_path}'."
-
-    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
-    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
-        mycmd.debug "Error loading command group help and version information from '${source_file_path}'."
-        result=1
-    fi
-    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
-    unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
-
-    if ((result != 0)); then
-        return 1
-    fi
-
-    _MYCMD_COMMAND_GROUP_METADATA_LOADED["${fully_qualified_name}"]=1
-
-    return 0
-}
-
-function mycmd:command_group.register_mycmd_version_and_descriptions() {
-    local -r version="${1}"
-    local -r short_description="${2}"
-    local -r long_description="${3}"
-
-    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="mycmd"
-    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
-
-    mycmd:command_group.register_version "${version}"
-    mycmd:command_group.register_short_description "${short_description}"
-    mycmd:command_group.register_long_description "${long_description}"
-
-    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
-    unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
-
-    _MYCMD_COMMAND_GROUP_METADATA_LOADED["mycmd"]=1
-
-    return 0
-}
 
 function mycmd:command_group.register_command_group() {
     local -r source_directory="${1}"
@@ -266,6 +151,62 @@ function mycmd:command_group.register_command_group() {
     _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${source_directory}"
     _MYCMD_COMMAND_GROUP_SOURCE_FILES["${fully_qualified_name}"]="${source_file_path}"
     _MYCMD_COMMAND_GROUPS+=("${fully_qualified_name}")
+
+    return 0
+}
+
+function mycmd:command_group.register_short_description() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.debug "This should only be called when sourcing a command group for registering help."
+        return 1
+    fi
+
+    local -r short_description="${1}"
+    _MYCMD_COMMAND_GROUP_SHORT_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${short_description}"
+
+    return 0
+}
+
+function mycmd:command_group.register_long_description() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.debug "This should only be called when sourcing a command group for registering help."
+        return 1
+    fi
+
+    local -r long_description="${1}"
+    _MYCMD_COMMAND_GROUP_LONG_DESCS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${long_description}"
+
+    return 0
+}
+
+function mycmd:command_group.register_version() {
+    if [[ ! -v _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP && ! -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
+        mycmd.debug "This should only be called when sourcing a command group for registering versions."
+        return 1
+    fi
+
+    local -r version="${1}"
+    _MYCMD_COMMAND_GROUP_VERSIONS["${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${version}"
+
+    return 0
+}
+
+function mycmd:command_group.register_mycmd_version_and_descriptions() {
+    local -r version="${1}"
+    local -r short_description="${2}"
+    local -r long_description="${3}"
+
+    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="mycmd"
+    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
+
+    mycmd:command_group.register_version "${version}"
+    mycmd:command_group.register_short_description "${short_description}"
+    mycmd:command_group.register_long_description "${long_description}"
+
+    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
+    unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
+
+    _MYCMD_COMMAND_GROUP_METADATA_LOADED["mycmd"]=1
 
     return 0
 }
@@ -320,6 +261,78 @@ function mycmd:command_group.get_command_group() {
         command_group_struct_ref["${_COMMAND_GROUP_METADATA_LOADED_FIELD}"]=0
         mycmd.trace "- Command Group metadata has not been loaded."
     fi
+}
+
+function mycmd:command_group.source_file_path_for_directory() {
+    local -r source_directory="${1}"
+
+    local name
+    if ! name="$(basename "${source_directory}")"; then
+        mycmd.debug "Error getting basename of '${source_directory}'."
+        return 1
+    fi
+    readonly name
+
+    local -r source_file_path="${source_directory}/${name}-lib"
+    echo "${source_file_path}"
+    return 0
+}
+
+function mycmd:command_group.validate_directory_contains_command_group() {
+    # A directory is a command group if:
+    # - it is valid directory
+    # - it is a child of one of the top-level MyCmd directories on the path
+    # - it has a file named <command-group>/<command-group>-lib matching the directory
+    local -r source_directory="${1}"
+
+    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${source_directory}"; then
+        mycmd.debug "${source_directory} is not a valid absolute path of a directory."
+        return 1
+    fi
+
+    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_directory}"; then
+        mycmd.debug "${source_directory} is not a descendant of any of the MyCmd base directories."
+        return 1
+    fi
+
+    local source_file_path
+    if ! source_file_path="$(mycmd:command_group.source_file_path_for_directory "${source_directory}")"; then
+        mycmd.debug "Error getting source file name for command group library '${source_directory}'."
+        return 1
+    fi
+    readonly source_file_path
+
+    if [[ ! -f "${source_file_path}" ]]; then
+        mycmd.debug "Expected command group library file '${source_file_path}' does not exist."
+        return 1
+    fi
+
+    return 0
+}
+
+# TODO: How should I handle multiple line help messages?
+function mycmd:command_group._load_command_group_help_and_version() {
+    local -r fully_qualified_name="${1}"
+    local -r source_file_path="${2}"
+
+    local result=0
+    mycmd.trace "Loading help and version information for command group '${fully_qualified_name}' at file '${source_file_path}'."
+
+    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
+    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
+        mycmd.debug "Error loading command group help and version information from '${source_file_path}'."
+        result=1
+    fi
+    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
+    unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
+
+    if ((result != 0)); then
+        return 1
+    fi
+
+    _MYCMD_COMMAND_GROUP_METADATA_LOADED["${fully_qualified_name}"]=1
+
+    return 0
 }
 
 function mycmd:command_group._get_required_field_from_command_group_struct() {
