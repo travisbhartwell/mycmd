@@ -9,12 +9,14 @@ I plan on writing and publishing the post tomorrow.
 ## MyCmd Concepts and Conventions Documentation and Cleanup
 
 I've pushed some commits to document MyCmd concepts and follow naming conventions:
+
 * [7777d95d1077b8f5864ca247ca188a93383c29c7](https://github.com/travisbhartwell/mycmd/commit/7777d95d1077b8f5864ca247ca188a93383c29c7): Documenting and Following Conventions for Help and Version Information
 * [e4f84ec543a3fdebe1eae00e796ed21465438152](https://github.com/travisbhartwell/mycmd/commit/e4f84ec543a3fdebe1eae00e796ed21465438152): Start to document general naming conventions
 
 ## Cognitohazards and Side Quests: Shell Script Profiling
 
 Since Bash doesn't have anything syntax-wise to support namespaces or objects, I try to "simulate" them by naming conventions of my Bash functions. Bash function names can include periods, colons, and dashes. I realized that I was using colons haphazardly -- both for functions around "object-like" things, like a method for a Command Group, `mycmd:command_group.get_source_directory` and as a general namespace in more general functions, like `mycmd:pathname.is_valid_absolute_path`. I wanted to analyze all of the functions I've written with colons in their names. For things related to "object-like" things, like the Command Group code, I wanted to imagine if this were Python, what would that function be?
+
 * an instance method for an object?
 * a class method for a class?
 * or, a stand-alone utility function?

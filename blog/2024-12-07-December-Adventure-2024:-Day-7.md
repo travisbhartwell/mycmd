@@ -7,6 +7,7 @@ Yesterday, after I published my [December Adventure entry](../2024-12-06-decembe
 ## MyCmd Naming Conventions Cleanup
 
 I returned to my naming conventions and code clean up task, by looking at [mycmd-command-group-lib](https://github.com/travisbhartwell/mycmd/blob/7777d95d1077b8f5864ca247ca188a93383c29c7/mycmd/mycmd-command-group-lib) which implements the Command Group concept. As I mentioned in [Day 5](../2024-12-05-december-adventure-2024:-day-5/#cognitohazards-and-side-quests-shell-script-profiling), I wanted to look at it as if this code was in Python, and answer this for each function:
+
 * Is it an instance method for an object?
 * Or, is it a class method for a class?
 * Or, is it a stand-alone utility function?
@@ -20,6 +21,7 @@ A pattern that I have adopted in several places in the MyCmd code base is what I
 I realized earlier this year that I could use an associative array, which Bash does support, as such an item. An associative array with hard-coded keys would represent the attributes of the object I was describing. But how do I keep multiple instances of these? What I decided on was to have a set of global associative arrays, one for each attribute on the instance associative array. I have an id that represents each instance, and those are the keys in each of the global arrays.
 
 A few links to show the current implementation of Command Groups:
+
 * [The global associative arrays](https://github.com/travisbhartwell/mycmd/blob/7777d95d1077b8f5864ca247ca188a93383c29c7/mycmd/mycmd-command-group-lib#L72-L87).
 * [The field names for the instance associative array](https://github.com/travisbhartwell/mycmd/blob/7777d95d1077b8f5864ca247ca188a93383c29c7/mycmd/mycmd-command-group-lib#L92-L100).
 * [The function for getting an instance of a Command Group](https://github.com/travisbhartwell/mycmd/blob/7777d95d1077b8f5864ca247ca188a93383c29c7/mycmd/mycmd-command-group-lib#L273-L323).
