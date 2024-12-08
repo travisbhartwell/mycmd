@@ -55,7 +55,7 @@ function mycmd.discover_command_groups_and_commands_callback() {
     local -n _dirs_ref="${3}"
     local -n files_ref="${4}"
 
-    if ! mycmd:command_group.register_command_group "${full_path}" "${fully_qualified_name}"; then
+    if ! mycmd:command_group_registry.register_command_group "${full_path}" "${fully_qualified_name}"; then
         mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
         return 1
     fi
@@ -86,7 +86,7 @@ readonly _MYCMD_LONG_DESCRIPTION="MyCmd is a framework for creating and managing
 function mycmd.discover_command_groups_and_commands() {
     mycmd:pathname.walk_path "mycmd" mycmd.discover_command_groups_and_commands_callback
 
-    mycmd:command_group.register_mycmd_version_and_descriptions "${_MYCMD_VERSION}" \
+    mycmd:command_group_registry.register_mycmd_version_and_descriptions "${_MYCMD_VERSION}" \
         "${_MYCMD_SHORT_DESCRIPTION}" \
         "${_MYCMD_LONG_DESCRIPTION}"
 }
@@ -110,7 +110,7 @@ function mycmd.print_command_group_version() {
     local -r fully_qualified_name="${1}"
     local -A command_group
 
-    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group; then
+    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group; then
         mycmd.log "Unknown command group: '${fully_qualified_name}'."
         return 1
     fi
@@ -123,7 +123,7 @@ function mycmd.print_command_group_help() {
     # shellcheck disable=SC2034
     local -A command_group
 
-    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group; then
+    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group; then
         mycmd.log "Unknown command group: '${fully_qualified_name}'."
         return 1
     fi
@@ -145,7 +145,7 @@ function mycmd.print_command_group_help() {
         for child_fully_qualified_name in "${child_command_groups[@]}"; do
             # shellcheck disable=SC2034
             local -A child=()
-            if ! mycmd:command_group.get_command_group "${child_fully_qualified_name}" child; then
+            if ! mycmd:command_group_registry.get_command_group "${child_fully_qualified_name}" child; then
                 mycmd.debug "Error getting child command group '${child_fully_qualified_name}'"
                 return 1
             fi
