@@ -28,39 +28,38 @@ A few links to show the current implementation of Command Groups:
 
 One thing I take advantage of here is array reference variables. In Bash, you can pass an array to a function by just referring to its name. (Another aside -- did you know that Bash has dynamic scoping?) In the function called, you declare a variable with `-n` to say that it is an array reference.
 
-Here's an example of using this to call a method on a Command Group instance, taken from [this function to display command group help](https://github.com/travisbhartwell/mycmd/blob/7777d95d1077b8f5864ca247ca188a93383c29c7/mycmd/mycmd-lib#L220-L252):
+Here's an example of using this to call a method on a Command Group instance, taken from [this function to display command group version](https://github.com/travisbhartwell/mycmd/blob/7777d95d1077b8f5864ca247ca188a93383c29c7/mycmd/mycmd-lib#L109-L119):
 
 ```shell
-local -A command
+function mycmd.print_command_group_version() {
+    local -r fully_qualified_name="${1}"
+    local -A command_group
 
-if ! mycmd:command.get_command "${fully_qualified_name}" command; then
-    mycmd.log "Unknown command: '${fully_qualified_name}'."
-    return 1
-fi
+    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group; then
+        mycmd.log "Unknown command group: '${fully_qualified_name}'."
+        return 1
+    fi
 
-mycmd:command.print_version command
-mycmd.output ""
-mycmd:command.print_short_description command
-mycmd.output ""
-mycmd:command.print_help_text command
+    mycmd:command_group.print_version command_group
+}
 ```
 
-To break it down, first, I declare a local associative array variable `command`:
+To break it down, first, I declare a local associative array variable `command_group`:
 
 ```shell
-local -A command
+local -A command_group
 ```
 
-Then, I call the function to populate that array variable with the instance referred to by the id in the `fully_qualified_name` variable, passing the `command` variable by name:
+Then, I call the function to populate that array variable with the instance referred to by the id in the `fully_qualified_name` variable, passing the `command_group` variable by name:
 
 ```shell
-mycmd:command.get_command "${fully_qualified_name}" command
+mycmd:command_group.get_command_group "${fully_qualified_name}" command_group
 ```
 
 And then I call methods on that instance, by explicitly passing the instance to the function, again by name:
 
 ```shell
-mycmd:command.print_version command
+mycmd:command_group.print_version command_group
 ```
 
 This helps me emulate the good parts of OOP.
