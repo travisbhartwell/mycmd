@@ -506,6 +506,92 @@ function mycmd:command_group.print_version() {
     mycmd.output "${namespaced_parts_string} version ${version}"
 }
 
+# ------------------------------------------------------------------------------
+# Command Group Public Loading Functions
+function mycmd:command_group.load_command_group() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    local -a parent_tree
+    mycmd:command_group.get_parent_tree "${!command_group_struct_ref}" parent_tree
+
+    for parent in "${parent_tree[@]}"; do
+        mycmd.trace "Loading parent command group '${parent}'."
+
+        if ! mycmd:command_group.load_command_group_by_name_only "${parent}"; then
+            mycmd.debug "Error loading parent command group '${parent}'."
+            return 1
+        fi
+    done
+
+    mycmd:command_group.load_command_group_only "${!command_group_struct_ref}"
+}
+
+function mycmd:command_group.load_command_group_by_name() {
+    local -r name="${1}"
+    # shellcheck disable=SC2034
+    local -A command_group_struct
+
+    if ! mycmd:command_group_registry.get_command_group "${name}" command_group_struct; then
+        mycmd.debug "Error getting command group struct for '${name}'."
+        return 1
+    fi
+
+    if ! mycmd:command_group.load_command_group command_group_struct; then
+        mycmd.debug "Error loading command group '${name}'."
+        return 1
+    fi
+
+    return 0
+}
+
+function mycmd:command_group.load_support_lib() {
+    local -r support_library_name="${1}"
+
+    local fully_qualified_name
+    if [[ -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
+        fully_qualified_name="${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"
+    else
+        if ! fully_qualified_name="$(mycmd._dispatch_with_calling_file mycmd:command_group_registry.get_command_group_from_file)"; then
+            mycmd.debug "Error getting command group from file '${BASH_SOURCE[1]}'."
+            return 1
+        fi
+    fi
+    readonly fully_qualified_name
+
+    # shellcheck disable=SC2034
+    local -A command_group_struct
+    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group_struct; then
+        mycmd.debug "Error getting command group struct for '${fully_qualified_name}'."
+        return 1
+    fi
+
+    local support_library_file_name
+    if ! support_library_file_name="$(mycmd:command_group.get_support_library_file_name command_group_struct "${support_library_name}")"; then
+        mycmd.debug "Error getting support library file name for '${support_library_name}'."
+        return 1
+    fi
+    readonly support_library_file_name
+
+    local source_directory
+    source_directory="$(mycmd:command_group.get_source_directory command_group_struct)"
+    readonly source_directory
+
+    local support_library_full_path
+    if ! support_library_full_path="$(mycmd:pathname.find_support_library_for_command_group "${fully_qualified_name}" "${source_directory}" "${support_library_file_name}")"; then
+        mycmd.debug "Error finding support library '${support_library_file_name}' for command group '${fully_qualified_name}'."
+        return 1
+    fi
+    readonly support_library_full_path
+
+    if ! mycmd.source_lib_by_path_if_found "${support_library_full_path}"; then
+        mycmd.debug "Error loading support library '${support_library_full_path}' for command group '${fully_qualified_name}'."
+        return 1
+    fi
+
+    return 0
+}
+
 # TODO: How should I handle multiple line help messages?
 function mycmd:command_group._load_command_group_help_and_version() {
     local -r fully_qualified_name="${1}"
@@ -566,24 +652,6 @@ function mycmd:command_group.load_command_group_help_and_version() {
     return 0
 }
 
-function mycmd:command_group.load_command_group_by_name() {
-    local -r name="${1}"
-    # shellcheck disable=SC2034
-    local -A command_group_struct
-
-    if ! mycmd:command_group_registry.get_command_group "${name}" command_group_struct; then
-        mycmd.debug "Error getting command group struct for '${name}'."
-        return 1
-    fi
-
-    if ! mycmd:command_group.load_command_group command_group_struct; then
-        mycmd.debug "Error loading command group '${name}'."
-        return 1
-    fi
-
-    return 0
-}
-
 function mycmd:command_group.load_command_group_by_name_only() {
     local -r name="${1}"
 
@@ -613,53 +681,6 @@ function mycmd:command_group.get_support_library_file_name() {
     readonly command_group_name
 
     echo "${command_group_name}-${support_library_name}-lib"
-}
-
-function mycmd:command_group.load_support_lib() {
-    local -r support_library_name="${1}"
-
-    local fully_qualified_name
-    if [[ -v _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME ]]; then
-        fully_qualified_name="${_MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"
-    else
-        if ! fully_qualified_name="$(mycmd._dispatch_with_calling_file mycmd:command_group_registry.get_command_group_from_file)"; then
-            mycmd.debug "Error getting command group from file '${BASH_SOURCE[1]}'."
-            return 1
-        fi
-    fi
-    readonly fully_qualified_name
-
-    # shellcheck disable=SC2034
-    local -A command_group_struct
-    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group_struct; then
-        mycmd.debug "Error getting command group struct for '${fully_qualified_name}'."
-        return 1
-    fi
-
-    local support_library_file_name
-    if ! support_library_file_name="$(mycmd:command_group.get_support_library_file_name command_group_struct "${support_library_name}")"; then
-        mycmd.debug "Error getting support library file name for '${support_library_name}'."
-        return 1
-    fi
-    readonly support_library_file_name
-
-    local source_directory
-    source_directory="$(mycmd:command_group.get_source_directory command_group_struct)"
-    readonly source_directory
-
-    local support_library_full_path
-    if ! support_library_full_path="$(mycmd:pathname.find_support_library_for_command_group "${fully_qualified_name}" "${source_directory}" "${support_library_file_name}")"; then
-        mycmd.debug "Error finding support library '${support_library_file_name}' for command group '${fully_qualified_name}'."
-        return 1
-    fi
-    readonly support_library_full_path
-
-    if ! mycmd.source_lib_by_path_if_found "${support_library_full_path}"; then
-        mycmd.debug "Error loading support library '${support_library_full_path}' for command group '${fully_qualified_name}'."
-        return 1
-    fi
-
-    return 0
 }
 
 function mycmd:command_group._load_command_group_only() {
@@ -692,25 +713,6 @@ function mycmd:command_group.load_command_group_only() {
         mycmd.debug "Error loading command group library from '${source_file_path}'."
         return 1
     fi
-}
-
-function mycmd:command_group.load_command_group() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-
-    local -a parent_tree
-    mycmd:command_group.get_parent_tree "${!command_group_struct_ref}" parent_tree
-
-    for parent in "${parent_tree[@]}"; do
-        mycmd.trace "Loading parent command group '${parent}'."
-
-        if ! mycmd:command_group.load_command_group_by_name_only "${parent}"; then
-            mycmd.debug "Error loading parent command group '${parent}'."
-            return 1
-        fi
-    done
-
-    mycmd:command_group.load_command_group_only "${!command_group_struct_ref}"
 }
 
 function mycmd:command_group._get_optional_field_from_command_group_struct() {
