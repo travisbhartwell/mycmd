@@ -59,7 +59,7 @@ function test_base_mycmd_command_group() {
     assertEquals "Unknown" "$(mycmd:command_group.get_version mycmd_command_group)"
 
     local -a parent_tree
-    mycmd:command_group.get_parent_tree mycmd_command_group parent_tree
+    mycmd:command_group._get_parent_tree mycmd_command_group parent_tree
     assertEquals 'parent_tree has one element' 1 "${#parent_tree[@]}"
     assertEquals 'only element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
 }
@@ -85,7 +85,7 @@ function test_shell_extended_command_group() {
     assertEquals "1.0" "$(mycmd:command_group.get_version shell_extended_command_group)"
 
     local -a parent_tree
-    mycmd:command_group.get_parent_tree shell_extended_command_group parent_tree
+    mycmd:command_group._get_parent_tree shell_extended_command_group parent_tree
     assertTrue 'parent_tree has three elements' '(( "${#parent_tree[@]}" == 3 ))'
     assertSame 'first element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
     assertSame 'second element in parent tree is "mycmd/shell"' "${parent_tree[1]}" "mycmd/shell"

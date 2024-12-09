@@ -455,7 +455,7 @@ function mycmd:command_group.print_short_description() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+    if ! mycmd:command_group._load_command_group_help_and_version "${!command_group_struct_ref}"; then
         mycmd.debug "Error loading command group help and version information."
         return 1
     fi
@@ -471,7 +471,7 @@ function mycmd:command_group.print_long_description() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+    if ! mycmd:command_group._load_command_group_help_and_version "${!command_group_struct_ref}"; then
         mycmd.debug "Error loading command group help and version information."
         return 1
     fi
@@ -490,7 +490,7 @@ function mycmd:command_group.print_version() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+    if ! mycmd:command_group._load_command_group_help_and_version "${!command_group_struct_ref}"; then
         mycmd.debug "Error loading command group help and version information."
         return 1
     fi
@@ -513,18 +513,18 @@ function mycmd:command_group.load_command_group() {
     local -n command_group_struct_ref="${1}"
 
     local -a parent_tree
-    mycmd:command_group.get_parent_tree "${!command_group_struct_ref}" parent_tree
+    mycmd:command_group._get_parent_tree "${!command_group_struct_ref}" parent_tree
 
     for parent in "${parent_tree[@]}"; do
         mycmd.trace "Loading parent command group '${parent}'."
 
-        if ! mycmd:command_group.load_command_group_by_name_only "${parent}"; then
+        if ! mycmd:command_group._load_command_group_by_name_only "${parent}"; then
             mycmd.debug "Error loading parent command group '${parent}'."
             return 1
         fi
     done
 
-    mycmd:command_group.load_command_group_only "${!command_group_struct_ref}"
+    mycmd:command_group._load_command_group_only "${!command_group_struct_ref}"
 }
 
 function mycmd:command_group.load_command_group_by_name() {
@@ -567,7 +567,7 @@ function mycmd:command_group.load_support_lib() {
     fi
 
     local support_library_file_name
-    if ! support_library_file_name="$(mycmd:command_group.get_support_library_file_name command_group_struct "${support_library_name}")"; then
+    if ! support_library_file_name="$(mycmd:command_group._get_support_library_file_name command_group_struct "${support_library_name}")"; then
         mycmd.debug "Error getting support library file name for '${support_library_name}'."
         return 1
     fi
@@ -599,7 +599,7 @@ function mycmd:command_group._get_optional_field_from_command_group_struct() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${2}"
 
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+    if ! mycmd:command_group._load_command_group_help_and_version "${!command_group_struct_ref}"; then
         mycmd.debug "Error loading command group help and version information."
         return 1
     fi
@@ -627,7 +627,7 @@ function mycmd:command_group._get_required_field_from_command_group_struct() {
 
 # ------------------------------------------------------------------------------
 # Command Group Private Loading Helper Functions
-function mycmd:command_group.get_parent_tree() {
+function mycmd:command_group._get_parent_tree() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
     local -n parent_tree_ref="${2}"
@@ -653,7 +653,7 @@ function mycmd:command_group.get_parent_tree() {
     done
 }
 
-function mycmd:command_group.load_command_group_only() {
+function mycmd:command_group._load_command_group_only() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
@@ -665,13 +665,13 @@ function mycmd:command_group.load_command_group_only() {
     source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
     readonly source_file_path
 
-    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
+    if ! mycmd:command_group._load_command_group_only_by_source "${fully_qualified_name}" "${source_file_path}"; then
         mycmd.debug "Error loading command group library from '${source_file_path}'."
         return 1
     fi
 }
 
-function mycmd:command_group._load_command_group_only() {
+function mycmd:command_group._load_command_group_only_by_source() {
     local -r fully_qualified_name="${1}"
     local -r source_file_path="${2}"
 
@@ -685,7 +685,7 @@ function mycmd:command_group._load_command_group_only() {
     return "${result}"
 }
 
-function mycmd:command_group.load_command_group_by_name_only() {
+function mycmd:command_group._load_command_group_by_name_only() {
     local -r name="${1}"
 
     # shellcheck disable=SC2034
@@ -696,7 +696,7 @@ function mycmd:command_group.load_command_group_by_name_only() {
         return 1
     fi
 
-    if ! mycmd:command_group.load_command_group_only command_group_struct; then
+    if ! mycmd:command_group._load_command_group_only command_group_struct; then
         mycmd.debug "Error loading command group '${name}'."
         return 1
     fi
@@ -704,7 +704,7 @@ function mycmd:command_group.load_command_group_by_name_only() {
     return 0
 }
 
-function mycmd:command_group.get_support_library_file_name() {
+function mycmd:command_group._get_support_library_file_name() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
     local -r support_library_name="${2}"
@@ -716,7 +716,7 @@ function mycmd:command_group.get_support_library_file_name() {
     echo "${command_group_name}-${support_library_name}-lib"
 }
 
-function mycmd:command_group.load_command_group_help_and_version() {
+function mycmd:command_group._load_command_group_help_and_version() {
     # shellcheck disable=SC2178
     local -n command_group_struct_ref="${1}"
 
@@ -731,7 +731,7 @@ function mycmd:command_group.load_command_group_help_and_version() {
         source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
         readonly source_file_path
 
-        if ! mycmd:command_group._load_command_group_help_and_version "${fully_qualified_name}" "${source_file_path}"; then
+        if ! mycmd:command_group._load_command_group_help_and_version_by_source "${fully_qualified_name}" "${source_file_path}"; then
             mycmd.debug "Error loading command group help and version information."
             return 1
         fi
@@ -744,7 +744,7 @@ function mycmd:command_group.load_command_group_help_and_version() {
 }
 
 # TODO: How should I handle multiple line help messages?
-function mycmd:command_group._load_command_group_help_and_version() {
+function mycmd:command_group._load_command_group_help_and_version_by_source() {
     local -r fully_qualified_name="${1}"
     local -r source_file_path="${2}"
 
@@ -752,7 +752,7 @@ function mycmd:command_group._load_command_group_help_and_version() {
     mycmd.trace "Loading help and version information for command group '${fully_qualified_name}' at file '${source_file_path}'."
 
     declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
-    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
+    if ! mycmd:command_group._load_command_group_only_by_source "${fully_qualified_name}" "${source_file_path}"; then
         mycmd.debug "Error loading command group help and version information from '${source_file_path}'."
         result=1
     fi
