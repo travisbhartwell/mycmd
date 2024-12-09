@@ -342,6 +342,113 @@ function mycmd:command_group_registry._validate_directory_contains_command_group
 # ------------------------------------------------------------------------------
 # Command Group Instance Functions
 
+# ------------------------------------------------------------------------------
+# Command Group Public Accessors
+function mycmd:command_group.get_name() {
+    mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_fully_qualified_name() {
+    mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_namespaced_parts_as_string() {
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
+    readonly fully_qualified_name
+
+    local -r namespaced_parts_string="${fully_qualified_name//\// }"
+    echo "${namespaced_parts_string}"
+}
+
+function mycmd:command_group.get_source_directory() {
+    mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_source_file_path() {
+    mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_SOURCE_FILE_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_child_command_groups() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+    local -n child_command_groups_ref="${2}"
+
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+    readonly fully_qualified_name
+
+    # shellcheck disable=SC2034
+    readarray -t child_command_groups_ref < \
+        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
+            | grep -E "^${fully_qualified_name}/[^/]+$" \
+            | LC_ALL=en_US.UTF-8 sort || true)
+
+    return 0
+}
+
+function mycmd:command_group.get_short_description() {
+    local short_description
+
+    if short_description="$(mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_SHORT_DESC_FIELD}" \
+        "${@}")"; then
+        readonly short_description
+    else
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
+        readonly namespaced_parts_string
+
+        short_description="MyCmd Command Group ${namespaced_parts_string}"
+        readonly short_description
+    fi
+
+    echo "${short_description}"
+    return 0
+}
+
+function mycmd:command_group.get_long_description() {
+    mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_LONG_DESC_FIELD}" \
+        "${@}"
+}
+
+function mycmd:command_group.get_version() {
+    local version
+
+    if version="$(mycmd:command_group._get_optional_field_from_command_group_struct \
+        "${_COMMAND_GROUP_VERSION_FIELD}" \
+        "${@}")"; then
+        echo "${version}"
+        return 0
+    else
+        echo "Unknown"
+        return 0
+    fi
+}
+
+function mycmd:command_group.is_metadata_loaded() {
+    local is_metadata_loaded
+
+    if ! is_metadata_loaded="$(mycmd:command_group._get_required_field_from_command_group_struct \
+        "${_COMMAND_GROUP_METADATA_LOADED_FIELD}" \
+        "${@}")"; then
+        mycmd.debug "Error getting metadata loaded field from command group."
+        return 1
+    fi
+    readonly is_metadata_loaded
+
+    [[ "${is_metadata_loaded}" == "1" ]]
+}
+
 # TODO: How should I handle multiple line help messages?
 function mycmd:command_group._load_command_group_help_and_version() {
     local -r fully_qualified_name="${1}"
@@ -549,20 +656,6 @@ function mycmd:command_group.load_command_group() {
     mycmd:command_group.load_command_group_only "${!command_group_struct_ref}"
 }
 
-function mycmd:command_group.is_metadata_loaded() {
-    local is_metadata_loaded
-
-    if ! is_metadata_loaded="$(mycmd:command_group._get_required_field_from_command_group_struct \
-        "${_COMMAND_GROUP_METADATA_LOADED_FIELD}" \
-        "${@}")"; then
-        mycmd.debug "Error getting metadata loaded field from command group."
-        return 1
-    fi
-    readonly is_metadata_loaded
-
-    [[ "${is_metadata_loaded}" == "1" ]]
-}
-
 function mycmd:command_group._get_optional_field_from_command_group_struct() {
     local -r field_name="${1}"
     # shellcheck disable=SC2178
@@ -584,18 +677,6 @@ function mycmd:command_group._get_optional_field_from_command_group_struct() {
         mycmd.trace "No value for '${field_name}' defined for command group '${fully_qualified_name}'."
         return 1
     fi
-}
-
-function mycmd:command_group.get_name() {
-    mycmd:command_group._get_required_field_from_command_group_struct \
-        "${_COMMAND_GROUP_NAME_FIELD}" \
-        "${@}"
-}
-
-function mycmd:command_group.get_fully_qualified_name() {
-    mycmd:command_group._get_required_field_from_command_group_struct \
-        "${_COMMAND_GROUP_FULLY_QUALIFIED_NAME_FIELD}" \
-        "${@}"
 }
 
 function mycmd:command_group.get_parent_tree() {
@@ -622,85 +703,6 @@ function mycmd:command_group.get_parent_tree() {
 
         parent_tree_ref+=("${command_group_name}")
     done
-}
-
-function mycmd:command_group.get_namespaced_parts_as_string() {
-    local fully_qualified_name
-    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
-    readonly fully_qualified_name
-
-    local -r namespaced_parts_string="${fully_qualified_name//\// }"
-    echo "${namespaced_parts_string}"
-}
-
-function mycmd:command_group.get_source_directory() {
-    mycmd:command_group._get_required_field_from_command_group_struct \
-        "${_COMMAND_GROUP_SOURCE_DIRECTORY_FIELD}" \
-        "${@}"
-}
-
-function mycmd:command_group.get_source_file_path() {
-    mycmd:command_group._get_required_field_from_command_group_struct \
-        "${_COMMAND_GROUP_SOURCE_FILE_FIELD}" \
-        "${@}"
-}
-
-function mycmd:command_group.get_short_description() {
-    local short_description
-
-    if short_description="$(mycmd:command_group._get_optional_field_from_command_group_struct \
-        "${_COMMAND_GROUP_SHORT_DESC_FIELD}" \
-        "${@}")"; then
-        readonly short_description
-    else
-        local namespaced_parts_string
-        namespaced_parts_string="$(mycmd:command_group.get_namespaced_parts_as_string "${@}")"
-        readonly namespaced_parts_string
-
-        short_description="MyCmd Command Group ${namespaced_parts_string}"
-        readonly short_description
-    fi
-
-    echo "${short_description}"
-    return 0
-}
-
-function mycmd:command_group.get_long_description() {
-    mycmd:command_group._get_optional_field_from_command_group_struct \
-        "${_COMMAND_GROUP_LONG_DESC_FIELD}" \
-        "${@}"
-}
-
-function mycmd:command_group.get_child_command_groups() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-    local -n child_command_groups_ref="${2}"
-
-    local fully_qualified_name
-    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-    readonly fully_qualified_name
-
-    # shellcheck disable=SC2034
-    readarray -t child_command_groups_ref < \
-        <(printf '%s\n' "${_MYCMD_COMMAND_GROUPS[@]}" \
-            | grep -E "^${fully_qualified_name}/[^/]+$" \
-            | LC_ALL=en_US.UTF-8 sort || true)
-
-    return 0
-}
-
-function mycmd:command_group.get_version() {
-    local version
-
-    if version="$(mycmd:command_group._get_optional_field_from_command_group_struct \
-        "${_COMMAND_GROUP_VERSION_FIELD}" \
-        "${@}")"; then
-        echo "${version}"
-        return 0
-    else
-        echo "Unknown"
-        return 0
-    fi
 }
 
 function mycmd:command_group.print_version() {
