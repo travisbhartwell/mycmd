@@ -625,56 +625,64 @@ function mycmd:command_group._get_required_field_from_command_group_struct() {
     echo "${command_group_struct_ref["${field_name}"]}"
 }
 
-# TODO: How should I handle multiple line help messages?
-function mycmd:command_group._load_command_group_help_and_version() {
+# ------------------------------------------------------------------------------
+# Command Group Private Loading Helper Functions
+function mycmd:command_group.get_parent_tree() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+    local -n parent_tree_ref="${2}"
+
+    parent_tree_ref=()
+
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
+    readonly fully_qualified_name
+
+    local namespaced_parts
+    # shellcheck disable=SC2162
+    IFS="/" read -a namespaced_parts <<<"${fully_qualified_name}"
+    readonly namespaced_parts
+
+    local command_group_name=""
+    local part
+
+    for part in "${namespaced_parts[@]}"; do
+        command_group_name="${command_group_name}${command_group_name:+/}${part}"
+
+        parent_tree_ref+=("${command_group_name}")
+    done
+}
+
+function mycmd:command_group.load_command_group_only() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+    readonly fully_qualified_name
+
+    local source_file_path
+    source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
+    readonly source_file_path
+
+    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
+        mycmd.debug "Error loading command group library from '${source_file_path}'."
+        return 1
+    fi
+}
+
+function mycmd:command_group._load_command_group_only() {
     local -r fully_qualified_name="${1}"
     local -r source_file_path="${2}"
 
     local result=0
-    mycmd.trace "Loading help and version information for command group '${fully_qualified_name}' at file '${source_file_path}'."
-
-    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
-    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
-        mycmd.debug "Error loading command group help and version information from '${source_file_path}'."
+    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
+    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
         result=1
     fi
-    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
     unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
 
-    if ((result != 0)); then
-        return 1
-    fi
-
-    _MYCMD_COMMAND_GROUP_METADATA_LOADED["${fully_qualified_name}"]=1
-
-    return 0
-}
-
-function mycmd:command_group.load_command_group_help_and_version() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-
-    if ! mycmd:command_group.is_metadata_loaded "${!command_group_struct_ref}"; then
-        mycmd.trace "Command group metadata has not been loaded, so loading on demand."
-
-        local fully_qualified_name
-        fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-        readonly fully_qualified_name
-
-        local source_file_path
-        source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
-        readonly source_file_path
-
-        if ! mycmd:command_group._load_command_group_help_and_version "${fully_qualified_name}" "${source_file_path}"; then
-            mycmd.debug "Error loading command group help and version information."
-            return 1
-        fi
-
-        # Reload the command group struct to get the updated metadata
-        mycmd:command_group_registry.get_command_group "${fully_qualified_name}" "${!command_group_struct_ref}"
-    fi
-
-    return 0
+    return "${result}"
 }
 
 function mycmd:command_group.load_command_group_by_name_only() {
@@ -708,62 +716,56 @@ function mycmd:command_group.get_support_library_file_name() {
     echo "${command_group_name}-${support_library_name}-lib"
 }
 
-function mycmd:command_group._load_command_group_only() {
+function mycmd:command_group.load_command_group_help_and_version() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    if ! mycmd:command_group.is_metadata_loaded "${!command_group_struct_ref}"; then
+        mycmd.trace "Command group metadata has not been loaded, so loading on demand."
+
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
+        readonly fully_qualified_name
+
+        local source_file_path
+        source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
+        readonly source_file_path
+
+        if ! mycmd:command_group._load_command_group_help_and_version "${fully_qualified_name}" "${source_file_path}"; then
+            mycmd.debug "Error loading command group help and version information."
+            return 1
+        fi
+
+        # Reload the command group struct to get the updated metadata
+        mycmd:command_group_registry.get_command_group "${fully_qualified_name}" "${!command_group_struct_ref}"
+    fi
+
+    return 0
+}
+
+# TODO: How should I handle multiple line help messages?
+function mycmd:command_group._load_command_group_help_and_version() {
     local -r fully_qualified_name="${1}"
     local -r source_file_path="${2}"
 
     local result=0
-    declare -gx _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
-    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+    mycmd.trace "Loading help and version information for command group '${fully_qualified_name}' at file '${source_file_path}'."
+
+    declare -gx _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP=1
+    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
+        mycmd.debug "Error loading command group help and version information from '${source_file_path}'."
         result=1
     fi
+    unset _MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP
     unset _MYCMD_COMMAND_GROUP_FULLY_QUALIFIED_NAME
 
-    return "${result}"
-}
-
-function mycmd:command_group.load_command_group_only() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-
-    local fully_qualified_name
-    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${!command_group_struct_ref}")"
-    readonly fully_qualified_name
-
-    local source_file_path
-    source_file_path="$(mycmd:command_group.get_source_file_path "${!command_group_struct_ref}")"
-    readonly source_file_path
-
-    if ! mycmd:command_group._load_command_group_only "${fully_qualified_name}" "${source_file_path}"; then
-        mycmd.debug "Error loading command group library from '${source_file_path}'."
+    if ((result != 0)); then
         return 1
     fi
-}
 
-function mycmd:command_group.get_parent_tree() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-    local -n parent_tree_ref="${2}"
+    _MYCMD_COMMAND_GROUP_METADATA_LOADED["${fully_qualified_name}"]=1
 
-    parent_tree_ref=()
-
-    local fully_qualified_name
-    fully_qualified_name="$(mycmd:command_group.get_fully_qualified_name "${@}")"
-    readonly fully_qualified_name
-
-    local namespaced_parts
-    # shellcheck disable=SC2162
-    IFS="/" read -a namespaced_parts <<<"${fully_qualified_name}"
-    readonly namespaced_parts
-
-    local command_group_name=""
-    local part
-
-    for part in "${namespaced_parts[@]}"; do
-        command_group_name="${command_group_name}${command_group_name:+/}${part}"
-
-        parent_tree_ref+=("${command_group_name}")
-    done
+    return 0
 }
 
 mycmd.trace "The MyCmd Command Group support library has been sourced."
