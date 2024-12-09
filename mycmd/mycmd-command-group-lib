@@ -449,6 +449,63 @@ function mycmd:command_group.is_metadata_loaded() {
     [[ "${is_metadata_loaded}" == "1" ]]
 }
 
+# ------------------------------------------------------------------------------
+# Command Group Public Help Printing Functions
+function mycmd:command_group.print_short_description() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
+
+    local short_description
+    short_description="$(mycmd:command_group.get_short_description "${!command_group_struct_ref}")"
+    readonly short_description
+
+    mycmd.output "${short_description}"
+}
+
+function mycmd:command_group.print_long_description() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
+
+    local long_description
+    if ! long_description="$(mycmd:command_group.get_long_description "${!command_group_struct_ref}")"; then
+        mycmd.debug "No long description provided"
+        return 0
+    fi
+    readonly long_description
+
+    mycmd.output "${long_description}"
+}
+
+function mycmd:command_group.print_version() {
+    # shellcheck disable=SC2178
+    local -n command_group_struct_ref="${1}"
+
+    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
+
+    local namespaced_parts_string
+    namespaced_parts_string="$(mycmd:command_group.get_namespaced_parts_as_string "${!command_group_struct_ref}")"
+    readonly namespaced_parts_string
+
+    local version
+    version="$(mycmd:command_group.get_version "${!command_group_struct_ref}")"
+    readonly version
+
+    mycmd.output "${namespaced_parts_string} version ${version}"
+}
+
 # TODO: How should I handle multiple line help messages?
 function mycmd:command_group._load_command_group_help_and_version() {
     local -r fully_qualified_name="${1}"
@@ -703,61 +760,6 @@ function mycmd:command_group.get_parent_tree() {
 
         parent_tree_ref+=("${command_group_name}")
     done
-}
-
-function mycmd:command_group.print_version() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
-        mycmd.debug "Error loading command group help and version information."
-        return 1
-    fi
-
-    local namespaced_parts_string
-    namespaced_parts_string="$(mycmd:command_group.get_namespaced_parts_as_string "${!command_group_struct_ref}")"
-    readonly namespaced_parts_string
-
-    local version
-    version="$(mycmd:command_group.get_version "${!command_group_struct_ref}")"
-    readonly version
-
-    mycmd.output "${namespaced_parts_string} version ${version}"
-}
-
-function mycmd:command_group.print_short_description() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
-        mycmd.debug "Error loading command group help and version information."
-        return 1
-    fi
-
-    local short_description
-    short_description="$(mycmd:command_group.get_short_description "${!command_group_struct_ref}")"
-    readonly short_description
-
-    mycmd.output "${short_description}"
-}
-
-function mycmd:command_group.print_long_description() {
-    # shellcheck disable=SC2178
-    local -n command_group_struct_ref="${1}"
-
-    if ! mycmd:command_group.load_command_group_help_and_version "${!command_group_struct_ref}"; then
-        mycmd.debug "Error loading command group help and version information."
-        return 1
-    fi
-
-    local long_description
-    if ! long_description="$(mycmd:command_group.get_long_description "${!command_group_struct_ref}")"; then
-        mycmd.debug "No long description provided"
-        return 0
-    fi
-    readonly long_description
-
-    mycmd.output "${long_description}"
 }
 
 mycmd.trace "The MyCmd Command Group support library has been sourced."
