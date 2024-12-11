@@ -16,7 +16,7 @@ Github [recently released](https://github.blog/changelog/2024-12-09-github-skyli
 
 Kind of a fun visualization for the year.
 
-![Github Skyline](../../github-skyline.png)
+![Github Skyline](../../images/github-skyline.png)
 
 ## Good Data Visualization
 
