@@ -1,0 +1,184 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+# MyCmd Registry Support Library
+#   Support for the MyCmd Registry of all discovered Command Groups and Commands
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+(return 0 >/dev/null 2>&1) || {
+    echo >&2 "$0 is a library only meant to be sourced."
+    exit 1
+}
+
+[[ -n "${_MYCMD_REGISTRY_LIB:-}" ]] && return
+readonly _MYCMD_REGISTRY_LIB=1
+
+if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    readonly _MYCMD_REGISTRY_LIB_SELF_FILE="${BASH_SOURCE[0]}"
+    _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_REGISTRY_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
+    readonly _MYCMD_LIB_DIR
+fi
+
+# ------------------------------------------------------------------------------
+# Source Required Support Libraries
+if [[ ! -v _MYCMD_LOADING_LIB ]]; then
+    # shellcheck source=./mycmd-loading-lib
+    source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
+fi
+
+# ------------------------------------------------------------------------------
+## The MyCmd Registry
+
+readonly _MYCMD_COMMAND_GROUP_TYPE='MyCmd Command Group'
+readonly _MYCMD_COMMAND_TYPE='MyCmd Command'
+
+# ------------------------------------------------------------------------------
+# Global Registry Arrays
+declare -agx _MYCMD_COMMAND_GROUPS=()
+declare -agx _MYCMD_COMMANDS=()
+
+declare -Agx _MYCMD_ITEM_TYPES=()
+declare -Agx _MYCMD_ITEM_SOURCE_DIRECTORIES=()
+declare -Agx _MYCMD_ITEM_SOURCE_FILES=()
+declare -Agx _MYCMD_ITEM_SHORT_DESCS=()
+declare -Agx _MYCMD_ITEM_HELP_TEXTS=()
+declare -Agx _MYCMD_ITEM_VERSIONS=()
+declare -Agx _MYCMD_ITEM_METADATA_LOADED=()
+
+# ------------------------------------------------------------------------------
+# Registered Items Fields
+readonly _ITEM_TYPE_FIELD='item-type'
+readonly _ITEM_NAME_FIELD='item-name'
+readonly _ITEM_FULLY_QUALIFIED_NAME_FIELD='item-fully-qualified-name'
+readonly _ITEM_NAMESPACED_PARTS_STRING_FIELD='item-namespaced-parts-string'
+readonly _ITEM_PARENT_COMAND_GROUP_NAME_FIELD='item-parent-command-group-name'
+readonly _ITEM_SOURCE_DIRECTORY_FIELD='item-source-directory'
+readonly _ITEM_SOURCE_FILE_FIELD='item-source-file'
+readonly _ITEM_SHORT_DESC_FIELD='item-short-description'
+readonly _ITEM_HELP_TEXT_FIELD='item-help-text'
+readonly _ITEM_VERSION_FIELD='item-version'
+readonly _ITEM_METADATA_LOADED_FIELD='item-metadata-loaded'
+
+# ------------------------------------------------------------------------------
+# Item Common Public Accessors
+function mycmd:item.get_type() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_TYPE_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.is_command_group() {
+    local item_type
+    if ! item_type="$(mycmd:item.get_type "${@}")"; then
+        mycmd.debug "Error getting type field from item."
+        return 1
+    fi
+    readonly item_type
+
+    [[ "${item_type}" == "${_MYCMD_COMMAND_GROUP_TYPE}" ]]
+}
+
+function mycmd:item.is_command() {
+    local item_type
+    if ! item_type="$(mycmd:item.get_type "${@}")"; then
+        mycmd.debug "Error getting type field from item."
+        return 1
+    fi
+    readonly item_type
+
+    [[ "${item_type}" == "${_MYCMD_COMMAND_TYPE}" ]]
+}
+
+function mycmd:item.get_name() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.get_fully_qualified_name() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_FULLY_QUALIFIED_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.get_namespaced_parts_as_string() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_NAMESPACED_PARTS_STRING_FIELD}" \
+        "${@}"
+}
+
+# TODO: This should probably be optional, because `mycmd` doesn't have a parent
+function mycmd:item.get_parent_command_group_fully_qualified_name() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_PARENT_COMAND_GROUP_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.get_source_directory() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_SOURCE_DIRECTORY_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.get_source_file_path() {
+    mycmd:item._get_required_field_from_item_struct \
+        "${_ITEM_SOURCE_FILE_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.get_short_description() {
+    local short_description
+
+    if short_description="$(mycmd:item._get_optional_field_from_item_struct \
+        "${_ITEM_SHORT_DESC_FIELD}" \
+        "${@}")"; then
+        readonly short_description
+    else
+        local item_type
+        item_type="$(mycmd:item.get_type "${@}")"
+        readonly item_type
+
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:item.get_namespaced_parts_as_string "${@}")"
+        readonly namespaced_parts_string
+
+        short_description="${item_type} ${namespaced_parts_string}"
+        readonly short_description
+    fi
+
+    echo "${short_description}"
+    return 0
+}
+
+function mycmd:item.get_help_text() {
+    mycmd:item._get_optional_field_from_item_struct \
+        "${_ITEM_HELP_TEXT_FIELD}" \
+        "${@}"
+}
+
+function mycmd:item.get_version() {
+    local version
+
+    if version="$(mycmd:item._get_optional_field_from_item_struct \
+        "${_ITEM_VERSION_FIELD}" \
+        "${@}")"; then
+        echo "${version}"
+        return 0
+    else
+        echo "Unknown"
+        return 0
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# Item Common Accessor Helpers
+function mycmd:item._get_required_field_from_item_struct() {
+    local -r field_name="${1}"
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${2}"
+
+    echo "${item_struct_ref["${field_name}"]}"
+}
+
+mycmd.trace "The MyCmd Registry support library has been sourced."
