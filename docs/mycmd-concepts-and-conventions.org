@@ -18,6 +18,7 @@ The MyCmd Registry is the global registry containing the metadata for all discov
 * General Conventions
 ** Naming
 Since Bash allows for periods, colons, and dashes in function names, I use them in this fashion:
+
 - All top-level MyCmd functionality (in other words, functions from =mycmd/mycmd-lib= and its support libraries) have the =mycmd= prefix.
 
 - For functions related to the implementation of "object-like" structures (like command-groups), a colon and the object name follows the =mycmd= prefix, for example, =mycmd:command_group=.
@@ -29,9 +30,11 @@ Since Bash allows for periods, colons, and dashes in function names, I use them 
 ** Specific Naming Conventions
 - All functions related to the MyCmd Registry have the prefix =mycmd:registry=.
 
-- All common functions related to the items in the MyCmd Registry have the prefix =mycmd:item=.
+- All common functions related to the items in the MyCmd Registry have the prefix =mycmd:registered_item=.
 
 - All functions related to a Command Group have the prefix =mycmd:command_group=.
+
+- All functions related to a Command have the prefix =mycmd:command=.
 
 - When referring to the names of Command Groups or Commands, use the variable name =name=, unless the function refers to both a command group and a command at the same time. In that case, use =command_group_name= and =command_name=.
 
