@@ -27,6 +27,8 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
+mycmd.load_mycmd_lib_support_lib "output"
+
 # ------------------------------------------------------------------------------
 ## The MyCmd Registry
 
@@ -62,15 +64,15 @@ readonly _ITEM_METADATA_LOADED_FIELD='item-metadata-loaded'
 
 # ------------------------------------------------------------------------------
 # Item Common Public Accessors
-function mycmd:item.get_type() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_type() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_TYPE_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.is_command_group() {
+function mycmd:registered_item.is_command_group() {
     local item_type
-    if ! item_type="$(mycmd:item.get_type "${@}")"; then
+    if ! item_type="$(mycmd:registered_item.get_type "${@}")"; then
         mycmd.debug "Error getting type field from item."
         return 1
     fi
@@ -79,9 +81,9 @@ function mycmd:item.is_command_group() {
     [[ "${item_type}" == "${_MYCMD_COMMAND_GROUP_TYPE}" ]]
 }
 
-function mycmd:item.is_command() {
+function mycmd:registered_item.is_command() {
     local item_type
-    if ! item_type="$(mycmd:item.get_type "${@}")"; then
+    if ! item_type="$(mycmd:registered_item.get_type "${@}")"; then
         mycmd.debug "Error getting type field from item."
         return 1
     fi
@@ -90,57 +92,57 @@ function mycmd:item.is_command() {
     [[ "${item_type}" == "${_MYCMD_COMMAND_TYPE}" ]]
 }
 
-function mycmd:item.get_name() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_name() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_NAME_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.get_fully_qualified_name() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_fully_qualified_name() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_FULLY_QUALIFIED_NAME_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.get_namespaced_parts_as_string() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_namespaced_parts_as_string() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_NAMESPACED_PARTS_STRING_FIELD}" \
         "${@}"
 }
 
 # TODO: This should probably be optional, because `mycmd` doesn't have a parent
-function mycmd:item.get_parent_command_group_fully_qualified_name() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_parent_command_group_fully_qualified_name() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_PARENT_COMAND_GROUP_NAME_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.get_source_directory() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_source_directory() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_SOURCE_DIRECTORY_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.get_source_file_path() {
-    mycmd:item._get_required_field_from_item_struct \
+function mycmd:registered_item.get_source_file_path() {
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_SOURCE_FILE_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.get_short_description() {
+function mycmd:registered_item.get_short_description() {
     local short_description
 
-    if short_description="$(mycmd:item._get_optional_field_from_item_struct \
+    if short_description="$(mycmd:registered_item._get_optional_field_from_item_struct \
         "${_ITEM_SHORT_DESC_FIELD}" \
         "${@}")"; then
         readonly short_description
     else
         local item_type
-        item_type="$(mycmd:item.get_type "${@}")"
+        item_type="$(mycmd:registered_item.get_type "${@}")"
         readonly item_type
 
         local namespaced_parts_string
-        namespaced_parts_string="$(mycmd:item.get_namespaced_parts_as_string "${@}")"
+        namespaced_parts_string="$(mycmd:registered_item.get_namespaced_parts_as_string "${@}")"
         readonly namespaced_parts_string
 
         short_description="${item_type} ${namespaced_parts_string}"
@@ -151,16 +153,16 @@ function mycmd:item.get_short_description() {
     return 0
 }
 
-function mycmd:item.get_help_text() {
-    mycmd:item._get_optional_field_from_item_struct \
+function mycmd:registered_item.get_help_text() {
+    mycmd:registered_item._get_optional_field_from_item_struct \
         "${_ITEM_HELP_TEXT_FIELD}" \
         "${@}"
 }
 
-function mycmd:item.get_version() {
+function mycmd:registered_item.get_version() {
     local version
 
-    if version="$(mycmd:item._get_optional_field_from_item_struct \
+    if version="$(mycmd:registered_item._get_optional_field_from_item_struct \
         "${_ITEM_VERSION_FIELD}" \
         "${@}")"; then
         echo "${version}"
@@ -173,7 +175,30 @@ function mycmd:item.get_version() {
 
 # ------------------------------------------------------------------------------
 # Item Common Accessor Helpers
-function mycmd:item._get_required_field_from_item_struct() {
+function mycmd:registered_item._get_optional_field_from_registered_item_struct() {
+    local -r field_name="${1}"
+    # shellcheck disable=SC2178
+    local -n registered_item_struct_ref="${2}"
+
+    if ! mycmd:registered_item._load_registered_item_help_and_version "${!registered_item_struct_ref}"; then
+        mycmd.debug "Error loading command group help and version information."
+        return 1
+    fi
+
+    if [[ -v registered_item_struct_ref["${field_name}"] ]]; then
+        echo "${registered_item_struct_ref["${field_name}"]}"
+        return 0
+    else
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:registered_item.get_fully_qualified_name "${!registered_item_struct_ref}")"
+        readonly fully_qualified_name
+
+        mycmd.trace "No value for '${field_name}' defined for registerd item '${fully_qualified_name}'."
+        return 1
+    fi
+}
+
+function mycmd:registered_item._get_required_field_from_item_struct() {
     local -r field_name="${1}"
     # shellcheck disable=SC2178
     local -n item_struct_ref="${2}"
