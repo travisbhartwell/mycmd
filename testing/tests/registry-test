@@ -21,9 +21,40 @@ function test_mycmd_registry_lib_is_loaded() {
     assertTrue 'MyCmd Lib Registry Lib is loaded' '[ -v _MYCMD_REGISTRY_LIB ]'
 }
 
+# NOTE: These are implemented here to allow for testing the discovery functions before the
+#       full implementation is available.
+declare -igx _REGISTER_COMMAND_GROUP_CALL_COUNT=0
+declare -igx _REGISTER_COMMAND_CALL_COUNT=0
+
+function mycmd:registry.register_command_group() {
+    mycmd.trace "mycmd:registry.register_command_group called with:"
+    mycmd.trace "Full Path: '${1}', Fully Qualified Name: '${2}'."
+    ((_REGISTER_COMMAND_GROUP_CALL_COUNT += 1))
+}
+
+function mycmd:registry.register_command() {
+    mycmd.trace "mycmd:registry.register_command called with:"
+    mycmd.trace "Full Path: '${1}', Fully Qualified Name: '${2}'."
+    ((_REGISTER_COMMAND_CALL_COUNT += 1))
+}
+
+function test_all_command_groups_are_registered() {
+    local -r command_group_call_count=9
+    assertEquals "There are ${command_group_call_count} calls to mycmd:registry.register_command_group." \
+        "${command_group_call_count}" "${_REGISTER_COMMAND_GROUP_CALL_COUNT}"
+}
+
+function test_all_commands_are_registered() {
+    local -r command_call_count=30
+    assertEquals "There are ${command_call_count} calls to mycmd:registry.register_command." \
+        "${command_call_count}" "${_REGISTER_COMMAND_CALL_COUNT}"
+}
+
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-registry-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-registry-lib"
+
+    mycmd:registry.discover_command_groups_and_commands
 }
 
 # shellcheck source=../vendor/shunit2

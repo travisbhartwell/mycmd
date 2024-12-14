@@ -28,8 +28,46 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
 fi
 
 mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "pathname"
 
 # ------------------------------------------------------------------------------
 ## The MyCmd Registry
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Discovery Functions
+
+function mycmd:registry.discover_command_groups_and_commands() {
+    mycmd:pathname.walk_path "mycmd" mycmd:registry._discover_command_groups_and_commands_callback
+}
+
+function mycmd:registry._discover_command_groups_and_commands_callback() {
+    local -r full_path="${1}"
+    local -r fully_qualified_name="${2}"
+    # The directories are not currently used
+    local -n _dirs_ref="${3}"
+    local -n files_ref="${4}"
+
+    if ! mycmd:registry.register_command_group "${full_path}" "${fully_qualified_name}"; then
+        mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
+        return 1
+    fi
+
+    local f
+    local file_fully_qualified_name
+    local file_name
+    for f in "${files_ref[@]}"; do
+        if ! file_name="$(basename "${f}")"; then
+            mycmd.debug "Error getting basename of '${f}'."
+            return 1
+        fi
+
+        file_fully_qualified_name="${fully_qualified_name}/${file_name}"
+
+        if ! mycmd:registry.register_command "${f}" "${file_fully_qualified_name}"; then
+            mycmd.log "Error loading command '${f}'."
+            return 1
+        fi
+    done
+}
 
 mycmd.trace "The MyCmd Registry support library has been sourced."
