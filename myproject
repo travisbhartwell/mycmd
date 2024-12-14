@@ -942,6 +942,16 @@ project.register_task update-snapshot-worktree-to-latest-development-snapshot \
     update_snapshot_worktree_to_latest_development_snapshot
 
 #----------------------------------------
+# Repo Stats
+mycmd.init_bin git-quick-stats
+function git-quick-stats() {
+    # shellcheck disable=SC2154
+    /usr/bin/env PATH="${HOMEBREW_PREFIX}/opt/coreutils/libexec/gnubin:${PATH}" \
+        git quick-stats "${@}"
+}
+project.register_task git-quick-stats
+
+#----------------------------------------
 # Run everything
 mycmd.defer_at_startup mycmd.init_bin find
 function clean-up() {
