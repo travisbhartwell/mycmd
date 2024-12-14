@@ -27,6 +27,7 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
+mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
 
 # ------------------------------------------------------------------------------
@@ -110,7 +111,7 @@ function mycmd:registered_item.get_namespaced_parts_as_string() {
         "${@}"
 }
 
-# TODO: This should probably be optional, because `mycmd` doesn't have a parent
+# TODO: Handle this appropriately with the top-level MyCmd group
 function mycmd:registered_item.get_parent_command_group_fully_qualified_name() {
     mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_PARENT_COMAND_GROUP_NAME_FIELD}" \
@@ -173,15 +174,48 @@ function mycmd:registered_item.get_version() {
     fi
 }
 
+function mycmd:registered_item.is_metadata_loaded() {
+    local is_metadata_loaded
+    if ! is_metadata_loaded="$(mycmd:registered_item._get_required_field_from_command_struct \
+        "${_ITEM_METADATA_LOADED_FIELD}" \
+        "${@}")"; then
+        mycmd.debug "Error getting metadata loaded field from registered item."
+        return 1
+    fi
+    readonly is_metadata_loaded
+
+    [[ "${is_metadata_loaded}" == "1" ]]
+}
+
 # ------------------------------------------------------------------------------
 # Item Common Accessor Helpers
+function mycmd:registered_item._call_item_method() {
+    local -r item_method_field="${1}"
+    shift
+    # shellcheck disable=SC2178
+    local -n registered_item_struct_ref="${1}"
+    shift
+
+    local item_method
+    if ! item_method="$(mycmd:registered_item._get_required_field_from_command_struct \
+        "${item_method_field}" \
+        "${!registered_item_struct_ref}")"; then
+        mycmd.debug "Error getting item method field '${item_method_field}' from registered item."
+        return 1
+    fi
+    readonly item_method
+
+    # TODO: Should I error if it doesn't exist?
+    mycmd.call_if_function_exists "${item_method}" "${!registered_item_struct_ref}" "${@}"
+}
+
 function mycmd:registered_item._get_optional_field_from_registered_item_struct() {
     local -r field_name="${1}"
     # shellcheck disable=SC2178
     local -n registered_item_struct_ref="${2}"
 
-    if ! mycmd:registered_item._load_registered_item_help_and_version "${!registered_item_struct_ref}"; then
-        mycmd.debug "Error loading command group help and version information."
+    if ! mycmd:registered_item._load_item_metadata "${!registered_item_struct_ref}"; then
+        mycmd.debug "Error loading registered item metadata."
         return 1
     fi
 
@@ -204,6 +238,15 @@ function mycmd:registered_item._get_required_field_from_item_struct() {
     local -n item_struct_ref="${2}"
 
     echo "${item_struct_ref["${field_name}"]}"
+}
+
+function mycmd:registered_item._load_item_metadata() {
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    if ! mycmd:registered_item.is_metadata_loaded "${!item_struct_ref}"; then
+        mycmd.trace "Registered item metadata has not been loaded, so loading on demand."
+    fi
 }
 
 mycmd.trace "The MyCmd Registry support library has been sourced."
