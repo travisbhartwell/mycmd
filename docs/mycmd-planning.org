@@ -5,6 +5,20 @@
 
 This will be when I first merge the =rewrite= branch into =main=. Some of the work, such as getting CI integrated will have to happen post =main= merge, so the first MVP is not going to be the initial release. Basically, the done signal will be that I can switch my personal MyCmd install to use this commit.
 
+*** MyCmd Registry Implementation
+**** DONE Create =registry-test=
+**** TODO Copy discovery functions to =mycmd-registry-lib=
+**** TODO Implement =mycmd:registry.register_command_group=
+**** TODO Implement =mycmd:registry.register_command=
+**** TODO Implement =mycmd:registry.register_item=
+**** TODO Copy =test_all_command_groups_are_registered= to =registry-test=
+**** TODO Further break down tasks
+**** TODO Add documentation comments for the registry
+**** TODO Load =mycmd-command-group-lib= in =mycmd-registry-lib=
+**** TODO Load =mycmd-command-lib= in =mycmd-registry-lib=
+**** TODO Load =mycmd-registry-lib= in =mycmd-lib=
+**** TODO Add test for =mycmd-registry-lib= loading
+
 *** Features
 **** DONE Loading command groups
 **** DONE Add task to look at last test log
@@ -31,12 +45,12 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE nullglob wrapper
 **** DONE =mycmd.load_command_group_support_lib=
 **** DONE =mycmd.source_mycmd_lib=
-
 ** 0.1 Release
 
 This will be the release with full CI working.
 
 *** Features
+
 **** TODO User documentation for =mycmd= use
 **** TODO Documentation for MyCmd command group and command authors
 **** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions
@@ -52,6 +66,7 @@ This will be the release with full CI working.
 **** TODO Audit support library loading
 **** TODO Use log rotation for MyCmd test logs
 **** TODO Feature detection for Bash version requirements
+**** TODO Metadata caching for command groups and commands
 
 ** Post 0.1 Release
 *** TODO Utility to generate the flamegraphs from trace logs

@@ -222,7 +222,7 @@ function oneTimeSetUp() {
 
     # Hard-code values for tests
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=4
-    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=14
+    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=15
 
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/create:mycmd/create"]=0
     TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/create:mycmd/create"]=1
