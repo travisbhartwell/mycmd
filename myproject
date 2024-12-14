@@ -308,26 +308,27 @@ project.register_task_with_fileset count-mycmd-lib-source-lines \
 
 #----------------------------------------
 # Test execution
-mycmd.defer_at_startup mycmd.init_bin gum
 function summarize_test_results() {
     local -n results_ref="${1}"
 
     (
-        echo "Testing Summary:"
-        echo "| Result | Test File |"
-        echo "|--------|-----------|"
+        mycmd.output "Testing Summary:"
+        mycmd.output "Result       Test File"
+        mycmd.output "-----------------------------------------"
         local test_file
         local result
 
         for test_file in "${!results_ref[@]}"; do
             result="${results_ref["${test_file}"]}"
             if ((result == 0)); then
-                echo "| ✅︎ | ${test_file} |"
+                # Green Check: https://www.compart.com/en/unicode/U+2705
+                mycmd.output " \u2705          ${test_file}"
             else
-                echo "| ❌ | ${test_file} |"
+                # Red X: https://www.compart.com/en/unicode/U+274C
+                mycmd.output " \u274c          ${test_file}"
             fi
         done
-    ) | mycmd.bin_execute gum format --type=markdown
+    )
 }
 
 function execute-test() {
@@ -370,15 +371,22 @@ function execute-all-tests() {
 
     local -r test_log_file="${TMP_WORKING_DIR}/test-output-${description}.log"
 
+    local final_result=0
+
     for test_file in "${test_fileset[@]}"; do
         result=0
 
         execute-test "${test_log_file}" "${test_file}" || result=$?
         # shellcheck disable=SC2034
         results["${test_file}"]="${result}"
+
+        if ((result != 0)); then
+            final_result="${result}"
+        fi
     done
 
     summarize_test_results results
+    return "${final_result}"
 }
 project.register_task_with_fileset execute-all-tests \
     execute-all-tests \
