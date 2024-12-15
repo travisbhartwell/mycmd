@@ -10,11 +10,11 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Copy discovery functions to =mycmd-registry-lib=
 **** DONE Implement minimal =test_all_command_groups_are_registered= in =registry-test=
 **** DONE Implement minimal =test_all_commands_are_registered= in =registry-test=
+**** DONE Copy =test_all_commands_are_registered= to =registry-test=
+**** DONE Implement =mycmd:registry.register_command=
+**** DONE Implement =mycmd:registry.register_item=
 **** TODO Copy =test_all_command_groups_are_registered= to =registry-test=
-**** TODO Copy =test_all_commands_are_registered= to =registry-test=
 **** TODO Implement =mycmd:registry.register_command_group=
-**** TODO Implement =mycmd:registry.register_command=
-**** TODO Implement =mycmd:registry.register_item=
 **** TODO Further break down tasks
 **** TODO Add documentation comments for the registry
 **** TODO Load =mycmd-command-group-lib= in =mycmd-registry-lib=
