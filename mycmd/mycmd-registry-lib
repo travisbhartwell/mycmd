@@ -33,10 +33,12 @@ mycmd.load_mycmd_lib_support_lib "pathname"
 
 # ------------------------------------------------------------------------------
 ## The MyCmd Registry
+readonly _MYCMD_COMMAND_GROUP_TYPE='MyCmd Command Group'
 readonly _MYCMD_COMMAND_TYPE='MyCmd Command'
 
 # ------------------------------------------------------------------------------
 # Global Registry Arrays
+declare -agx _MYCMD_COMMAND_GROUPS=()
 declare -agx _MYCMD_COMMANDS=()
 
 declare -Agx _MYCMD_ITEM_TYPES=()
@@ -56,7 +58,7 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     local -n _dirs_ref="${3}"
     local -n files_ref="${4}"
 
-    if ! mycmd:registry.register_command_group "${fully_qualified_name}" "${full_path}"; then
+    if ! mycmd:registry._register_command_group "${fully_qualified_name}" "${full_path}"; then
         mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
         return 1
     fi
@@ -77,6 +79,45 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
             return 1
         fi
     done
+}
+
+function mycmd:registry._register_command_group() {
+    local -r fully_qualified_name="${1}"
+    local -r source_directory="${2}"
+
+    # If this is called by mycmd:pathname.walk_path, assuming directory paths are real and on the MyCmd Search Path
+    if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
+        mycmd.trace "Skipping validation of parameters, assuming they are valid, as called from 'mycmd:pathname.walk_path'."
+    else
+        if ! mycmd:registry._validate_directory_contains_command_group "${source_directory}"; then
+            mycmd.debug "Directory ${source_directory} does not contain a command group."
+            return 0
+        fi
+    fi
+
+    local source_file_path
+    if ! source_file_path="$(mycmd:registry._command_group_source_file_path_for_directory "${source_directory}")"; then
+        mycmd.debug "Error getting source file name for command group library '${source_directory}'."
+        return 1
+    fi
+    readonly source_file_path
+
+    if [[ ! -e "${source_file_path}" ]]; then
+        mycmd.debug "Expected command group library file '${source_file_path}' does not exist, '${fully_qualified_name}' is not a command group."
+        return 0
+    fi
+
+    if ! mycmd:registry._register_item \
+        _MYCMD_COMMAND_GROUPS \
+        "${_MYCMD_COMMAND_GROUP_TYPE}" \
+        "${fully_qualified_name}" \
+        "${source_directory}" \
+        "${source_file_path}"; then
+        mycmd.debug "Error registering command group '${fully_qualified_name}'."
+        return 1
+    fi
+
+    return 0
 }
 
 function mycmd:registry._register_command() {
@@ -144,6 +185,53 @@ function mycmd:registry._register_item() {
     _MYCMD_ITEM_TYPES["${fully_qualified_name}"]="${item_type}"
     _MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${source_directory}"
     _MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]="${source_file_path}"
+
+    return 0
+}
+
+function mycmd:registry._command_group_source_file_path_for_directory() {
+    local -r source_directory="${1}"
+
+    local name
+    if ! name="$(basename "${source_directory}")"; then
+        mycmd.debug "Error getting basename of '${source_directory}'."
+        return 1
+    fi
+    readonly name
+
+    local -r source_file_path="${source_directory}/${name}-lib"
+    echo "${source_file_path}"
+    return 0
+}
+
+function mycmd:registry._validate_directory_contains_command_group() {
+    # A directory is a command group if:
+    # - it is valid directory
+    # - it is a child of one of the top-level MyCmd directories on the path
+    # - it has a file named <command-group>/<command-group>-lib matching the directory
+    local -r source_directory="${1}"
+
+    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${source_directory}"; then
+        mycmd.debug "${source_directory} is not a valid absolute path of a directory."
+        return 1
+    fi
+
+    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_directory}"; then
+        mycmd.debug "${source_directory} is not a descendant of any of the MyCmd base directories."
+        return 1
+    fi
+
+    local source_file_path
+    if ! source_file_path="$(mycmd:registry._command_group_source_file_path_for_directory "${source_directory}")"; then
+        mycmd.debug "Error getting source file name for command group library '${source_directory}'."
+        return 1
+    fi
+    readonly source_file_path
+
+    if [[ ! -f "${source_file_path}" ]]; then
+        mycmd.debug "Expected command group library file '${source_file_path}' does not exist."
+        return 1
+    fi
 
     return 0
 }
