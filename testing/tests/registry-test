@@ -12,6 +12,11 @@ if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd
     exit 1
 fi
 
+if ! TEST_USER_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../user-base" && pwd -P); then
+    echo >&2 "Error fetching test user base directory."
+    exit 1
+fi
+
 if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching MyCmd lib directory."
     exit 1
@@ -26,25 +31,9 @@ function test_mycmd_registry_lib_is_loaded() {
     assertTrue 'MyCmd Lib Registry Lib is loaded' '[ -v _MYCMD_REGISTRY_LIB ]'
 }
 
-# NOTE: These are implemented here to allow for testing the discovery functions before the
-#       full implementation is available.
-declare -igx _REGISTER_COMMAND_GROUP_CALL_COUNT=0
-
-function mycmd:registry.register_command_group() {
-    mycmd.trace "mycmd:registry.register_command_group called with:"
-    mycmd.trace "Fully Qualified Name: '${1}', Full Path: '${2}'."
-    ((_REGISTER_COMMAND_GROUP_CALL_COUNT += 1))
-}
-
-function test_all_command_groups_are_registered() {
-    local -r command_group_call_count=9
-    assertEquals "There are ${command_group_call_count} calls to mycmd:registry.register_command_group." \
-        "${command_group_call_count}" "${_REGISTER_COMMAND_GROUP_CALL_COUNT}"
-}
-
 # shellcheck disable=SC2154
 function test_all_items_are_registered() {
-    local -r item_count=6
+    local -r item_count=13
 
     assertEquals "There are ${item_count} registered items types." \
         "${item_count}" "${#_MYCMD_ITEM_TYPES[@]}"
@@ -57,11 +46,34 @@ function test_all_items_are_registered() {
 }
 
 # shellcheck disable=SC2154
+function test_all_command_groups_are_registered() {
+    local -r command_group_count=7
+
+    assertEquals "There are ${command_group_count} command groups registered." \
+        "${command_group_count}" "${#_MYCMD_COMMAND_GROUPS[@]}"
+}
+
+# shellcheck disable=SC2154
 function test_all_commands_are_registered() {
     local -r command_count=6
 
     assertEquals "There are ${command_count} commands registered." \
         "${command_count}" "${#_MYCMD_COMMANDS[@]}"
+}
+
+# shellcheck disable=SC2312
+function test_directory_is_command_group() {
+    assertTrue "Directory '${MYCMD_LIB_DIRECTORY}' is a command group" \
+        "mycmd:registry._validate_directory_contains_command_group ${MYCMD_LIB_DIRECTORY}"
+
+    assertTrue "Directory '${MYCMD_LIB_DIRECTORY}/shell' is a command group" \
+        "mycmd:registry._validate_directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/shell"
+
+    assertTrue "Directory '${TEST_USER_LIB_DIRECTORY}/shell/extended' is a command group" \
+        "mycmd:registry._validate_directory_contains_command_group ${TEST_USER_LIB_DIRECTORY}/shell/extended"
+
+    assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/foo' is a not command group" \
+        "mycmd:registry._validate_directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/foo"
 }
 
 # shellcheck disable=SC2016,SC2154
