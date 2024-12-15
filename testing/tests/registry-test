@@ -17,6 +17,11 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd
     exit 1
 fi
 
+if ! MYCMD_SUPPORT_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../support" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching MyCmd support directory."
+    exit 1
+fi
+
 function test_mycmd_registry_lib_is_loaded() {
     assertTrue 'MyCmd Lib Registry Lib is loaded' '[ -v _MYCMD_REGISTRY_LIB ]'
 }
@@ -24,18 +29,11 @@ function test_mycmd_registry_lib_is_loaded() {
 # NOTE: These are implemented here to allow for testing the discovery functions before the
 #       full implementation is available.
 declare -igx _REGISTER_COMMAND_GROUP_CALL_COUNT=0
-declare -igx _REGISTER_COMMAND_CALL_COUNT=0
 
 function mycmd:registry.register_command_group() {
     mycmd.trace "mycmd:registry.register_command_group called with:"
-    mycmd.trace "Full Path: '${1}', Fully Qualified Name: '${2}'."
+    mycmd.trace "Fully Qualified Name: '${1}', Full Path: '${2}'."
     ((_REGISTER_COMMAND_GROUP_CALL_COUNT += 1))
-}
-
-function mycmd:registry.register_command() {
-    mycmd.trace "mycmd:registry.register_command called with:"
-    mycmd.trace "Full Path: '${1}', Fully Qualified Name: '${2}'."
-    ((_REGISTER_COMMAND_CALL_COUNT += 1))
 }
 
 function test_all_command_groups_are_registered() {
@@ -44,10 +42,44 @@ function test_all_command_groups_are_registered() {
         "${command_group_call_count}" "${_REGISTER_COMMAND_GROUP_CALL_COUNT}"
 }
 
+# shellcheck disable=SC2154
+function test_all_items_are_registered() {
+    local -r item_count=6
+
+    assertEquals "There are ${item_count} registered items types." \
+        "${item_count}" "${#_MYCMD_ITEM_TYPES[@]}"
+
+    assertEquals "There are ${item_count} registered items with source directories." \
+        "${item_count}" "${#_MYCMD_ITEM_SOURCE_DIRECTORIES[@]}"
+
+    assertEquals "There are ${item_count} registered items with source files." \
+        "${item_count}" "${#_MYCMD_ITEM_SOURCE_FILE_PATHS[@]}"
+}
+
+# shellcheck disable=SC2154
 function test_all_commands_are_registered() {
-    local -r command_call_count=30
-    assertEquals "There are ${command_call_count} calls to mycmd:registry.register_command." \
-        "${command_call_count}" "${_REGISTER_COMMAND_CALL_COUNT}"
+    local -r command_count=6
+
+    assertEquals "There are ${command_count} commands registered." \
+        "${command_count}" "${#_MYCMD_COMMANDS[@]}"
+}
+
+# shellcheck disable=SC2016,SC2154
+function test_file_is_command() {
+    assertFalse "${TEST_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
+        'mycmd:registry._file_is_command "${TEST_DIRECTORY}/../../mycmd/project/run"'
+
+    assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is not executable and not a command" \
+        'mycmd:registry._file_is_command "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+
+    assertFalse "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh is not on the search path and not a command" \
+        'mycmd:registry._file_is_command "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh"'
+
+    assertTrue "${MYCMD_LIB_DIRECTORY}/project/run is a command" \
+        'mycmd:registry._file_is_command "${MYCMD_LIB_DIRECTORY}/project/run"'
+
+    assertTrue "${MYCMD_USER_BASE_DIR}/test-command is a command" \
+        'mycmd:registry._file_is_command "${MYCMD_USER_BASE_DIR}/test-command"'
 }
 
 function oneTimeSetUp() {

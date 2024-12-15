@@ -27,15 +27,24 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
+mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "pathname"
 
 # ------------------------------------------------------------------------------
 ## The MyCmd Registry
+readonly _MYCMD_COMMAND_TYPE='MyCmd Command'
+
+# ------------------------------------------------------------------------------
+# Global Registry Arrays
+declare -agx _MYCMD_COMMANDS=()
+
+declare -Agx _MYCMD_ITEM_TYPES=()
+declare -Agx _MYCMD_ITEM_SOURCE_DIRECTORIES=()
+declare -Agx _MYCMD_ITEM_SOURCE_FILE_PATHS=()
 
 # ------------------------------------------------------------------------------
 # MyCmd Registry Discovery Functions
-
 function mycmd:registry.discover_command_groups_and_commands() {
     mycmd:pathname.walk_path "mycmd" mycmd:registry._discover_command_groups_and_commands_callback
 }
@@ -47,7 +56,7 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     local -n _dirs_ref="${3}"
     local -n files_ref="${4}"
 
-    if ! mycmd:registry.register_command_group "${full_path}" "${fully_qualified_name}"; then
+    if ! mycmd:registry.register_command_group "${fully_qualified_name}" "${full_path}"; then
         mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
         return 1
     fi
@@ -57,17 +66,105 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     local file_name
     for f in "${files_ref[@]}"; do
         if ! file_name="$(basename "${f}")"; then
-            mycmd.debug "Error getting basename of '${f}'."
+            mycmd.log "Error getting basename of '${f}'."
             return 1
         fi
 
         file_fully_qualified_name="${fully_qualified_name}/${file_name}"
 
-        if ! mycmd:registry.register_command "${f}" "${file_fully_qualified_name}"; then
-            mycmd.log "Error loading command '${f}'."
+        if ! mycmd:registry._register_command "${file_fully_qualified_name}" "${f}"; then
+            mycmd.log "Error loading command '${file_fully_qualified_name}' from '${f}'."
             return 1
         fi
     done
+}
+
+function mycmd:registry._register_command() {
+    local -r fully_qualified_name="${1}"
+    local -r source_file_path="${2}"
+
+    if ! mycmd:registry._file_is_command "${source_file_path}"; then
+        mycmd.debug "'${source_file_path}' is not a valid command."
+        return 0
+    fi
+
+    local -r source_directory="$(dirname "${source_file_path}")"
+
+    if ! mycmd:registry._register_item \
+        "${_MYCMD_COMMAND_TYPE}" \
+        "${fully_qualified_name}" \
+        "${source_directory}" \
+        "${source_file_path}"; then
+        mycmd.debug "Error registering command '${fully_qualified_name}'."
+        return 1
+    fi
+
+    # TODO: Handle the case where the item has already been registered
+    _MYCMD_COMMANDS+=("${fully_qualified_name}")
+    return 0
+}
+
+function mycmd:registry._register_item() {
+    local -r item_type="${1}"
+    local -r fully_qualified_name="${2}"
+    local -r source_directory="${3}"
+    local -r source_file_path="${4}"
+
+    if [[ -v _MYCMD_ITEM_TYPES[${fully_qualified_name}] ]]; then
+        local -r existing_item_type="${_MYCMD_ITEM_TYPES[${fully_qualified_name}]}"
+
+        if [[ "${existing_item_type}" != "${item_type}" ]]; then
+            mycmd.debug "Item at '${fully_qualified_name}' already registered, but of type '${existing_item_type}', not '${item_type}'."
+            return 1
+        fi
+    fi
+
+    if [[ -v _MYCMD_ITEM_SOURCE_DIRECTORIES[${fully_qualified_name}] ]]; then
+        local -r existing_source_directory="${_MYCMD_ITEM_SOURCE_DIRECTORIES[${fully_qualified_name}]}"
+
+        if [[ "${existing_source_directory}" != "${source_directory}" ]]; then
+            mycmd.debug "Item already registered at '${fully_qualified_name}' with source directory '${existing_source_directory}', not '${source_directory}'."
+            return 1
+        fi
+    fi
+
+    if [[ -v _MYCMD_ITEM_SOURCE_FILE_PATHS[${fully_qualified_name}] ]]; then
+        local -r existing_source_file_path="${_MYCMD_ITEM_SOURCE_FILE_PATHS[${fully_qualified_name}]}"
+
+        if [[ "${existing_source_file_path}" != "${source_file_path}" ]]; then
+            mycmd.debug "Item already registered at '${fully_qualified_name}' with source file '${existing_source_file_path}', not '${source_file_path}'."
+            return 1
+        else
+            mycmd.debug "Item '${fully_qualified_name}' has already been registered."
+            return 0
+        fi
+    fi
+
+    _MYCMD_ITEM_TYPES["${fully_qualified_name}"]="${item_type}"
+    _MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${source_directory}"
+    _MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]="${source_file_path}"
+
+    return 0
+}
+
+function mycmd:registry._file_is_command() {
+    local -r source_file_path="${1}"
+
+    if ! mycmd:pathname.is_valid_absolute_path_of_executable_file "${source_file_path}"; then
+        mycmd.debug "'${source_file_path}' is not a valid absolute path of an executable file."
+        return 1
+    fi
+
+    if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
+        mycmd.trace "Skipping validation of file is on MyCmd Search path, assuming it is, as called from 'mycmd:pathname.walk_path'."
+    else
+        if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_file_path}"; then
+            mycmd.debug "'${source_file_path}' is not located on the MyCmd Search Path."
+            return 1
+        fi
+    fi
+
+    return 0
 }
 
 mycmd.trace "The MyCmd Registry support library has been sourced."
