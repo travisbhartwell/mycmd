@@ -91,6 +91,7 @@ function mycmd:registry._register_command() {
     local -r source_directory="$(dirname "${source_file_path}")"
 
     if ! mycmd:registry._register_item \
+        _MYCMD_COMMANDS \
         "${_MYCMD_COMMAND_TYPE}" \
         "${fully_qualified_name}" \
         "${source_directory}" \
@@ -99,16 +100,15 @@ function mycmd:registry._register_command() {
         return 1
     fi
 
-    # TODO: Handle the case where the item has already been registered
-    _MYCMD_COMMANDS+=("${fully_qualified_name}")
     return 0
 }
 
 function mycmd:registry._register_item() {
-    local -r item_type="${1}"
-    local -r fully_qualified_name="${2}"
-    local -r source_directory="${3}"
-    local -r source_file_path="${4}"
+    local -n item_list_ref="${1}"
+    local -r item_type="${2}"
+    local -r fully_qualified_name="${3}"
+    local -r source_directory="${4}"
+    local -r source_file_path="${5}"
 
     if [[ -v _MYCMD_ITEM_TYPES[${fully_qualified_name}] ]]; then
         local -r existing_item_type="${_MYCMD_ITEM_TYPES[${fully_qualified_name}]}"
@@ -140,6 +140,7 @@ function mycmd:registry._register_item() {
         fi
     fi
 
+    item_list_ref+=("${fully_qualified_name}")
     _MYCMD_ITEM_TYPES["${fully_qualified_name}"]="${item_type}"
     _MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${source_directory}"
     _MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]="${source_file_path}"
