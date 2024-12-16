@@ -76,6 +76,43 @@ function test_directory_is_command_group() {
         "mycmd:registry._validate_directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/foo"
 }
 
+function test_get_invalid_command_groups() {
+    # shellcheck disable=SC2034
+    local -A command_group
+
+    assertFalse 'mycmd/invalid-command-group is not a command group' \
+        'mycmd:registry.get_command_group "mycmd/invalid-command_group" command_group'
+
+    assertFalse 'mycmd/test-command is a command, not a command group' \
+        'mycmd:registry.get_command_group "mycmd/test-command" command_group'
+}
+
+# shellcheck disable=SC2034,SC2312
+function test_base_mycmd_command_group() {
+    local -A mycmd_command_group
+    mycmd:registry.get_command_group mycmd mycmd_command_group
+    assertTrue 'mycmd is a command group' 'mycmd:registered_item.is_command_group mycmd_command_group'
+    assertFalse 'mycmd is not a command' 'mycmd:registered_item.is_command mycmd_command_group'
+    assertEquals "mycmd" "$(mycmd:registered_item.get_name mycmd_command_group)"
+    assertEquals "mycmd" "$(mycmd:registered_item.get_fully_qualified_name mycmd_command_group)"
+    assertEquals "mycmd" "$(mycmd:registered_item.get_namespaced_parts_as_string mycmd_command_group)"
+    assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:registered_item.get_source_directory mycmd_command_group)"
+    assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:registered_item.get_source_file_path mycmd_command_group)"
+}
+
+# shellcheck disable=SC2034,SC2312
+function test_shell_extended_command_group() {
+    local -A shell_extended_command_group
+    mycmd:registry.get_command_group "mycmd/shell/extended" shell_extended_command_group
+    assertTrue 'mycmd/shell/extended is a command group' 'mycmd:registered_item.is_command_group shell_extended_command_group'
+    assertFalse 'mycmd/shell/extended is not a command' 'mycmd:registered_item.is_command shell_extended_command_group'
+    assertEquals "extended" "$(mycmd:registered_item.get_name shell_extended_command_group)"
+    assertEquals "mycmd/shell/extended" "$(mycmd:registered_item.get_fully_qualified_name shell_extended_command_group)"
+    assertEquals "mycmd shell extended" "$(mycmd:registered_item.get_namespaced_parts_as_string shell_extended_command_group)"
+    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:registered_item.get_source_directory shell_extended_command_group)"
+    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:registered_item.get_source_file_path shell_extended_command_group)"
+}
+
 # shellcheck disable=SC2016,SC2154
 function test_file_is_command() {
     assertFalse "${TEST_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
@@ -92,6 +129,30 @@ function test_file_is_command() {
 
     assertTrue "${MYCMD_USER_BASE_DIR}/test-command is a command" \
         'mycmd:registry._file_is_command "${MYCMD_USER_BASE_DIR}/test-command"'
+}
+
+function test_get_invalid_commands() {
+    # shellcheck disable=SC2034
+    local -A command
+
+    assertFalse 'mycmd/invalid-command is not a command' \
+        'mycmd:registry.get_command "mycmd/invalid-command" command'
+
+    assertFalse 'mycmd/project is a command group, not a command' \
+        'mycmd:registry.get_command "mycmd/project" command'
+}
+
+# shellcheck disable=SC2034,SC2312
+function test_test-command() {
+    local -A command
+    mycmd:registry.get_command "mycmd/test-command" command
+    assertTrue 'mycmd/test-command is a command' 'mycmd:registered_item.is_command command'
+    assertFalse 'mycmd/test-command is not a command group' 'mycmd:registered_item.is_command_group command'
+    assertEquals "test-command" "$(mycmd:registered_item.get_name command)"
+    assertEquals "mycmd/test-command" "$(mycmd:registered_item.get_fully_qualified_name command)"
+    assertEquals "mycmd test-command" "$(mycmd:registered_item.get_namespaced_parts_as_string command)"
+    assertEquals "${MYCMD_USER_BASE_DIR}" "$(mycmd:registered_item.get_source_directory command)"
+    assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:registered_item.get_source_file_path command)"
 }
 
 function oneTimeSetUp() {
