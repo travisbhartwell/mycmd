@@ -81,6 +81,8 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     done
 }
 
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Registration Functions
 function mycmd:registry._register_command_group() {
     local -r fully_qualified_name="${1}"
     local -r source_directory="${2}"
@@ -254,6 +256,140 @@ function mycmd:registry._file_is_command() {
     fi
 
     return 0
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Getter Functions
+readonly _ITEM_TYPE_FIELD='item-type'
+readonly _ITEM_NAME_FIELD='item-name'
+readonly _ITEM_FULLY_QUALIFIED_NAME_FIELD='item-fully-qualified-name'
+readonly _ITEM_NAMESPACED_PARTS_STRING_FIELD='item-namespaced-parts-string'
+readonly _ITEM_SOURCE_DIRECTORY_FIELD='item-source-directory'
+readonly _ITEM_SOURCE_FILE_PATH_FIELD='item-source-file-path'
+
+function mycmd:registry.get_command_group() {
+    mycmd:registry._get_item \
+        "${_MYCMD_COMMAND_GROUP_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry.get_command() {
+    mycmd:registry._get_item \
+        "${_MYCMD_COMMAND_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry._get_item() {
+    local -r item_type="${1}"
+    local -r fully_qualified_name="${2}"
+    local -n item_struct_ref="${3}"
+
+    if [[ ! -v _MYCMD_ITEM_SOURCE_FILE_PATHS[${fully_qualified_name}] ]]; then
+        mycmd.debug "Unknown item: '${fully_qualified_name}'."
+        return 1
+    fi
+
+    local -r registered_type="${_MYCMD_ITEM_TYPES[${fully_qualified_name}]}"
+    if [[ "${registered_type}" != "${item_type}" ]]; then
+        mycmd.debug "Item '${fully_qualified_name}' has registered type '${registered_type}', not '${item_type}'."
+        return 1
+    fi
+
+    mycmd.trace "Returning Item definition:"
+    item_struct_ref["${_ITEM_TYPE_FIELD}"]="${registered_type}"
+    mycmd.trace "- ${_ITEM_TYPE_FIELD}: ${item_struct_ref["${_ITEM_TYPE_FIELD}"]}"
+
+    item_struct_ref["${_ITEM_NAME_FIELD}"]="$(basename "${fully_qualified_name}")"
+    mycmd.trace "- ${_ITEM_NAME_FIELD}: ${item_struct_ref["${_ITEM_NAME_FIELD}"]}"
+
+    item_struct_ref["${_ITEM_FULLY_QUALIFIED_NAME_FIELD}"]="${fully_qualified_name}"
+    mycmd.trace "- ${_ITEM_FULLY_QUALIFIED_NAME_FIELD}: ${item_struct_ref["${_ITEM_FULLY_QUALIFIED_NAME_FIELD}"]}"
+
+    local -r namespaced_parts_string="${fully_qualified_name//\// }"
+    item_struct_ref["${_ITEM_NAMESPACED_PARTS_STRING_FIELD}"]="${namespaced_parts_string}"
+    mycmd.trace "- ${_ITEM_NAMESPACED_PARTS_STRING_FIELD}: ${item_struct_ref["${_ITEM_NAMESPACED_PARTS_STRING_FIELD}"]}"
+
+    item_struct_ref["${_ITEM_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]}"
+    mycmd.trace "- ${_ITEM_SOURCE_DIRECTORY_FIELD}: ${item_struct_ref["${_ITEM_SOURCE_DIRECTORY_FIELD}"]}"
+
+    item_struct_ref["${_ITEM_SOURCE_FILE_PATH_FIELD}"]="${_MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]}"
+    mycmd.trace "- ${_ITEM_SOURCE_FILE_PATH_FIELD}: ${item_struct_ref["${_ITEM_SOURCE_FILE_PATH_FIELD}"]}"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Public Accessor Functions
+function mycmd:registered_item.get_type() {
+    mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_TYPE_FIELD}" \
+        "${@}"
+}
+
+function mycmd:registered_item.is_command_group() {
+    local item_type
+    if ! item_type="$(mycmd:registered_item.get_type "${@}")"; then
+        mycmd.debug "Error getting type field from item."
+        return 1
+    fi
+    readonly item_type
+
+    [[ "${item_type}" == "${_MYCMD_COMMAND_GROUP_TYPE}" ]]
+}
+
+function mycmd:registered_item.is_command() {
+    local item_type
+    if ! item_type="$(mycmd:registered_item.get_type "${@}")"; then
+        mycmd.debug "Error getting type field from item."
+        return 1
+    fi
+    readonly item_type
+
+    [[ "${item_type}" == "${_MYCMD_COMMAND_TYPE}" ]]
+}
+
+function mycmd:registered_item.get_name() {
+    mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:registered_item.get_fully_qualified_name() {
+    mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_FULLY_QUALIFIED_NAME_FIELD}" \
+        "${@}"
+}
+
+function mycmd:registered_item.get_namespaced_parts_as_string() {
+    mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_NAMESPACED_PARTS_STRING_FIELD}" \
+        "${@}"
+}
+
+function mycmd:registered_item.get_source_directory() {
+    mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_SOURCE_DIRECTORY_FIELD}" \
+        "${@}"
+}
+
+function mycmd:registered_item.get_source_file_path() {
+    mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_SOURCE_FILE_PATH_FIELD}" \
+        "${@}"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Private Accessor Functions
+function mycmd:registered_item._get_required_field_from_item_struct() {
+    local -r field_name="${1}"
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${2}"
+
+    if [[ -v item_struct_ref[${field_name}] ]]; then
+        echo "${item_struct_ref["${field_name}"]}"
+        return 0
+    else
+        mycmd.debug "Missing required field '${field_name}'."
+        return 1
+    fi
 }
 
 mycmd.trace "The MyCmd Registry support library has been sourced."
