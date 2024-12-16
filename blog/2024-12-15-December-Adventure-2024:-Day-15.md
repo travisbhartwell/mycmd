@@ -12,6 +12,14 @@ Made a decent amount of progress on the MyCmd registry implementation. Last nigh
 
 I'm particularly happy with the last commit. Since I had a base `mycmd:registered_item` that implemented functions for the data accessors for Command Groups and Commands. However, I wanted the functions to reflect the actual item type. I did a small test if I could use aliases, which I was able to do so.
 
+## Charm CLI Podcast
+
+Last night I watched this episode from the [Charm CLI](https://charm.sh) `/dev/null` podcast with a pretty relevant topic, "Conquering Tough Projects".
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Vjx_dsbds-I?si=bgAzt9qDN4cxjbMv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+A lot of good insights from a great panel.
+
 ---
 
 All of my December Adventure 2024 posts will be linked from [here](../../december-adventure-2024).
