@@ -44,6 +44,10 @@ declare -agx _MYCMD_COMMANDS=()
 declare -Agx _MYCMD_ITEM_TYPES=()
 declare -Agx _MYCMD_ITEM_SOURCE_DIRECTORIES=()
 declare -Agx _MYCMD_ITEM_SOURCE_FILE_PATHS=()
+declare -Agx _MYCMD_ITEM_SHORT_DESCRIPTIONS=()
+declare -Agx _MYCMD_ITEM_HELP_TEXTS=()
+declare -Agx _MYCMD_ITEM_VERSIONS=()
+declare -Agx _MYCMD_ITEM_METADATA_LOADED=()
 
 # ------------------------------------------------------------------------------
 # MyCmd Registry Discovery Functions
@@ -266,6 +270,10 @@ readonly _ITEM_FULLY_QUALIFIED_NAME_FIELD='item-fully-qualified-name'
 readonly _ITEM_NAMESPACED_PARTS_STRING_FIELD='item-namespaced-parts-string'
 readonly _ITEM_SOURCE_DIRECTORY_FIELD='item-source-directory'
 readonly _ITEM_SOURCE_FILE_PATH_FIELD='item-source-file-path'
+readonly _ITEM_SHORT_DESCRIPTION_FIELD='item-short-description'
+readonly _ITEM_HELP_TEXT_FIELD='item-help-text'
+readonly _ITEM_VERSION_FIELD='item-version'
+readonly _ITEM_METADATA_LOADED_FIELD='item-metadata-loaded'
 
 function mycmd:registry.get_command_group() {
     mycmd:registry._get_item \
@@ -314,6 +322,35 @@ function mycmd:registry._get_item() {
 
     item_struct_ref["${_ITEM_SOURCE_FILE_PATH_FIELD}"]="${_MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]}"
     mycmd.trace "- ${_ITEM_SOURCE_FILE_PATH_FIELD}: ${item_struct_ref["${_ITEM_SOURCE_FILE_PATH_FIELD}"]}"
+
+    if [[ -v _MYCMD_ITEM_SHORT_DESCRIPTIONS[${fully_qualified_name}] ]]; then
+        item_struct_ref["${_ITEM_SHORT_DESCRIPTION_FIELD}"]="${_MYCMD_ITEM_SHORT_DESCRIPTIONS["${fully_qualified_name}"]}"
+        mycmd.trace "- ${_ITEM_SHORT_DESCRIPTION_FIELD}: ${item_struct_ref["${_ITEM_SHORT_DESCRIPTION_FIELD}"]}"
+    else
+        mycmd.trace "- ${_ITEM_SHORT_DESCRIPTION_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_ITEM_HELP_TEXTS[${fully_qualified_name}] ]]; then
+        item_struct_ref["${_ITEM_HELP_TEXT_FIELD}"]="${_MYCMD_ITEM_HELP_TEXTS["${fully_qualified_name}"]}"
+        mycmd.trace "- ${_ITEM_HELP_TEXT_FIELD}: ${item_struct_ref["${_ITEM_HELP_TEXT_FIELD}"]}"
+    else
+        mycmd.trace "- ${_ITEM_HELP_TEXT_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_ITEM_VERSIONS[${fully_qualified_name}] ]]; then
+        item_struct_ref["${_ITEM_VERSION_FIELD}"]="${_MYCMD_ITEM_VERSIONS["${fully_qualified_name}"]}"
+        mycmd.trace "- ${_ITEM_VERSION_FIELD}: ${item_struct_ref["${_ITEM_VERSION_FIELD}"]}"
+    else
+        mycmd.trace "- ${_ITEM_VERSION_FIELD}: No value set."
+    fi
+
+    if [[ -v _MYCMD_ITEM_METADATA_LOADED[${fully_qualified_name}] ]]; then
+        item_struct_ref["${_ITEM_METADATA_LOADED_FIELD}"]=1
+        mycmd.trace "- Item metadata has been loaded."
+    else
+        item_struct_ref["${_ITEM_METADATA_LOADED_FIELD}"]=0
+        mycmd.trace "- Item metadata has not been loaded."
+    fi
 }
 
 # ------------------------------------------------------------------------------
@@ -376,6 +413,65 @@ function mycmd:registered_item.get_source_file_path() {
         "${@}"
 }
 
+function mycmd:registered_item.get_short_description() {
+    local short_description
+
+    if short_description="$(mycmd:registered_item._get_optional_field_from_item_struct \
+        "${_ITEM_SHORT_DESCRIPTION_FIELD}" \
+        "${@}")"; then
+        readonly short_description
+    else
+        local item_type
+        item_type="$(mycmd:registered_item.get_type "${@}")"
+        readonly item_type
+
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:registered_item.get_namespaced_parts_as_string "${@}")"
+        # Strip the leading 'mycmd '
+        namespaced_parts_string="${namespaced_parts_string#mycmd }"
+        readonly namespaced_parts_string
+
+        short_description="${item_type} ${namespaced_parts_string}"
+        readonly short_description
+    fi
+
+    echo "${short_description}"
+    return 0
+}
+
+function mycmd:registered_item.get_help_text() {
+    mycmd:registered_item._get_optional_field_from_item_struct \
+        "${_ITEM_HELP_TEXT_FIELD}" \
+        "${@}"
+}
+
+function mycmd:registered_item.get_version() {
+    local version
+
+    if version="$(mycmd:registered_item._get_optional_field_from_item_struct \
+        "${_ITEM_VERSION_FIELD}" \
+        "${@}")"; then
+        echo "${version}"
+        return 0
+    else
+        echo "Unknown"
+        return 0
+    fi
+}
+
+function mycmd:registered_item.is_metadata_loaded() {
+    local is_metadata_loaded
+    if ! is_metadata_loaded="$(mycmd:registered_item._get_required_field_from_command_struct \
+        "${_ITEM_METADATA_LOADED_FIELD}" \
+        "${@}")"; then
+        mycmd.debug "Error getting metadata loaded field from registered item."
+        return 1
+    fi
+    readonly is_metadata_loaded
+
+    [[ "${is_metadata_loaded}" == "1" ]]
+}
+
 # ------------------------------------------------------------------------------
 # Command Group Accessor Aliases
 shopt -s expand_aliases
@@ -385,6 +481,10 @@ alias mycmd:command_group.get_fully_qualified_name='mycmd:registered_item.get_fu
 alias mycmd:command_group.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
 alias mycmd:command_group.get_source_directory='mycmd:registered_item.get_source_directory'
 alias mycmd:command_group.get_source_file_path='mycmd:registered_item.get_source_file_path'
+alias mycmd:command_group.get_short_description='mycmd:registered_item.get_short_description'
+alias mycmd:command_group.get_help_text='mycmd:registered_item.get_help_text'
+alias mycmd:command_group.get_version='mycmd:registered_item.get_version'
+alias mycmd:command_group.is_metadata_loaded='mycmd:registered_item.is_metadata_loaded'
 
 # ------------------------------------------------------------------------------
 # Command Accessor Aliases
@@ -394,6 +494,10 @@ alias mycmd:command.get_fully_qualified_name='mycmd:registered_item.get_fully_qu
 alias mycmd:command.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
 alias mycmd:command.get_source_directory='mycmd:registered_item.get_source_directory'
 alias mycmd:command.get_source_file_path='mycmd:registered_item.get_source_file_path'
+alias mycmd:command.get_short_description='mycmd:registered_item.get_short_description'
+alias mycmd:command.get_help_text='mycmd:registered_item.get_help_text'
+alias mycmd:command.get_version='mycmd:registered_item.get_version'
+alias mycmd:command.is_metadata_loaded='mycmd:registered_item.is_metadata_loaded'
 
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Accessor Functions
@@ -407,6 +511,25 @@ function mycmd:registered_item._get_required_field_from_item_struct() {
         return 0
     else
         mycmd.debug "Missing required field '${field_name}'."
+        return 1
+    fi
+}
+
+function mycmd:registered_item._get_optional_field_from_item_struct() {
+    local -r field_name="${1}"
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${2}"
+
+    # TODO: Load item help and and version
+
+    if [[ -v item_struct_ref["${field_name}"] ]]; then
+        echo "${item_struct_ref["${field_name}"]}"
+        return 0
+    else
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:registered_item.get_fully_qualified_name "${!item_struct_ref}")"
+        readonly fully_qualified_name
+        mycmd.trace "No value for '${field_name}' defined for item '${fully_qualified_name}'."
         return 1
     fi
 }
