@@ -86,7 +86,73 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
 }
 
 # ------------------------------------------------------------------------------
-# MyCmd Registry Item Registration Functions
+# MyCmd Registry Item Public Registration Functions
+function mycmd:registry.register_version() {
+    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_AS_STRING ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_AS_STRING must be set."
+        return 1
+    fi
+
+    local -r version="${1}"
+    _MYCMD_ITEM_VERSIONS["${_MYCMD_FULLY_QUALIFIED_NAME}"]="${version}"
+
+    return 0
+}
+
+function mycmd:registry.register_short_description() {
+    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_AS_STRING ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_AS_STRING must be set."
+        return 1
+    fi
+
+    local -r short_description="${1}"
+    _MYCMD_ITEM_SHORT_DESCRIPTIONS["${_MYCMD_FULLY_QUALIFIED_NAME}"]="${short_description}"
+
+    return 0
+}
+
+function mycmd:registry.register_help_text() {
+    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_AS_STRING ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_AS_STRING must be set."
+        return 1
+    fi
+
+    local -r help_text="${1}"
+
+    if [[ -v _MYCMD_ITEM_HELP_TEXTS["${_MYCMD_FULLY_QUALIFIED_NAME}"] ]]; then
+        local existing="${_MYCMD_ITEM_HELP_TEXTS["${_MYCMD_FULLY_QUALIFIED_NAME}"]}"
+        _MYCMD_ITEM_HELP_TEXTS["${_MYCMD_FULLY_QUALIFIED_NAME}"]="${existing}\n${help_text}"
+    else
+        _MYCMD_ITEM_HELP_TEXTS["${_MYCMD_FULLY_QUALIFIED_NAME}"]="${help_text}"
+    fi
+
+    return 0
+}
+
+function mycmd:registry.register_mycmd_help_and_version() {
+    local -r short_description="${1}"
+    local -r help_text="${2}"
+    local -r version="${3}"
+
+    declare -gx _MYCMD_SOURCING_FOR_HELP=1
+    declare -gx _MYCMD_FULLY_QUALIFIED_NAME="mycmd"
+    declare -gx _MYCMD_NAMESPACED_PARTS_AS_STRING="mycmd"
+
+    mycmd:registry.register_short_description "${short_description}"
+    mycmd:registry.register_help_text "${help_text}"
+    mycmd:registry.register_version "${version}"
+
+    unset _MYCMD_NAMESPACED_PARTS_AS_STRING
+    unset _MYCMD_FULLY_QUALIFIED_NAME
+    unset _MYCMD_SOURCING_FOR_HELP
+
+    _MYCMD_ITEM_METADATA_LOADED["mycmd"]=1
+
+    return 0
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Private Registration Helper Functions
 function mycmd:registry._register_command_group() {
     local -r fully_qualified_name="${1}"
     local -r source_directory="${2}"
