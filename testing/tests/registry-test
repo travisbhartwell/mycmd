@@ -37,12 +37,21 @@ function test_all_items_are_registered() {
 
     assertEquals "There are ${item_count} registered items types." \
         "${item_count}" "${#_MYCMD_ITEM_TYPES[@]}"
-
     assertEquals "There are ${item_count} registered items with source directories." \
         "${item_count}" "${#_MYCMD_ITEM_SOURCE_DIRECTORIES[@]}"
-
     assertEquals "There are ${item_count} registered items with source files." \
         "${item_count}" "${#_MYCMD_ITEM_SOURCE_FILE_PATHS[@]}"
+
+    # Since metadata for items is only loaded on demand, except for the top-level mycmd group, this should be 1
+    local -r help_and_version_count=1
+    assertEquals "There are ${help_and_version_count} items with registered short descriptions" \
+        "${help_and_version_count}" "${#_MYCMD_ITEM_SHORT_DESCRIPTIONS[@]}"
+    assertEquals "There are ${help_and_version_count} items with registered help text" \
+        "${help_and_version_count}" "${#_MYCMD_ITEM_HELP_TEXTS[@]}"
+    assertEquals "There are ${help_and_version_count} items with registerd versions" \
+        "${help_and_version_count}" "${#_MYCMD_ITEM_VERSIONS[@]}"
+    assertEquals "There are ${help_and_version_count} items with metadata loaded" \
+        "${help_and_version_count}" "${#_MYCMD_ITEM_METADATA_LOADED[@]}"
 }
 
 # shellcheck disable=SC2154
@@ -97,10 +106,10 @@ function test_base_mycmd_command_group() {
     assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
     assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:command_group.get_source_directory mycmd_command_group)"
     assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:command_group.get_source_file_path mycmd_command_group)"
-    assertEquals "MyCmd Command Group mycmd" "$(mycmd:command_group.get_short_description mycmd_command_group)"
-    assertFalse 'There is no help text defined' \
-        'mycmd:command_group.get_help_text mycmd_command_group'
-    assertEquals "Unknown" "$(mycmd:command_group.get_version mycmd_command_group)"
+    assertEquals "MyCmd Short Description" "$(mycmd:command_group.get_short_description mycmd_command_group)"
+    assertEquals "This is a help\nMessage" \
+        "$(mycmd:command_group.get_help_text mycmd_command_group)"
+    assertEquals "0.1" "$(mycmd:command_group.get_version mycmd_command_group)"
 }
 
 # shellcheck disable=SC2034,SC2312
@@ -169,7 +178,12 @@ function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-registry-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-registry-lib"
 
+    # These will be called in mycmd-lib normally
     mycmd:registry.discover_command_groups_and_commands
+    mycmd:registry.register_mycmd_help_and_version \
+        "MyCmd Short Description" \
+        "This is a help\nMessage" \
+        "0.1"
 }
 
 # shellcheck source=../vendor/shunit2
