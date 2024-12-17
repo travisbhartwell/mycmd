@@ -97,6 +97,10 @@ function test_base_mycmd_command_group() {
     assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
     assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:command_group.get_source_directory mycmd_command_group)"
     assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:command_group.get_source_file_path mycmd_command_group)"
+    assertEquals "MyCmd Command Group mycmd" "$(mycmd:command_group.get_short_description mycmd_command_group)"
+    assertFalse 'There is no help text defined' \
+        'mycmd:command_group.get_help_text mycmd_command_group'
+    assertEquals "Unknown" "$(mycmd:command_group.get_version mycmd_command_group)"
 }
 
 # shellcheck disable=SC2034,SC2312
@@ -110,6 +114,10 @@ function test_shell_extended_command_group() {
     assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:command_group.get_source_directory shell_extended_command_group)"
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:command_group.get_source_file_path shell_extended_command_group)"
+    assertEquals "MyCmd Command Group shell extended" "$(mycmd:command_group.get_short_description shell_extended_command_group)"
+    assertFalse 'There is no help text defined.' \
+        'mycmd:command_group.get_help_text shell_extended_command_group'
+    assertEquals "Unknown" "$(mycmd:command_group.get_version shell_extended_command_group)"
 }
 
 # shellcheck disable=SC2016,SC2154
@@ -151,6 +159,10 @@ function test_test-command() {
     assertEquals "mycmd test-command" "$(mycmd:command.get_namespaced_parts_as_string command)"
     assertEquals "${MYCMD_USER_BASE_DIR}" "$(mycmd:command.get_source_directory command)"
     assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file_path command)"
+    assertEquals "MyCmd Command test-command" "$(mycmd:command.get_short_description command)"
+    assertFalse 'No help text is defined' \
+        'mycmd:command.get_help_text command'
+    assertEquals "Unknown" "$(mycmd:command.get_version command)"
 }
 
 function oneTimeSetUp() {
