@@ -153,12 +153,6 @@ function mycmd:registry.register_mycmd_help_and_version() {
 }
 
 # ------------------------------------------------------------------------------
-# Command Help Information Registration Aliases
-alias mycmd:command.register_short_description='mycmd:registry.register_short_description'
-alias mycmd:command.register_help_text='mycmd:registry.register_help_text'
-alias mycmd:command.register_version='mycmd:registry.register_version'
-
-# ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Registration Helper Functions
 function mycmd:registry._register_command_group() {
     local -r fully_qualified_name="${1}"
@@ -624,20 +618,6 @@ function mycmd:registered_item.is_metadata_loaded() {
 }
 
 # ------------------------------------------------------------------------------
-# Command Accessor Aliases
-alias mycmd:command.is_command='mycmd:registered_item.is_command'
-alias mycmd:command.get_name='mycmd:registered_item.get_name'
-alias mycmd:command.get_fully_qualified_name='mycmd:registered_item.get_fully_qualified_name'
-alias mycmd:command.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
-alias mycmd:command.get_parent_command_group_fully_qualified_name='mycmd:registered_item.get_parent_command_group_fully_qualified_name'
-alias mycmd:command.get_source_directory='mycmd:registered_item.get_source_directory'
-alias mycmd:command.get_source_file_path='mycmd:registered_item.get_source_file_path'
-alias mycmd:command.get_short_description='mycmd:registered_item.get_short_description'
-alias mycmd:command.get_help_text='mycmd:registered_item.get_help_text'
-alias mycmd:command.get_version='mycmd:registered_item.get_version'
-alias mycmd:command.is_metadata_loaded='mycmd:registered_item.is_metadata_loaded'
-
-# ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Accessor Functions
 function mycmd:registered_item._get_required_field_from_item_struct() {
     local -r field_name="${1}"
@@ -715,10 +695,6 @@ function mycmd:registered_item.load_item() {
 
     return 0
 }
-
-# ------------------------------------------------------------------------------
-# Command Loading Alias
-alias mycmd:command.load_command='mycmd:registered_item.load_item'
 
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Loading Functions
