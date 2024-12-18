@@ -42,6 +42,11 @@ function test_all_items_are_registered() {
     assertEquals "There are ${item_count} registered items with source files." \
         "${item_count}" "${#_MYCMD_ITEM_SOURCE_FILE_PATHS[@]}"
 
+    # The top-level 'mycmd' command group doesn't have a parent command group
+    local -r parent_command_group_count=12
+    assertEquals "There are ${parent_command_group_count} registered items with parent command groups." \
+        "${parent_command_group_count}" "${#_MYCMD_ITEM_PARENT_COMMAND_GROUPS[@]}"
+
     # Since metadata for items is only loaded on demand, except for the top-level mycmd group, this should be 1
     local -r help_and_version_count=1
     assertEquals "There are ${help_and_version_count} items with registered short descriptions" \
