@@ -21,7 +21,7 @@ mycmd:command.register_help_text "Options:"
 mycmd:command.register_help_text "\t-h | --help    - Show this help"
 mycmd:command.register_help_text "\t-v | --version - Show this command's version"
 
-[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+[[ -n "${_MYCMD_SOURCING_FOR_HELP:-}" ]] && return
 
 set -o nounset -o errexit -o errtrace -o pipefail
 

@@ -17,7 +17,7 @@ mycmd:command.register_help_text "\t-v | --version - Show this command's version
 mycmd:command.register_help_text "\t-q | --quiet   - Only show the names of the tasks"
 mycmd:command.register_help_text "\t-V | --verbose - Show detailed information about the tasks"
 
-[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+[[ -n "${_MYCMD_SOURCING_FOR_HELP:-}" ]] && return
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
