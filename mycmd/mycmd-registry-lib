@@ -385,6 +385,8 @@ function mycmd:registry._get_item() {
     local -r fully_qualified_name="${2}"
     local -n item_struct_ref="${3}"
 
+    mycmd.trace "Attempting to get '${fully_qualified_name}' of type '${item_type}'."
+
     if [[ ! -v _MYCMD_ITEM_SOURCE_FILE_PATHS[${fully_qualified_name}] ]]; then
         mycmd.debug "Unknown item: '${fully_qualified_name}'."
         return 1
@@ -475,6 +477,34 @@ function mycmd:registry._reload_item() {
         "${!item_struct_ref}"
 }
 
+function mycmd:registry.load_command_group_by_name() {
+    mycmd:registry._load_item_by_name \
+        "${_MYCMD_COMMAND_GROUP_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry.load_command_by_name() {
+    mycmd:registry._load_item_by_name \
+        "${_MYCMD_COMMAND_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry._load_item_by_name() {
+    local -r item_type="${1}"
+    local -r fully_qualified_name="${2}"
+
+    mycmd.trace "Attempting to load item '${fully_qualified_name}' with type '${item_type}'."
+
+    # shellcheck disable=SC2034
+    local -A item
+    if ! mycmd:registry._get_item "${item_type}" "${fully_qualified_name}" item; then
+        mycmd.debug "Error getting item '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:registered_item.load_item item
+}
+
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Public Accessor Functions
 function mycmd:registered_item.get_type() {
@@ -524,19 +554,9 @@ function mycmd:registered_item.get_namespaced_parts_as_string() {
 }
 
 function mycmd:registered_item.get_parent_command_group() {
-    local -n item_struct_ref="${1}"
-    local -n parent_command_group_ref="${2}"
-
-    local parent_fully_qualified_name
-    if ! parent_fully_qualified_name="$(mycmd:registered_item._get_required_field_from_item_struct \
+    mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_PARENT_COMMAND_GROUP_FIELD}" \
-        "${!item_struct_ref}")"; then
-        mycmd.debug "No parent command group defined"
-        return 1
-    fi
-    readonly parent_fully_qualified_name
-
-    mycmd:registry.get_command_group "${parent_fully_qualified_name}" "${!parent_command_group_ref}"
+        "${@}"
 }
 
 function mycmd:registered_item.get_source_directory() {
@@ -678,6 +698,55 @@ function mycmd:registered_item._get_optional_field_from_item_struct() {
 }
 
 # ------------------------------------------------------------------------------
+# MyCmd Registry Item Public Loading Functions
+function mycmd:registered_item.load_item() {
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    # Get fully qualified name for logging
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:registered_item.get_fully_qualified_name "${!item_struct_ref}")"
+    readonly fully_qualified_name
+
+    mycmd.trace "Attempting to load item '${fully_qualified_name}'."
+
+    local parent_command_group
+    if parent_command_group="$(mycmd:registered_item.get_parent_command_group "${!item_struct_ref}")"; then
+        mycmd.trace "Attempting to load parent command group '${parent_command_group}'."
+
+        if ! mycmd:registry.load_command_group_by_name "${parent_command_group}"; then
+            mycmd.debug "Error loading parent command group '${parent_command_group}' for '${fully_qualified_name}'."
+            return 1
+        fi
+    else
+        mycmd.trace "There is no parent command group to load."
+    fi
+
+    local namespaced_parts_string
+    namespaced_parts_string="$(mycmd:registered_item.get_namespaced_parts_as_string "${!item_struct_ref}")"
+    readonly namespaced_parts_string
+
+    local source_file_path
+    source_file_path="$(mycmd:registered_item.get_source_file_path "${!item_struct_ref}")"
+    readonly source_file_path
+
+    if ! mycmd:registered_item._source_item "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+        mycmd.debug "Error loading '${fully_qualified_name}' from '${source_file_path}'."
+        return 1
+    fi
+
+    return 0
+}
+
+# ------------------------------------------------------------------------------
+# Command Group Loading Alias
+alias mycmd:command_group.load_command_group='mycmd:registered_item.load_item'
+
+# ------------------------------------------------------------------------------
+# Command Loading Alias
+alias mycmd:command.load_command='mycmd:registered_item.load_item'
+
+# ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Loading Functions
 function mycmd:registered_item._load_item_help_and_version() {
     # shellcheck disable=SC2178
@@ -719,7 +788,7 @@ function mycmd:registered_item._source_for_help_and_version() {
 
     local result=0
     declare -gx _MYCMD_SOURCING_FOR_HELP=1
-    if ! mycmd:registered_item._load_item "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+    if ! mycmd:registered_item._source_item "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
         mycmd.debug "Error loading item source file '${source_file_path}'."
         return 1
     fi
@@ -734,7 +803,7 @@ function mycmd:registered_item._source_for_help_and_version() {
     return 0
 }
 
-function mycmd:registered_item._load_item() {
+function mycmd:registered_item._source_item() {
     local -r fully_qualified_name="${1}"
     local -r namespaced_parts_string="${2}"
     local -r source_file_path="${3}"

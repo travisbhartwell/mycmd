@@ -22,6 +22,7 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** TODO Load =mycmd-registry-lib= in =mycmd-lib=
 **** TODO Call =mycmd:registry.register_mycmd_version_and_description= in =mycmd-lib=
 **** TODO Add test for =mycmd-registry-lib= loading
+**** TODO Add tasks for executing specific tests
 
 *** Features
 **** DONE Loading command groups
