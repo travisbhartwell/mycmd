@@ -104,8 +104,7 @@ function test_base_mycmd_command_group() {
     assertEquals "mycmd" "$(mycmd:command_group.get_name mycmd_command_group)"
     assertEquals "mycmd" "$(mycmd:command_group.get_fully_qualified_name mycmd_command_group)"
     assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
-    local -A invalid_parent_command_group
-    assertFalse "mycmd has no parent command group" 'mycmd:command_group.get_parent_command_group mycmd_command_group invalid_parent_command_group'
+    assertFalse "mycmd has no parent command group" 'mycmd:command_group.get_parent_command_group mycmd_command_group'
     assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:command_group.get_source_directory mycmd_command_group)"
     assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:command_group.get_source_file_path mycmd_command_group)"
     assertEquals "MyCmd Short Description" "$(mycmd:command_group.get_short_description mycmd_command_group)"
@@ -123,10 +122,7 @@ function test_shell_extended_command_group() {
     assertEquals "extended" "$(mycmd:command_group.get_name shell_extended_command_group)"
     assertEquals "mycmd/shell/extended" "$(mycmd:command_group.get_fully_qualified_name shell_extended_command_group)"
     assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
-    local -A shell_command_group
-    assertTrue 'There is a parent command group defined' \
-        'mycmd:command_group.get_parent_command_group shell_extended_command_group shell_command_group'
-    assertEquals "mycmd/shell" "$(mycmd:command_group.get_fully_qualified_name shell_command_group)"
+    assertEquals "mycmd/shell" "$(mycmd:command_group.get_parent_command_group shell_extended_command_group)"
 
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:command_group.get_source_directory shell_extended_command_group)"
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:command_group.get_source_file_path shell_extended_command_group)"
@@ -134,6 +130,13 @@ function test_shell_extended_command_group() {
     assertEquals "Library for common routines for extended Shell Routines." \
         "$(mycmd:command_group.get_help_text shell_extended_command_group)"
     assertEquals "1.0" "$(mycmd:command_group.get_version shell_extended_command_group)"
+
+    mycmd.trace "Loading the command groups:"
+    assertTrue 'Successfullly loads the command groups' \
+        'mycmd:command_group.load_command_group shell_extended_command_group'
+
+    assertTrue 'MyCmd Shell Group Lib Loaded' '[ -v _MYCMD_SHELL_LIB ]'
+    assertTrue 'MyCmd Shell Extended Group Lib Loaded' '[ -v _MYCMD_SHELL_EXTENDED_LIB ]'
 }
 
 # shellcheck disable=SC2016,SC2154
@@ -173,10 +176,7 @@ function test_test-command() {
     assertEquals "test-command" "$(mycmd:command.get_name command)"
     assertEquals "mycmd/test-command" "$(mycmd:command.get_fully_qualified_name command)"
     assertEquals "mycmd test-command" "$(mycmd:command.get_namespaced_parts_as_string command)"
-    local -A parent_command_group
-    assertTrue 'There is a parent command group defined' \
-        'mycmd:command.get_parent_command_group command parent_command_group'
-    assertEquals "mycmd" "$(mycmd:command_group.get_fully_qualified_name parent_command_group)"
+    assertEquals "mycmd" "$(mycmd:command.get_parent_command_group command)"
 
     assertEquals "${MYCMD_USER_BASE_DIR}" "$(mycmd:command.get_source_directory command)"
     assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file_path command)"

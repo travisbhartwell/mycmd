@@ -152,5 +152,6 @@ mycmd._protect_mycmd_lib
 # Manually add files already loaded
 _MYCMD_LOADED_FILES["${_MYCMD_LOADING_BASE_LIB_SELF_FILE}"]=1
 _MYCMD_LOADED_FILES["${_MYCMD_LIB_DIR}/mycmd-output-lib"]=1
+_MYCMD_LOADED_FILES["${_MYCMD_LIB_DIR}/mycmd-lib"]=1
 
 mycmd.trace "The MyCmd Loading Base support library has been sourced."
