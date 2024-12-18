@@ -44,6 +44,7 @@ declare -agx _MYCMD_COMMANDS=()
 declare -Agx _MYCMD_ITEM_TYPES=()
 declare -Agx _MYCMD_ITEM_SOURCE_DIRECTORIES=()
 declare -Agx _MYCMD_ITEM_SOURCE_FILE_PATHS=()
+declare -Agx _MYCMD_ITEM_PARENT_COMMAND_GROUPS=()
 declare -Agx _MYCMD_ITEM_SHORT_DESCRIPTIONS=()
 declare -Agx _MYCMD_ITEM_HELP_TEXTS=()
 declare -Agx _MYCMD_ITEM_VERSIONS=()
@@ -88,8 +89,8 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Public Registration Functions
 function mycmd:registry.register_version() {
-    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_AS_STRING ]]; then
-        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_AS_STRING must be set."
+    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_STRING must be set."
         return 1
     fi
 
@@ -100,8 +101,8 @@ function mycmd:registry.register_version() {
 }
 
 function mycmd:registry.register_short_description() {
-    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_AS_STRING ]]; then
-        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_AS_STRING must be set."
+    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_STRING must be set."
         return 1
     fi
 
@@ -112,8 +113,8 @@ function mycmd:registry.register_short_description() {
 }
 
 function mycmd:registry.register_help_text() {
-    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_AS_STRING ]]; then
-        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_AS_STRING must be set."
+    if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_STRING must be set."
         return 1
     fi
 
@@ -136,13 +137,13 @@ function mycmd:registry.register_mycmd_help_and_version() {
 
     declare -gx _MYCMD_SOURCING_FOR_HELP=1
     declare -gx _MYCMD_FULLY_QUALIFIED_NAME="mycmd"
-    declare -gx _MYCMD_NAMESPACED_PARTS_AS_STRING="mycmd"
+    declare -gx _MYCMD_NAMESPACED_PARTS_STRING="mycmd"
 
     mycmd:registry.register_short_description "${short_description}"
     mycmd:registry.register_help_text "${help_text}"
     mycmd:registry.register_version "${version}"
 
-    unset _MYCMD_NAMESPACED_PARTS_AS_STRING
+    unset _MYCMD_NAMESPACED_PARTS_STRING
     unset _MYCMD_FULLY_QUALIFIED_NAME
     unset _MYCMD_SOURCING_FOR_HELP
 
@@ -150,6 +151,19 @@ function mycmd:registry.register_mycmd_help_and_version() {
 
     return 0
 }
+
+# ------------------------------------------------------------------------------
+# Command Group Help Information Registration Aliases
+shopt -s expand_aliases
+alias mycmd:command_group.register_short_description='mycmd:registry.register_short_description'
+alias mycmd:command_group.register_help_text='mycmd:registry.register_help_text'
+alias mycmd:command_group.register_version='mycmd:registry.register_version'
+
+# ------------------------------------------------------------------------------
+# Command Help Information Registration Aliases
+alias mycmd:command.register_short_description='mycmd:registry.register_short_description'
+alias mycmd:command.register_help_text='mycmd:registry.register_help_text'
+alias mycmd:command.register_version='mycmd:registry.register_version'
 
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Registration Helper Functions
@@ -253,10 +267,22 @@ function mycmd:registry._register_item() {
         fi
     fi
 
+    local parent_command_group
+    if ! parent_command_group="$(dirname "${fully_qualified_name}")"; then
+        mycmd.debug "Error getting parent command group for '${fully_qualified_name}'."
+        return 1
+    fi
+    readonly parent_command_group
+
     item_list_ref+=("${fully_qualified_name}")
     _MYCMD_ITEM_TYPES["${fully_qualified_name}"]="${item_type}"
     _MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]="${source_directory}"
     _MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]="${source_file_path}"
+
+    # dirname for 'mycmd' will be '.'
+    if [[ "${parent_command_group}" != "." ]]; then
+        _MYCMD_ITEM_PARENT_COMMAND_GROUPS["${fully_qualified_name}"]="${parent_command_group}"
+    fi
 
     return 0
 }
@@ -334,6 +360,7 @@ readonly _ITEM_TYPE_FIELD='item-type'
 readonly _ITEM_NAME_FIELD='item-name'
 readonly _ITEM_FULLY_QUALIFIED_NAME_FIELD='item-fully-qualified-name'
 readonly _ITEM_NAMESPACED_PARTS_STRING_FIELD='item-namespaced-parts-string'
+readonly _ITEM_PARENT_COMMAND_GROUP_FIELD='item-parent-command-group'
 readonly _ITEM_SOURCE_DIRECTORY_FIELD='item-source-directory'
 readonly _ITEM_SOURCE_FILE_PATH_FIELD='item-source-file-path'
 readonly _ITEM_SHORT_DESCRIPTION_FIELD='item-short-description'
@@ -383,6 +410,13 @@ function mycmd:registry._get_item() {
     item_struct_ref["${_ITEM_NAMESPACED_PARTS_STRING_FIELD}"]="${namespaced_parts_string}"
     mycmd.trace "- ${_ITEM_NAMESPACED_PARTS_STRING_FIELD}: ${item_struct_ref["${_ITEM_NAMESPACED_PARTS_STRING_FIELD}"]}"
 
+    if [[ -v _MYCMD_ITEM_PARENT_COMMAND_GROUPS[${fully_qualified_name}] ]]; then
+        item_struct_ref["${_ITEM_PARENT_COMMAND_GROUP_FIELD}"]="${_MYCMD_ITEM_PARENT_COMMAND_GROUPS["${fully_qualified_name}"]}"
+        mycmd.trace "- ${_ITEM_PARENT_COMMAND_GROUP_FIELD}: ${item_struct_ref["${_ITEM_PARENT_COMMAND_GROUP_FIELD}"]}"
+    else
+        mycmd.trace "- ${_ITEM_PARENT_COMMAND_GROUP_FIELD}: No value set."
+    fi
+
     item_struct_ref["${_ITEM_SOURCE_DIRECTORY_FIELD}"]="${_MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]}"
     mycmd.trace "- ${_ITEM_SOURCE_DIRECTORY_FIELD}: ${item_struct_ref["${_ITEM_SOURCE_DIRECTORY_FIELD}"]}"
 
@@ -417,6 +451,28 @@ function mycmd:registry._get_item() {
         item_struct_ref["${_ITEM_METADATA_LOADED_FIELD}"]=0
         mycmd.trace "- Item metadata has not been loaded."
     fi
+}
+
+function mycmd:registry._reload_item() {
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    if [[ ! -v item_struct_ref["${_ITEM_TYPE_FIELD}"] ]]; then
+        mycmd.debug "Item referenced by item_struct_ref not properly formed."
+        return 1
+    fi
+    local -r item_type="${item_struct_ref["${_ITEM_TYPE_FIELD}"]}"
+
+    if [[ ! -v item_struct_ref["${_ITEM_FULLY_QUALIFIED_NAME_FIELD}"] ]]; then
+        mycmd.debug "Item referenced by item_struct_ref not properly formed."
+        return 1
+    fi
+    local -r fully_qualified_name="${item_struct_ref["${_ITEM_FULLY_QUALIFIED_NAME_FIELD}"]}"
+
+    mycmd:registry._get_item \
+        "${item_type}" \
+        "${fully_qualified_name}" \
+        "${!item_struct_ref}"
 }
 
 # ------------------------------------------------------------------------------
@@ -465,6 +521,22 @@ function mycmd:registered_item.get_namespaced_parts_as_string() {
     mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_NAMESPACED_PARTS_STRING_FIELD}" \
         "${@}"
+}
+
+function mycmd:registered_item.get_parent_command_group() {
+    local -n item_struct_ref="${1}"
+    local -n parent_command_group_ref="${2}"
+
+    local parent_fully_qualified_name
+    if ! parent_fully_qualified_name="$(mycmd:registered_item._get_required_field_from_item_struct \
+        "${_ITEM_PARENT_COMMAND_GROUP_FIELD}" \
+        "${!item_struct_ref}")"; then
+        mycmd.debug "No parent command group defined"
+        return 1
+    fi
+    readonly parent_fully_qualified_name
+
+    mycmd:registry.get_command_group "${parent_fully_qualified_name}" "${!parent_command_group_ref}"
 }
 
 function mycmd:registered_item.get_source_directory() {
@@ -527,7 +599,7 @@ function mycmd:registered_item.get_version() {
 
 function mycmd:registered_item.is_metadata_loaded() {
     local is_metadata_loaded
-    if ! is_metadata_loaded="$(mycmd:registered_item._get_required_field_from_command_struct \
+    if ! is_metadata_loaded="$(mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_METADATA_LOADED_FIELD}" \
         "${@}")"; then
         mycmd.debug "Error getting metadata loaded field from registered item."
@@ -545,6 +617,7 @@ alias mycmd:command_group.is_command_group='mycmd:registered_item.is_command_gro
 alias mycmd:command_group.get_name='mycmd:registered_item.get_name'
 alias mycmd:command_group.get_fully_qualified_name='mycmd:registered_item.get_fully_qualified_name'
 alias mycmd:command_group.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
+alias mycmd:command_group.get_parent_command_group='mycmd:registered_item.get_parent_command_group'
 alias mycmd:command_group.get_source_directory='mycmd:registered_item.get_source_directory'
 alias mycmd:command_group.get_source_file_path='mycmd:registered_item.get_source_file_path'
 alias mycmd:command_group.get_short_description='mycmd:registered_item.get_short_description'
@@ -558,6 +631,7 @@ alias mycmd:command.is_command='mycmd:registered_item.is_command'
 alias mycmd:command.get_name='mycmd:registered_item.get_name'
 alias mycmd:command.get_fully_qualified_name='mycmd:registered_item.get_fully_qualified_name'
 alias mycmd:command.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
+alias mycmd:command.get_parent_command_group='mycmd:registered_item.get_parent_command_group'
 alias mycmd:command.get_source_directory='mycmd:registered_item.get_source_directory'
 alias mycmd:command.get_source_file_path='mycmd:registered_item.get_source_file_path'
 alias mycmd:command.get_short_description='mycmd:registered_item.get_short_description'
@@ -586,7 +660,10 @@ function mycmd:registered_item._get_optional_field_from_item_struct() {
     # shellcheck disable=SC2178
     local -n item_struct_ref="${2}"
 
-    # TODO: Load item help and and version
+    if ! mycmd:registered_item._load_item_help_and_version "${!item_struct_ref}"; then
+        mycmd.debug "Error loading item help and version information."
+        return 1
+    fi
 
     if [[ -v item_struct_ref["${field_name}"] ]]; then
         echo "${item_struct_ref["${field_name}"]}"
@@ -598,6 +675,80 @@ function mycmd:registered_item._get_optional_field_from_item_struct() {
         mycmd.trace "No value for '${field_name}' defined for item '${fully_qualified_name}'."
         return 1
     fi
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Private Loading Functions
+function mycmd:registered_item._load_item_help_and_version() {
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    if ! mycmd:registered_item.is_metadata_loaded "${!item_struct_ref}"; then
+        mycmd.trace "Item metadata has not been loaded, so loading on demand."
+
+        local fully_qualified_name
+        fully_qualified_name="$(mycmd:registered_item.get_fully_qualified_name "${!item_struct_ref}")"
+        readonly fully_qualified_name
+
+        local namespaced_parts_string
+        namespaced_parts_string="$(mycmd:registered_item.get_namespaced_parts_as_string "${!item_struct_ref}")"
+        readonly namespaced_parts_string
+
+        local source_file_path
+        source_file_path="$(mycmd:registered_item.get_source_file_path "${!item_struct_ref}")"
+        readonly source_file_path
+
+        if ! mycmd:registered_item._source_for_help_and_version "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+            mycmd.debug "Error loading item help and version for '${fully_qualified_name}'."
+            return 1
+        fi
+
+        # Reload the item struct to get the updated metadata
+        mycmd:registry._reload_item "${!item_struct_ref}"
+    fi
+
+    return 0
+}
+
+function mycmd:registered_item._source_for_help_and_version() {
+    local -r fully_qualified_name="${1}"
+    local -r namespaced_parts_string="${2}"
+    local -r source_file_path="${3}"
+
+    mycmd.trace "Loading item help and version for '${fully_qualified_name}' from '${source_file_path}'."
+
+    local result=0
+    declare -gx _MYCMD_SOURCING_FOR_HELP=1
+    if ! mycmd:registered_item._load_item "${fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
+        mycmd.debug "Error loading item source file '${source_file_path}'."
+        return 1
+    fi
+    unset _MYCMD_SOURCING_FOR_HELP
+
+    if ((result != 0)); then
+        return 1
+    fi
+
+    _MYCMD_ITEM_METADATA_LOADED["${fully_qualified_name}"]=1
+
+    return 0
+}
+
+function mycmd:registered_item._load_item() {
+    local -r fully_qualified_name="${1}"
+    local -r namespaced_parts_string="${2}"
+    local -r source_file_path="${3}"
+
+    local result=0
+    declare -gx _MYCMD_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
+    declare -gx _MYCMD_NAMESPACED_PARTS_STRING="${namespaced_parts_string}"
+    if ! mycmd.source_lib_by_path_if_found "${source_file_path}"; then
+        result=1
+    fi
+    unset _MYCMD_NAMESPACED_PARTS_STRING
+    unset _MYCMD_FULLY_QUALIFIED_NAME
+
+    return "${result}"
 }
 
 mycmd.trace "The MyCmd Registry support library has been sourced."

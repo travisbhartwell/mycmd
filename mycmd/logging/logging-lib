@@ -15,7 +15,7 @@ mycmd:command_group_registry.register_version "0.1"
 mycmd:command_group_registry.register_short_description "MyCmd Logging Command Group Library"
 mycmd:command_group_registry.register_long_description "Library for common routines for logging command output."
 
-[[ -n "${_MYCMD_SOURCING_COMMAND_GROUP_FOR_HELP:-}" ]] && return
+[[ -n "${_MYCMD_SOURCING_FOR_HELP:-}" ]] && return
 
 [[ -n "${_MYCMD_LOGGING_LIB:-}" ]] && return
 readonly _MYCMD_LOGGING_LIB=1

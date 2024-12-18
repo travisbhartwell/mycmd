@@ -5,11 +5,11 @@
 mycmd:command.register_version "0.1"
 mycmd:command.register_short_description "Test Command for MyCmd"
 # shellcheck disable=SC2154
-mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS}\n"
+mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING}\n"
 mycmd:command.register_help_text "Options:"
-mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -h"
+mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING} -h"
 
-[[ -n "${_MYCMD_SOURCING_COMMAND_FOR_HELP:-}" ]] && return
+[[ -n "${_MYCMD_SOURCING_FOR_HELP:-}" ]] && return
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
