@@ -26,78 +26,42 @@ function test_mycmd_command_group_lib_is_loaded() {
     assertTrue 'MyCmd Lib Command Group Support Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
 }
 
-# shellcheck disable=SC2312
-function test_directory_is_command_group() {
-    assertTrue "Directory '${MYCMD_LIB_DIRECTORY}' is a command group" \
-        "mycmd:command_group_registry._validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}"
-
-    assertTrue "Directory '${MYCMD_LIB_DIRECTORY}/shell' is a command group" \
-        "mycmd:command_group_registry._validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/shell"
-
-    assertTrue "Directory '${TEST_USER_LIB_DIRECTORY}/shell/extended' is a command group" \
-        "mycmd:command_group_registry._validate_directory_contains_command_group  ${TEST_USER_LIB_DIRECTORY}/shell/extended"
-
-    assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/foo' is a not command group" \
-        "mycmd:command_group_registry._validate_directory_contains_command_group  ${MYCMD_LIB_DIRECTORY}/foo"
-}
-
-# shellcheck disable=SC2016,SC2034,SC2154,SC2312
+# shellcheck disable=SC2034,SC2312
 function test_base_mycmd_command_group() {
-    assertTrue 'mycmd can be loaded as a command group' \
-        'mycmd:command_group_registry.register_command_group "${MYCMD_LIB_DIRECTORY}" mycmd'
-
     local -A mycmd_command_group
-    mycmd:command_group_registry.get_command_group mycmd mycmd_command_group
+    mycmd:registry.get_command_group mycmd mycmd_command_group
+    assertTrue 'mycmd is a command group' 'mycmd:command_group.is_command_group mycmd_command_group'
     assertEquals "mycmd" "$(mycmd:command_group.get_name mycmd_command_group)"
     assertEquals "mycmd" "$(mycmd:command_group.get_fully_qualified_name mycmd_command_group)"
     assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
+    assertFalse "mycmd has no parent command group" 'mycmd:command_group.get_parent_command_group_fully_qualified_name mycmd_command_group'
     assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:command_group.get_source_directory mycmd_command_group)"
     assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:command_group.get_source_file_path mycmd_command_group)"
-    assertEquals "MyCmd Command Group mycmd" "$(mycmd:command_group.get_short_description mycmd_command_group)"
-    assertFalse 'There is no long description defined' \
-        'mycmd:command_group.get_long_description mycmd_command_group'
-    assertEquals "Unknown" "$(mycmd:command_group.get_version mycmd_command_group)"
-
-    local -a parent_tree
-    mycmd:command_group._get_parent_tree mycmd_command_group parent_tree
-    assertEquals 'parent_tree has one element' 1 "${#parent_tree[@]}"
-    assertEquals 'only element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
+    assertEquals "MyCmd Short Description" "$(mycmd:command_group.get_short_description mycmd_command_group)"
+    assertEquals "This is a help\nMessage" \
+        "$(mycmd:command_group.get_help_text mycmd_command_group)"
+    assertEquals "0.1" "$(mycmd:command_group.get_version mycmd_command_group)"
 }
 
-# shellcheck disable=SC2016,SC2034,SC2154,SC2312
+# shellcheck disable=SC2034,SC2312
 function test_shell_extended_command_group() {
-    assertTrue "${MYCMD_LIB_DIRECTORY}/shell can be loaded as a command group" \
-        'mycmd:command_group_registry.register_command_group "${MYCMD_LIB_DIRECTORY}/shell" "mycmd/shell"'
-
-    assertTrue "${TEST_USER_LIB_DIRECTORY}/shell/extended can be loaded as a command group" \
-        'mycmd:command_group_registry.register_command_group "${TEST_USER_LIB_DIRECTORY}/shell/extended" "mycmd/shell/extended"'
-
     local -A shell_extended_command_group
-    mycmd:command_group_registry.get_command_group "mycmd/shell/extended" shell_extended_command_group
+    mycmd:registry.get_command_group "mycmd/shell/extended" shell_extended_command_group
+    assertTrue 'mycmd/shell/extended is a command group' 'mycmd:command_group.is_command_group shell_extended_command_group'
+    assertFalse 'mycmd/shell/extended is not a command' 'mycmd:registered_item.is_command shell_extended_command_group'
     assertEquals "extended" "$(mycmd:command_group.get_name shell_extended_command_group)"
     assertEquals "mycmd/shell/extended" "$(mycmd:command_group.get_fully_qualified_name shell_extended_command_group)"
     assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
+    assertEquals "mycmd/shell" "$(mycmd:command_group.get_parent_command_group_fully_qualified_name shell_extended_command_group)"
+
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:command_group.get_source_directory shell_extended_command_group)"
     assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:command_group.get_source_file_path shell_extended_command_group)"
     assertEquals "MyCmd Shell Extended Command Group Library" "$(mycmd:command_group.get_short_description shell_extended_command_group)"
     assertEquals "Library for common routines for extended Shell Routines." \
-        "$(mycmd:command_group.get_long_description shell_extended_command_group)"
+        "$(mycmd:command_group.get_help_text shell_extended_command_group)"
     assertEquals "1.0" "$(mycmd:command_group.get_version shell_extended_command_group)"
 
-    local -a parent_tree
-    mycmd:command_group._get_parent_tree shell_extended_command_group parent_tree
-    assertTrue 'parent_tree has three elements' '(( "${#parent_tree[@]}" == 3 ))'
-    assertSame 'first element in parent tree is "mycmd"' "${parent_tree[0]}" "mycmd"
-    assertSame 'second element in parent tree is "mycmd/shell"' "${parent_tree[1]}" "mycmd/shell"
-    assertSame 'third element in parent tree is "mycmd/shell/extended"' "${parent_tree[2]}" "mycmd/shell/extended"
-
-    local -A shell_command_group
-    mycmd:command_group_registry.get_command_group "mycmd/shell" shell_command_group
-
-    local -a child_groups
-    mycmd:command_group.get_child_command_groups shell_command_group child_groups
-    assertEquals 'child groups has 1 element' 1 "${#child_groups[@]}"
-
+    mycmd.trace "Loading the command groups:"
     assertTrue 'Successfullly loads the command groups' \
         'mycmd:command_group.load_command_group shell_extended_command_group'
 
@@ -108,6 +72,13 @@ function test_shell_extended_command_group() {
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-command-group-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-group-lib"
+
+    # These will be called in mycmd-lib normally
+    mycmd:registry.discover_command_groups_and_commands
+    mycmd:registry.register_mycmd_help_and_version \
+        "MyCmd Short Description" \
+        "This is a help\nMessage" \
+        "0.1"
 }
 
 # shellcheck source=../vendor/shunit2

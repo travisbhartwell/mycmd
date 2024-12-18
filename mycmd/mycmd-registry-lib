@@ -153,13 +153,6 @@ function mycmd:registry.register_mycmd_help_and_version() {
 }
 
 # ------------------------------------------------------------------------------
-# Command Group Help Information Registration Aliases
-shopt -s expand_aliases
-alias mycmd:command_group.register_short_description='mycmd:registry.register_short_description'
-alias mycmd:command_group.register_help_text='mycmd:registry.register_help_text'
-alias mycmd:command_group.register_version='mycmd:registry.register_version'
-
-# ------------------------------------------------------------------------------
 # Command Help Information Registration Aliases
 alias mycmd:command.register_short_description='mycmd:registry.register_short_description'
 alias mycmd:command.register_help_text='mycmd:registry.register_help_text'
@@ -631,21 +624,6 @@ function mycmd:registered_item.is_metadata_loaded() {
 }
 
 # ------------------------------------------------------------------------------
-# Command Group Accessor Aliases
-shopt -s expand_aliases
-alias mycmd:command_group.is_command_group='mycmd:registered_item.is_command_group'
-alias mycmd:command_group.get_name='mycmd:registered_item.get_name'
-alias mycmd:command_group.get_fully_qualified_name='mycmd:registered_item.get_fully_qualified_name'
-alias mycmd:command_group.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
-alias mycmd:command_group.get_parent_command_group_fully_qualified_name='mycmd:registered_item.get_parent_command_group_fully_qualified_name'
-alias mycmd:command_group.get_source_directory='mycmd:registered_item.get_source_directory'
-alias mycmd:command_group.get_source_file_path='mycmd:registered_item.get_source_file_path'
-alias mycmd:command_group.get_short_description='mycmd:registered_item.get_short_description'
-alias mycmd:command_group.get_help_text='mycmd:registered_item.get_help_text'
-alias mycmd:command_group.get_version='mycmd:registered_item.get_version'
-alias mycmd:command_group.is_metadata_loaded='mycmd:registered_item.is_metadata_loaded'
-
-# ------------------------------------------------------------------------------
 # Command Accessor Aliases
 alias mycmd:command.is_command='mycmd:registered_item.is_command'
 alias mycmd:command.get_name='mycmd:registered_item.get_name'
@@ -737,10 +715,6 @@ function mycmd:registered_item.load_item() {
 
     return 0
 }
-
-# ------------------------------------------------------------------------------
-# Command Group Loading Alias
-alias mycmd:command_group.load_command_group='mycmd:registered_item.load_item'
 
 # ------------------------------------------------------------------------------
 # Command Loading Alias

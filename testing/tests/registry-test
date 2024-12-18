@@ -101,49 +101,6 @@ function test_get_invalid_command_groups() {
         'mycmd:registry.get_command_group "mycmd/test-command" command_group'
 }
 
-# shellcheck disable=SC2034,SC2312
-function test_base_mycmd_command_group() {
-    local -A mycmd_command_group
-    mycmd:registry.get_command_group mycmd mycmd_command_group
-    assertTrue 'mycmd is a command group' 'mycmd:command_group.is_command_group mycmd_command_group'
-    assertEquals "mycmd" "$(mycmd:command_group.get_name mycmd_command_group)"
-    assertEquals "mycmd" "$(mycmd:command_group.get_fully_qualified_name mycmd_command_group)"
-    assertEquals "mycmd" "$(mycmd:command_group.get_namespaced_parts_as_string mycmd_command_group)"
-    assertFalse "mycmd has no parent command group" 'mycmd:command_group.get_parent_command_group_fully_qualified_name mycmd_command_group'
-    assertEquals "${MYCMD_LIB_DIRECTORY}" "$(mycmd:command_group.get_source_directory mycmd_command_group)"
-    assertEquals "${MYCMD_LIB_DIRECTORY}/mycmd-lib" "$(mycmd:command_group.get_source_file_path mycmd_command_group)"
-    assertEquals "MyCmd Short Description" "$(mycmd:command_group.get_short_description mycmd_command_group)"
-    assertEquals "This is a help\nMessage" \
-        "$(mycmd:command_group.get_help_text mycmd_command_group)"
-    assertEquals "0.1" "$(mycmd:command_group.get_version mycmd_command_group)"
-}
-
-# shellcheck disable=SC2034,SC2312
-function test_shell_extended_command_group() {
-    local -A shell_extended_command_group
-    mycmd:registry.get_command_group "mycmd/shell/extended" shell_extended_command_group
-    assertTrue 'mycmd/shell/extended is a command group' 'mycmd:command_group.is_command_group shell_extended_command_group'
-    assertFalse 'mycmd/shell/extended is not a command' 'mycmd:registered_item.is_command shell_extended_command_group'
-    assertEquals "extended" "$(mycmd:command_group.get_name shell_extended_command_group)"
-    assertEquals "mycmd/shell/extended" "$(mycmd:command_group.get_fully_qualified_name shell_extended_command_group)"
-    assertEquals "mycmd shell extended" "$(mycmd:command_group.get_namespaced_parts_as_string shell_extended_command_group)"
-    assertEquals "mycmd/shell" "$(mycmd:command_group.get_parent_command_group_fully_qualified_name shell_extended_command_group)"
-
-    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended" "$(mycmd:command_group.get_source_directory shell_extended_command_group)"
-    assertEquals "${TEST_USER_LIB_DIRECTORY}/shell/extended/extended-lib" "$(mycmd:command_group.get_source_file_path shell_extended_command_group)"
-    assertEquals "MyCmd Shell Extended Command Group Library" "$(mycmd:command_group.get_short_description shell_extended_command_group)"
-    assertEquals "Library for common routines for extended Shell Routines." \
-        "$(mycmd:command_group.get_help_text shell_extended_command_group)"
-    assertEquals "1.0" "$(mycmd:command_group.get_version shell_extended_command_group)"
-
-    mycmd.trace "Loading the command groups:"
-    assertTrue 'Successfullly loads the command groups' \
-        'mycmd:command_group.load_command_group shell_extended_command_group'
-
-    assertTrue 'MyCmd Shell Group Lib Loaded' '[ -v _MYCMD_SHELL_LIB ]'
-    assertTrue 'MyCmd Shell Extended Group Lib Loaded' '[ -v _MYCMD_SHELL_EXTENDED_LIB ]'
-}
-
 # shellcheck disable=SC2016,SC2154
 function test_file_is_command() {
     assertFalse "${TEST_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
@@ -196,7 +153,7 @@ function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-registry-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-registry-lib"
 
-    # These will be called in mycmd-lib normally
+    # This will be called in mycmd-lib normally
     mycmd:registry.discover_command_groups_and_commands
     mycmd:registry.register_mycmd_help_and_version \
         "MyCmd Short Description" \
