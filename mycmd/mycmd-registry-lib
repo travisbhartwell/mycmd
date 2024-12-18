@@ -553,7 +553,7 @@ function mycmd:registered_item.get_namespaced_parts_as_string() {
         "${@}"
 }
 
-function mycmd:registered_item.get_parent_command_group() {
+function mycmd:registered_item.get_parent_command_group_fully_qualified_name() {
     mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_PARENT_COMMAND_GROUP_FIELD}" \
         "${@}"
@@ -637,7 +637,7 @@ alias mycmd:command_group.is_command_group='mycmd:registered_item.is_command_gro
 alias mycmd:command_group.get_name='mycmd:registered_item.get_name'
 alias mycmd:command_group.get_fully_qualified_name='mycmd:registered_item.get_fully_qualified_name'
 alias mycmd:command_group.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
-alias mycmd:command_group.get_parent_command_group='mycmd:registered_item.get_parent_command_group'
+alias mycmd:command_group.get_parent_command_group_fully_qualified_name='mycmd:registered_item.get_parent_command_group_fully_qualified_name'
 alias mycmd:command_group.get_source_directory='mycmd:registered_item.get_source_directory'
 alias mycmd:command_group.get_source_file_path='mycmd:registered_item.get_source_file_path'
 alias mycmd:command_group.get_short_description='mycmd:registered_item.get_short_description'
@@ -651,7 +651,7 @@ alias mycmd:command.is_command='mycmd:registered_item.is_command'
 alias mycmd:command.get_name='mycmd:registered_item.get_name'
 alias mycmd:command.get_fully_qualified_name='mycmd:registered_item.get_fully_qualified_name'
 alias mycmd:command.get_namespaced_parts_as_string='mycmd:registered_item.get_namespaced_parts_as_string'
-alias mycmd:command.get_parent_command_group='mycmd:registered_item.get_parent_command_group'
+alias mycmd:command.get_parent_command_group_fully_qualified_name='mycmd:registered_item.get_parent_command_group_fully_qualified_name'
 alias mycmd:command.get_source_directory='mycmd:registered_item.get_source_directory'
 alias mycmd:command.get_source_file_path='mycmd:registered_item.get_source_file_path'
 alias mycmd:command.get_short_description='mycmd:registered_item.get_short_description'
@@ -711,7 +711,7 @@ function mycmd:registered_item.load_item() {
     mycmd.trace "Attempting to load item '${fully_qualified_name}'."
 
     local parent_command_group
-    if parent_command_group="$(mycmd:registered_item.get_parent_command_group "${!item_struct_ref}")"; then
+    if parent_command_group="$(mycmd:registered_item.get_parent_command_group_fully_qualified_name "${!item_struct_ref}")"; then
         mycmd.trace "Attempting to load parent command group '${parent_command_group}'."
 
         if ! mycmd:registry.load_command_group_by_name "${parent_command_group}"; then
