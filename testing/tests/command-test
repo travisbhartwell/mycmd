@@ -38,6 +38,9 @@ function test_test-command() {
         "mycmd test-command\n\nOptions:\nmycmd test-command -h" \
         "$(mycmd:command.get_help_text command)"
     assertEquals "0.1" "$(mycmd:command.get_version command)"
+
+    assertTrue 'test-command can be executed' \
+        'mycmd:command.execute command'
 }
 
 function oneTimeSetUp() {
