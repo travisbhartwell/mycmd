@@ -27,6 +27,7 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
+mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "registry"
 
@@ -104,40 +105,15 @@ function mycmd:command.execute() {
     local -n command_struct_ref="${1}"
     shift
 
-    local command_fully_qualified_name
-    command_fully_qualified_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
-    readonly command_fully_qualified_name
+    local fully_qualified_name
+    fully_qualified_name="$(mycmd:command.get_fully_qualified_name "${!command_struct_ref}")"
+    readonly fully_qualified_name
 
-    mycmd.trace "Executing command '${command_fully_qualified_name}'."
+    mycmd.trace "Executing command '${fully_qualified_name}'."
 
-    # Get the containing command group
-    local command_group_fully_qualified_name
-    command_group_fully_qualified_name="$(mycmd:command.get_fully_qualified_command_group_name "${!command_struct_ref}")"
-    readonly command_group_fully_qualified_name
-
-    mycmd.trace "Command Group: ${command_group_fully_qualified_name}"
-
-    # Source the command group
-    if ! mycmd:command_group.load_command_group_by_name "${command_group_fully_qualified_name}"; then
-        mycmd.log "Error loading command group '${command_group_fully_qualified_name}'."
-        return 1
-    fi
-
-    local namespaced_parts_string
-    namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
-    readonly namespaced_parts_string
-
-    # Source the source file
-    local source_file_path
-    if ! source_file_path="$(mycmd:command.get_source_file_path "${!command_struct_ref}")"; then
-        mycmd.log "Error getting source file for command '${command_fully_qualified_name}'."
-        return 1
-    fi
-    readonly source_file_path
-    mycmd.trace "Sourcing command source file: '${source_file_path}'."
-
-    if ! mycmd:command._load_command "${command_fully_qualified_name}" "${namespaced_parts_string}" "${source_file_path}"; then
-        mycmd.log "Error sourcing command source file '${source_file_path}'."
+    # Load the command and its command groups
+    if ! mycmd:command.load_command "${!command_struct_ref}"; then
+        mycmd.log "Error loading command '${fully_qualified_name}'."
         return 1
     fi
 
@@ -149,12 +125,15 @@ function mycmd:command.execute() {
 
     mycmd.configure_shell_trace_and_verbosity
 
-    declare -gx _MYCMD_COMMAND_FULLY_QUALIFIED_NAME="${command_fully_qualified_name}"
-    declare -gx _MYCMD_COMMAND_PARTS="${namespaced_parts_string}"
+    local namespaced_parts_string
+    namespaced_parts_string="$(mycmd:command.get_namespaced_parts_as_string "${!command_struct_ref}")"
+    readonly namespaced_parts_string
+
+    declare -gx _MYCMD_FULLY_QUALIFIED_NAME="${fully_qualified_name}"
+    declare -gx _MYCMD_NAMESPACED_PARTS_STRING="${namespaced_parts_string}"
 
     local result=0
-    # Call it and exit with the return value
-    mycmd.main "$@" || result=$?
+    mycmd.main "${@}" || result=$?
 
     return "${result}"
 }
