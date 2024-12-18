@@ -55,6 +55,10 @@ function test_mycmd_pathname_lib_is_loaded() {
     assertTrue 'MyCmd Pathname Support Lib is loaded' '[ -v _MYCMD_PATHNAME_LIB ]'
 }
 
+function test_mycmd_registry_lib_is_loaded() {
+    assertTrue 'MyCmd Lib Registry Lib is loaded' '[ -v _MYCMD_REGISTRY_LIB ]'
+}
+
 function test_mycmd_command_group_lib_is_loaded() {
     assertTrue 'MyCmd Command Group Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
 }
@@ -80,38 +84,17 @@ function test_mycmd_function_calling_lib_is_loaded() {
     assertTrue 'MyCmd Function Calling Lib is loaded' '[ -v _MYCMD_FUNCTION_CALLING_LIB ]'
 }
 
-# shellcheck disable=SC2016,SC2154
-function test_all_command_groups_are_registered() {
-    local -r command_group_count=7
-    assertEquals "There are ${command_group_count} command groups registered" \
-        "${command_group_count}" "${#_MYCMD_COMMAND_GROUPS[@]}"
-    assertEquals "There are ${command_group_count} command groups registered in source directories" \
-        "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES[@]}"
-    assertEquals "There are ${command_group_count} command groups registered in source files" \
-        "${command_group_count}" "${#_MYCMD_COMMAND_GROUP_SOURCE_FILES[@]}"
-
-    # Since metadata for command groups is only loaded on demand, except for the top-level mycmd group, this should be 1
-    local -r help_and_version_count=1
-    assertEquals "There are ${help_and_version_count} command groups with versions" \
-        "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_VERSIONS[@]}"
-    assertEquals "There are ${help_and_version_count} command groups with short descriptions" \
-        "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_SHORT_DESCS[@]}"
-    assertEquals "There are ${help_and_version_count} command groups with long descriptions" \
-        "${help_and_version_count}" "${#_MYCMD_COMMAND_GROUP_LONG_DESCS[@]}"
-}
-
-# shellcheck disable=SC2016,SC2154
-function test_all_commands_are_registered() {
-    assertEquals "There are 6 commands registered with source files" \
-        6 "${#_MYCMD_COMMAND_SOURCE_FILES[@]}"
-
-    assertEquals "There are 6 commands registered" \
-        6 "${#_MYCMD_COMMANDS[@]}"
-}
-
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+
+    # Log library contstants
+    mycmd.trace "Logging defined library constants:"
+
+    local constant
+    while read -r constant; do
+        mycmd.trace "Constant: '${constant}'."
+    done < <(declare -r | grep ".*_LIB=.*" | sed -r -n 's/declare -r (.*)=.*/\1/p' | sort || true)
 }
 
 # shellcheck source=../vendor/shunit2

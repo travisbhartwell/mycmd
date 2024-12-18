@@ -118,7 +118,7 @@ function mycmd:command_group.load_support_lib() {
 
     # shellcheck disable=SC2034
     local -A command_group_struct
-    if ! mycmd:command_group.get_command_group "${fully_qualified_name}" command_group_struct; then
+    if ! mycmd:registry.get_command_group "${fully_qualified_name}" command_group_struct; then
         mycmd.debug "Error getting command group struct for '${fully_qualified_name}'."
         return 1
     fi

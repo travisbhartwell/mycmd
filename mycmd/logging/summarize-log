@@ -6,10 +6,10 @@ mycmd:command.register_version "0.1"
 mycmd:command.register_short_description "Provide summary of the specified log file, for preview."
 
 # shellcheck disable=SC2154
-mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} <log file path>"
+mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING} <log file path>"
 mycmd:command.register_help_text "\tlog file path - the path of the log file to summarize\n"
-mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -h | --help"
-mycmd:command.register_help_text "${_MYCMD_COMMAND_PARTS} -v | --version"
+mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING} -h | --help"
+mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING} -v | --version"
 mycmd:command.register_help_text "Options:"
 mycmd:command.register_help_text "\t-h | --help    - Show this help"
 mycmd:command.register_help_text "\t-v | --version - Show this command's version"

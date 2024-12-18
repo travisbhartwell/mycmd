@@ -92,8 +92,8 @@ function mycmd:command.execute_by_name() {
 
     # shellcheck disable=SC2034
     local -A command
-    if ! mycmd:command.get_command "${fully_qualified_name}" command; then
-        mycmd.err "Error getting command '${fully_qualified_name}'."
+    if ! mycmd:registry.get_command "${fully_qualified_name}" command; then
+        mycmd.log "Error getting command '${fully_qualified_name}'."
         return 1
     fi
 
