@@ -43,217 +43,29 @@ mycmd.load_mycmd_lib_support_lib "environment"
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
 mycmd.load_mycmd_lib_support_lib "platform-support"
 mycmd.load_mycmd_lib_support_lib "pathname"
+mycmd.load_mycmd_lib_support_lib "registry"
 mycmd.load_mycmd_lib_support_lib "command"
 mycmd.load_mycmd_lib_support_lib "command-group"
 
 # ------------------------------------------------------------------------------
 # Configuring the MyCmd top-level command group
-function mycmd.discover_command_groups_and_commands_callback() {
-    local -r full_path="${1}"
-    local -r fully_qualified_name="${2}"
-    # The directories are not currently used
-    local -n _dirs_ref="${3}"
-    local -n files_ref="${4}"
-
-    if ! mycmd:command_group_registry.register_command_group "${full_path}" "${fully_qualified_name}"; then
-        mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
-        return 1
-    fi
-
-    local f
-    local file_fully_qualified_name
-    local file_name
-    for f in "${files_ref[@]}"; do
-        if ! file_name="$(basename "${f}")"; then
-            mycmd.debug "Error getting basename of '${f}'."
-            return 1
-        fi
-
-        file_fully_qualified_name="${fully_qualified_name}/${file_name}"
-
-        if ! mycmd:command.register_command "${f}" "${file_fully_qualified_name}"; then
-            mycmd.log "Error loading command '${f}'."
-            return 1
-        fi
-    done
-}
-
 # TODO: Generate this more intelligently, including snapshot information
 declare -rgx _MYCMD_VERSION=0.1
 readonly _MYCMD_SHORT_DESCRIPTION="MyCmd: The Bash Command Framework"
-readonly _MYCMD_LONG_DESCRIPTION="MyCmd is a framework for creating and managing Bash commands and scripts."
+readonly _MYCMD_HELP_TEXT="MyCmd is a framework for creating and managing Bash commands and scripts."
 
-function mycmd.discover_command_groups_and_commands() {
-    mycmd:pathname.walk_path "mycmd" mycmd.discover_command_groups_and_commands_callback
+function mycmd.register_all_command_groups_and_commands() {
+    mycmd:registry.discover_command_groups_and_commands
 
-    mycmd:command_group_registry.register_mycmd_version_and_descriptions "${_MYCMD_VERSION}" \
+    mycmd:registry.register_mycmd_help_and_version \
         "${_MYCMD_SHORT_DESCRIPTION}" \
-        "${_MYCMD_LONG_DESCRIPTION}"
-}
-
-# ------------------------------------------------------------------------------
-# Loading Support Libraries
-function mycmd.source_mycmd_lib() {
-    local -r lib_name="${1}"
-    local fully_qualified_name="${lib_name}"
-    if [[ ! "${lib_name}" =~ ^mycmd ]]; then
-        fully_qualified_name="mycmd/${lib_name}"
-    fi
-    readonly fully_qualified_name
-
-    mycmd:command_group.load_command_group_by_name "${fully_qualified_name}"
-}
-
-# ------------------------------------------------------------------------------
-# Displaying Help and Version Information
-function mycmd.print_command_group_version() {
-    local -r fully_qualified_name="${1}"
-    local -A command_group
-
-    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group; then
-        mycmd.log "Unknown command group: '${fully_qualified_name}'."
-        return 1
-    fi
-
-    mycmd:command_group.print_version command_group
-}
-
-function mycmd.print_command_group_help() {
-    local -r fully_qualified_name="${1}"
-    # shellcheck disable=SC2034
-    local -A command_group
-
-    if ! mycmd:command_group_registry.get_command_group "${fully_qualified_name}" command_group; then
-        mycmd.log "Unknown command group: '${fully_qualified_name}'."
-        return 1
-    fi
-
-    mycmd:command_group.print_version command_group
-    mycmd.output ""
-    mycmd:command_group.print_short_description command_group
-    # TODO: Don't print the blank line if there is no long description
-    mycmd.output ""
-    mycmd:command_group.print_long_description command_group
-
-    local -a child_command_groups
-    mycmd:command_group.get_child_command_groups command_group child_command_groups
-
-    if ((${#child_command_groups[@]} > 0)); then
-        local -A child_table=()
-
-        local child_fully_qualified_name
-        for child_fully_qualified_name in "${child_command_groups[@]}"; do
-            # shellcheck disable=SC2034
-            local -A child=()
-            if ! mycmd:command_group_registry.get_command_group "${child_fully_qualified_name}" child; then
-                mycmd.debug "Error getting child command group '${child_fully_qualified_name}'"
-                return 1
-            fi
-
-            local name
-            name="$(mycmd:command_group.get_name child)"
-
-            local short_description
-            short_description="$(mycmd:command_group.get_short_description child)"
-
-            # shellcheck disable=SC2034
-            child_table["${name}"]="${short_description}"
-        done
-
-        mycmd:formatted_output.print_table child_table \
-            "The following child command groups are defined:" \
-            "Group Name" \
-            "Description"
-    fi
-
-    local -a child_commands
-    mycmd:command.get_child_commands_for_command_group "${fully_qualified_name}" child_commands
-
-    if ((${#child_commands[@]} > 0)); then
-        local -A commands_table=()
-
-        local command_fully_qualified_name
-        for command_fully_qualified_name in "${child_commands[@]}"; do
-            # shellcheck disable=SC2034
-            local -A child=()
-            if ! mycmd:command.get_command "${command_fully_qualified_name}" child; then
-                mycmd.debug "Error getting child command '${command_fully_qualified_name}'"
-                return 1
-            fi
-
-            local name
-            name="$(mycmd:command.get_name child)"
-
-            local short_description
-            short_description="$(mycmd:command.get_short_description child)"
-
-            # shellcheck disable=2034
-            commands_table["${name}"]="${short_description}"
-        done
-
-        mycmd:formatted_output.print_table commands_table \
-            "The following child commands are defined:" \
-            "Command Name" \
-            "Description"
-    fi
-}
-
-function mycmd.print_command_version() {
-    local fully_qualified_name
-    if [[ "$#" -ne 1 && -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
-    else
-        fully_qualified_name="${1}"
-    fi
-    readonly fully_qualified_name
-
-    local -A command
-
-    if ! mycmd:command.get_command "${fully_qualified_name}" command; then
-        mycmd.log "Unknown command: '${fully_qualified_name}'."
-        return 1
-    fi
-
-    mycmd:command.print_version command
-}
-
-function mycmd.print_command_help() {
-    mycmd.trace "Printing command help, received arguments: $*"
-
-    if [[ -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.trace "MyCmd Command Fully Qualified Name is set to '${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}'."
-    else
-        mycmd.trace "_MYCMD_COMMAND_FULLY_QUALIFIED_NAME is not set."
-    fi
-
-    local fully_qualified_name
-    if [[ "$#" -ne 1 && -v _MYCMD_COMMAND_FULLY_QUALIFIED_NAME ]]; then
-        mycmd.trace "Using _MYCMD_COMMAND_FULLY_QUALIFIED_NAME to get command."
-        fully_qualified_name="${_MYCMD_COMMAND_FULLY_QUALIFIED_NAME}"
-    else
-        mycmd.trace "Using passed argument to get command."
-        fully_qualified_name="${1}"
-    fi
-    readonly fully_qualified_name
-
-    # shellcheck disable=SC2034
-    local -A command
-
-    if ! mycmd:command.get_command "${fully_qualified_name}" command; then
-        mycmd.log "Unknown command: '${fully_qualified_name}'."
-        return 1
-    fi
-
-    mycmd:command.print_version command
-    mycmd.output ""
-    mycmd:command.print_short_description command
-    mycmd.output ""
-    mycmd:command.print_help_text command
+        "${_MYCMD_HELP_TEXT}" \
+        "${_MYCMD_VERSION}"
 }
 
 # ------------------------------------------------------------------------------
 # Finalization and Clean Up
-mycmd.discover_command_groups_and_commands
+mycmd.register_all_command_groups_and_commands
 mycmd._protect_mycmd_lib
 mycmd.source_mycmd_local_lib
 mycmd.run_startup_deferreds

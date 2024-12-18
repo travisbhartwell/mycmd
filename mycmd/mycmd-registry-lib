@@ -464,6 +464,40 @@ function mycmd:registry._reload_item() {
         "${!item_struct_ref}"
 }
 
+function mycmd.source_mycmd_lib() {
+    local -r lib_name="${1}"
+    local fully_qualified_name="${lib_name}"
+    if [[ ! "${lib_name}" =~ ^mycmd ]]; then
+        fully_qualified_name="mycmd/${lib_name}"
+    fi
+    readonly fully_qualified_name
+
+    local previous_fully_qualified_name
+    local previous_namepaced_parts_string
+
+    # Keep currently set values
+    if [[ -v _MYCMD_FULLY_QUALIFIED_NAME ]]; then
+        previous_fully_qualified_name="${_MYCMD_FULLY_QUALIFIED_NAME}"
+        unset _MYCMD_FULLY_QUALIFIED_NAME
+    fi
+
+    if [[ -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        previous_namepaced_parts_string="${_MYCMD_NAMESPACED_PARTS_STRING}"
+        unset _MYCMD_NAMESPACED_PARTS_STRING
+    fi
+
+    mycmd:registry.load_command_group_by_name "${fully_qualified_name}"
+
+    # Restore previous values
+    if [[ -n "${previous_fully_qualified_name-}" ]]; then
+        declare -gx _MYCMD_FULLY_QUALIFIED_NAME="${previous_fully_qualified_name}"
+    fi
+
+    if [[ -n "${previous_namepaced_parts_string-}" ]]; then
+        declare -gx _MYCMD_NAMESPACED_PARTS_STRING="${previous_namepaced_parts_string}"
+    fi
+}
+
 function mycmd:registry.load_command_group_by_name() {
     mycmd:registry._load_item_by_name \
         "${_MYCMD_COMMAND_GROUP_TYPE}" \
