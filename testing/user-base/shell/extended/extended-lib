@@ -10,9 +10,9 @@ set -o nounset -o errexit -o errtrace -o pipefail
     exit 1
 }
 
-mycmd:command.register_version "1.0"
-mycmd:command.register_short_description "MyCmd Shell Extended Command Group Library"
-mycmd:command.register_help_text "Library for common routines for extended Shell Routines."
+mycmd:command_group.register_version "1.0"
+mycmd:command_group.register_short_description "MyCmd Shell Extended Command Group Library"
+mycmd:command_group.register_help_text "Library for common routines for extended Shell Routines."
 
 [[ -n "${_MYCMD_SOURCING_FOR_HELP:-}" ]] && return
 
