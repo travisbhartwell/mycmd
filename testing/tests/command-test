@@ -17,63 +17,35 @@ if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd
     exit 1
 fi
 
-if ! MYCMD_SUPPORT_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../support" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching MyCmd support directory."
-    exit 1
-fi
-
 function test_mycmd_command_lib_is_loaded() {
     assertTrue 'MyCmd Lib Command Support Lib is loaded' '[ -v _MYCMD_COMMAND_LIB ]'
 }
 
-# shellcheck disable=SC2016,SC2154
-function test_file_is_command() {
-    assertFalse "${TEST_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
-        'mycmd:command.file_is_command "${TEST_DIRECTORY}/../../mycmd/project/run"'
-
-    assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is not executable and not a command" \
-        'mycmd:command.file_is_command "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
-
-    assertFalse "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh is not on the search path and not a command" \
-        'mycmd:command.file_is_command "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh"'
-
-    assertTrue "${MYCMD_LIB_DIRECTORY}/project/run is a command" \
-        'mycmd:command.file_is_command "${MYCMD_LIB_DIRECTORY}/project/run"'
-
-    assertTrue "${MYCMD_USER_BASE_DIR}/test-command is a command" \
-        'mycmd:command.file_is_command "${MYCMD_USER_BASE_DIR}/test-command"'
-}
-
-# shellcheck disable=SC2016,SC2034,SC2154,SC2312
+# shellcheck disable=SC2034,SC2154,SC2312
 function test_test-command() {
-    assertTrue 'test-command can be loaded as a command' \
-        'mycmd:command.register_command "${MYCMD_USER_BASE_DIR}/test-command" "mycmd/test-command"'
-
     local -A command
-    mycmd:command.get_command "mycmd/test-command" command
+    mycmd:registry.get_command "mycmd/test-command" command
+    assertTrue 'mycmd/test-command is a command' 'mycmd:command.is_command command'
     assertEquals "test-command" "$(mycmd:command.get_name command)"
     assertEquals "mycmd/test-command" "$(mycmd:command.get_fully_qualified_name command)"
     assertEquals "mycmd test-command" "$(mycmd:command.get_namespaced_parts_as_string command)"
-    assertEquals "mycmd" "$(mycmd:command.get_fully_qualified_command_group_name command)"
+    assertEquals "mycmd" "$(mycmd:command.get_parent_command_group_fully_qualified_name command)"
+
+    assertEquals "${MYCMD_USER_BASE_DIR}" "$(mycmd:command.get_source_directory command)"
     assertEquals "${MYCMD_USER_BASE_DIR}/test-command" "$(mycmd:command.get_source_file_path command)"
     assertEquals "Test Command for MyCmd" "$(mycmd:command.get_short_description command)"
     assertEquals 'Help text is defined' \
         "mycmd test-command\n\nOptions:\nmycmd test-command -h" \
         "$(mycmd:command.get_help_text command)"
     assertEquals "0.1" "$(mycmd:command.get_version command)"
-
-    assertTrue 'test-command can be executed' \
-        'mycmd:command.execute command'
 }
 
 function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-command-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-lib"
 
-    # Hard code these to enable testing, since command group discovery is in top-level mycmd-lib
-    _MYCMD_COMMAND_GROUPS+=("mycmd")
-    _MYCMD_COMMAND_GROUP_SOURCE_DIRECTORIES["mycmd"]="${MYCMD_LIB_DIRECTORY}"
-    _MYCMD_COMMAND_GROUP_SOURCE_FILES["mycmd"]="${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+    # This will be called in mycmd-lib normally
+    mycmd:registry.discover_command_groups_and_commands
 }
 
 # shellcheck source=../vendor/shunit2
