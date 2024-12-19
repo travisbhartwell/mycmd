@@ -52,8 +52,46 @@ fi
 
 # ------------------------------------------------------------------------------
 # Two Column Table Printing Commands
+function mycmd.print_table() {
+    local -n data_ref="${1}"
+    local -r heading="${2}"
+    local -r key_heading="${3}"
+    local -r value_heading="${4}"
+
+    local key_width
+    local value_width
+    local total
+    local rule
+    local output_line
+    local key
+    local -a sorted_keys
+
+    if (("${#data_ref[@]}" > 0)); then
+        read -r key_width value_width <<< \
+            "$(mycmd._get_column_widths data_ref 5 ${#key_heading} ${#value_heading} || true)"
+
+        mycmd.trace "Key: ${key_width} Value: ${value_width}"
+
+        total=$((key_width + value_width + 1))
+        # shellcheck disable=SC2312
+        printf -v rule '=%.0s' $(seq 1 "${total}")
+
+        mycmd.output "\n${heading}\n"
+
+        printf -v output_line "%-${key_width}s %-${value_width}s" "${key_heading}" "${value_heading}"
+        mycmd.output "${output_line}\n${rule}"
+
+        readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort || true)
+
+        for key in "${sorted_keys[@]}"; do
+            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[${key}]}"
+            mycmd.output "${output_line}"
+        done
+    fi
+}
+
 mycmd.defer_at_startup mycmd.init_bin wc
-function mycmd:formatted_output._get_column_widths() {
+function mycmd._get_column_widths() {
     local -n assoc_array="${1}"
     local -ri padding="${2}"
     local -ri min_key="${3}"
@@ -74,44 +112,6 @@ function mycmd:formatted_output._get_column_widths() {
     readonly max_value_len
 
     printf "%d %d\n" $((max_key_len + padding)) $((max_value_len + padding))
-}
-
-function mycmd:formatted_output.print_table() {
-    local -n data_ref="${1}"
-    local -r heading="${2}"
-    local -r key_heading="${3}"
-    local -r value_heading="${4}"
-
-    local key_width
-    local value_width
-    local total
-    local rule
-    local output_line
-    local key
-    local -a sorted_keys
-
-    if (("${#data_ref[@]}" > 0)); then
-        read -r key_width value_width <<< \
-            "$(mycmd:formatted_output._get_column_widths data_ref 5 ${#key_heading} ${#value_heading} || true)"
-
-        mycmd.trace "Key: ${key_width} Value: ${value_width}"
-
-        total=$((key_width + value_width + 1))
-        # shellcheck disable=SC2312
-        printf -v rule '=%.0s' $(seq 1 "${total}")
-
-        mycmd.output "\n${heading}\n"
-
-        printf -v output_line "%-${key_width}s %-${value_width}s" "${key_heading}" "${value_heading}"
-        mycmd.output "${output_line}\n${rule}"
-
-        readarray -t sorted_keys < <(printf '%s\n' "${!data_ref[@]}" | sort || true)
-
-        for key in "${sorted_keys[@]}"; do
-            printf -v output_line "%-${key_width}s %-${value_width}s" "${key}" "${data_ref[${key}]}"
-            mycmd.output "${output_line}"
-        done
-    fi
 }
 
 mycmd.trace "The MyCmd Library Formatted Output support library has been sourced."
