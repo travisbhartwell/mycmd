@@ -26,7 +26,7 @@ I'm pretty proud of these changes.
 * [commit a513267131d3f0de38ffa10825d5841d9ab34ee5](https://github.com/travisbhartwell/mycmd/commit/a513267131d3f0de38ffa10825d5841d9ab34ee5): Cleaned up `mycmd-formatted-output-lib`.
 * [commit 098fb1edb4455a0eb990e832336f511ae966869a](https://github.com/travisbhartwell/mycmd/commit/098fb1edb4455a0eb990e832336f511ae966869a): Cleaned up `mycmd-pathname-lib`.
 
-These clean up tasks took less time than I thought it would be. Next steps are going to be re-implementing the MyCmd launcher code in
+These clean up tasks took less time than I thought it would be. Next steps are going to be re-implementing the MyCmd launcher code.
 
 ## MyCmd Launcher Implementation
 
