@@ -11,6 +11,8 @@ More incremental progress on the MyCmd Registry Implementation. I focused on the
 * [commit 8506cc380b9fa9ecafee33b4d9a621566393fe0f](https://github.com/travisbhartwell/mycmd/commit/8506cc380b9fa9ecafee33b4d9a621566393fe0f): Implement help metadata storage and accessors.
 * [commit 2304ef6efe8e95e6382c221829532033ea65c565](https://github.com/travisbhartwell/mycmd/commit/2304ef6efe8e95e6382c221829532033ea65c565): Add help and version registration functions.
 
+Tomorrow I will need to look at the loading functions amd see about combining the loading functions for Commands and Command Groups.
+
 ---
 
 All of my December Adventure 2024 posts will be linked from [here](../../december-adventure-2024).
