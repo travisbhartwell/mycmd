@@ -60,7 +60,7 @@ mycmd.trace "MYCMD_VENDOR_DIR:      ${MYCMD_VENDOR_DIR}"
 # Set up the MyCmd Search Path
 declare -agx _MYCMD_SEARCH_PATH=()
 
-function mycmd:environment._get_absolute_path() {
+function mycmd._get_absolute_path() {
     local -r potential_path="${1}"
 
     local abs_path
@@ -75,7 +75,7 @@ function mycmd:environment._get_absolute_path() {
     return 0
 }
 
-function mycmd:environment.set_mycmd_search_path() {
+function mycmd._set_mycmd_search_path() {
     local -a potential_paths=()
 
     potential_paths+=("${MYCMD_SYSTEM_BASE_DIR}")
@@ -88,7 +88,7 @@ function mycmd:environment.set_mycmd_search_path() {
         OLD_IFS="${IFS}"
         IFS=":"
         for p in ${MYCMD_SEARCH_PATH}; do
-            if abs_p="$(mycmd:environment._get_absolute_path "${p}")"; then
+            if abs_p="$(mycmd._get_absolute_path "${p}")"; then
                 potential_paths+=("${abs_p}")
             else
                 mycmd.trace "Directory '${p}' does not exist, not adding to path."
@@ -119,6 +119,6 @@ function mycmd:environment.set_mycmd_search_path() {
     fi
 }
 
-mycmd:environment.set_mycmd_search_path
+mycmd._set_mycmd_search_path
 
 mycmd.trace "The MyCmd Library Environment support library has been sourced."
