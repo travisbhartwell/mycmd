@@ -27,6 +27,8 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Add task to look at last test log
 **** DONE Execution of commands
 **** DONE Using =mycmd= in shebang lines
+**** TODO Expand the README
+**** TODO Get a better source code line counter integrated
 **** TODO Add documentation comments for the registry
 **** TODO Add tasks for executing specific tests
 **** TODO Update command group long descriptions to support multiple lines
@@ -72,6 +74,7 @@ This will be the release with full CI working.
 **** TODO Use log rotation for MyCmd test logs
 **** TODO Feature detection for Bash version requirements
 **** TODO Metadata caching for command groups and commands
+**** TODO Release announcement video
 
 ** Post 0.1 Release
 *** TODO Utility to generate the flamegraphs from trace logs
