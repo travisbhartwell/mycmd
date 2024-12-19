@@ -52,7 +52,7 @@ function parse_command_line() {
     if (($# > 0)); then
         if [[ "${1}" = /* || "${1}" = ./* || "${1}" = ../* ]] && [[ -e "${1}" ]]; then
             local project_file_path
-            if ! project_file_path="$(mycmd:pathname.canonicalize_path "${1}")"; then
+            if ! project_file_path="$(mycmd.canonicalize_path "${1}")"; then
                 mycmd.log "Error getting absolute path of project file '${1}'."
                 errors["${_PROJECT_FILE}"]=1
             else
