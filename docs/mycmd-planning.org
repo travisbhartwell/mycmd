@@ -15,19 +15,19 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Implement =mycmd:registry.register_item=
 **** DONE Copy =test_all_command_groups_are_registered= to =registry-test=
 **** DONE Implement =mycmd:registry.register_command_group=
-**** TODO Further break down tasks
-**** TODO Add documentation comments for the registry
-**** TODO Load =mycmd-command-group-lib= in =mycmd-registry-lib=
-**** TODO Load =mycmd-command-lib= in =mycmd-registry-lib=
-**** TODO Load =mycmd-registry-lib= in =mycmd-lib=
-**** TODO Call =mycmd:registry.register_mycmd_version_and_description= in =mycmd-lib=
-**** TODO Add test for =mycmd-registry-lib= loading
-**** TODO Add tasks for executing specific tests
+**** DONE Further break down tasks
+**** DONE Load =mycmd-command-group-lib= in =mycmd-registry-lib=
+**** DONE Load =mycmd-command-lib= in =mycmd-registry-lib=
+**** DONE Load =mycmd-registry-lib= in =mycmd-lib=
+**** DONE Call =mycmd:registry.register_mycmd_version_and_description= in =mycmd-lib=
+**** DONE Add test for =mycmd-registry-lib= loading
 
 *** Features
 **** DONE Loading command groups
 **** DONE Add task to look at last test log
 **** DONE Execution of commands
+**** TODO Add documentation comments for the registry
+**** TODO Add tasks for executing specific tests
 **** TODO Update command group long descriptions to support multiple lines
 **** TODO Execution of MyCmd commands via =mycmd=
 **** TODO Using =mycmd= in shebang lines
