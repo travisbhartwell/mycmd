@@ -115,6 +115,7 @@ source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"
 
 _MYCMD_LAUNCHER_SHIFT_AMOUNT="shift-amount"
 _MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME="command-fully-qualified-name"
+_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME="command-group-fully-qualified-name"
 
 function mycmd_launcher.parse_command_line() {
     local -n arguments_ref="${1}"
@@ -136,13 +137,66 @@ function mycmd_launcher.parse_command_line() {
 
         shift
         ((shift_amount += 1))
+    else
+        local fully_qualified_name="mycmd"
+        local last_seen_command_group="mycmd"
+        local command
+
+        local element
+        while (($# > 0)); do
+            element="${1}"
+            fully_qualified_name="${fully_qualified_name}/${element}"
+
+            mycmd.trace "Examining path component '${element}'; with fully qualified name '${fully_qualified_name}'"
+
+            if mycmd:registry.command_group_exists_for_fully_qualified_name "${fully_qualified_name}"; then
+                mycmd.trace "Found command group with fully qualified name '${fully_qualified_name}'."
+                last_seen_command_group="${fully_qualified_name}"
+
+                shift
+                ((shift_amount += 1))
+            elif mycmd:registry.command_exists_for_fully_qualified_name "${fully_qualified_name}"; then
+                mycmd.trace "Found command with fully qualified name '${fully_qualified_name}'."
+                command="${fully_qualified_name}"
+
+                shift
+                ((shift_amount += 1))
+                break
+            else
+                break
+            fi
+        done
+
+        if [[ -n "${command:-}" ]]; then
+            arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]="${command}"
+        else
+            arguments_ref["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${last_seen_command_group}"
+        fi
     fi
 
     arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]="${shift_amount}"
 
     mycmd.debug "Parsed arguments:"
-    mycmd.debug "- Command Fully Qualified Name found:  ${arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]}"
-    mycmd.debug "- Args shift count:                    ${arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
+
+    if [[ -v arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"] ]]; then
+        mycmd.debug "- Command Fully Qualified Name found:        ${arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]}"
+    else
+        mycmd.debug "- No command found"
+    fi
+
+    if [[ -v arguments_ref["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"] ]]; then
+        mycmd.debug "- Command Group Fully Qualified Name found:  ${arguments_ref["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]}"
+    else
+        mycmd.debug "- No command group found"
+    fi
+
+    mycmd.debug "- Args shift count:                           ${arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
+
+    if (($# > 0)); then
+        mycmd.debug "- Remaining arguments:                       ${*}"
+    else
+        mycmd.debug "- No Remaining arguments on the command line."
+    fi
 }
 
 function mycmd_launcher.main() {
@@ -152,11 +206,18 @@ function mycmd_launcher.main() {
     declare -A launcher_dispatch=()
     mycmd_launcher.parse_command_line launcher_dispatch "${@}"
 
-    local -r command_fully_qualified_name="${launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]}"
     local -r shift_amount="${launcher_dispatch["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
     shift "${shift_amount}"
 
-    mycmd:command.execute_by_name "${command_fully_qualified_name}" "${@}"
+    if [[ -v launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"] ]]; then
+        local -r command_fully_qualified_name="${launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]}"
+        mycmd:command.execute_by_name "${command_fully_qualified_name}" "${@}"
+    elif [[ -v launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"] ]]; then
+        local -r command_group_fully_qualified_name="${launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]}"
+        mycmd.output "Only found reference to command group: '${command_group_fully_qualified_name}'."
+    else
+        mycmd.log "Unexpected state"
+    fi
 }
 
 mycmd_launcher.main "${@}"

@@ -183,6 +183,38 @@ function mycmd:registry.find_matching_command_for_path() {
     return 1
 }
 
+function mycmd:registry.command_group_exists_for_fully_qualified_name() {
+    mycmd:registry._item_exists_for_fully_qualified_name \
+        "${_MYCMD_COMMAND_GROUP_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry.command_exists_for_fully_qualified_name() {
+    mycmd:registry._item_exists_for_fully_qualified_name \
+        "${_MYCMD_COMMAND_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry._item_exists_for_fully_qualified_name() {
+    local -r item_type="${1}"
+    local -r fully_qualified_name="${2}"
+
+    mycmd.trace "Attempting to get '${fully_qualified_name}' of type '${item_type}'."
+
+    if [[ ! -v _MYCMD_ITEM_TYPES[${fully_qualified_name}] ]]; then
+        mycmd.debug "Unknown item: '${fully_qualified_name}'."
+        return 1
+    fi
+
+    local -r registered_type="${_MYCMD_ITEM_TYPES[${fully_qualified_name}]}"
+    if [[ "${registered_type}" != "${item_type}" ]]; then
+        mycmd.debug "Item '${fully_qualified_name}' has registered type '${registered_type}', not '${item_type}'."
+        return 1
+    fi
+
+    return 0
+}
+
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Registration Helper Functions
 function mycmd:registry._register_command_group() {
