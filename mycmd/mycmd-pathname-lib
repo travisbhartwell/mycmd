@@ -32,42 +32,42 @@ mycmd.load_mycmd_lib_support_lib "environment"
 mycmd.load_mycmd_lib_support_lib "event-lifecycle"
 mycmd.load_mycmd_lib_support_lib "platform-support"
 
-function mycmd:pathname.is_valid_absolute_path() {
+function mycmd.is_valid_absolute_path() {
     [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -e "${1}" ]]
 }
 
-function mycmd:pathname.is_valid_absolute_path_of_executable_file() {
+function mycmd.is_valid_absolute_path_of_executable_file() {
     [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -f "${1}" ]] && [[ -x "${1}" ]]
 }
 
-function mycmd:pathname.is_valid_absolute_path_of_directory() {
+function mycmd.is_valid_absolute_path_of_directory() {
     [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -d "${1}" ]]
 }
 
 mycmd.init_bin realpath
-function mycmd:pathname.canonicalize_path() {
+function mycmd.canonicalize_path() {
     local -r path_to_resolve="${1}"
 
     mycmd.bin_execute realpath --canonicalize-existing --quiet --logical "${path_to_resolve}"
 }
 
-function mycmd:pathname.canonicalize_path_missing_ok() {
+function mycmd.canonicalize_path_missing_ok() {
     local -r path_to_resolve="${1}"
 
     mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
 }
 
 mycmd.init_bin realpath
-function mycmd:pathname.path_relative_to_directory() {
+function mycmd._path_relative_to_directory() {
     local -r full_path="${1}"
     local -r base_path="${2}"
 
-    if ! mycmd:pathname.is_valid_absolute_path "${full_path}"; then
+    if ! mycmd.is_valid_absolute_path "${full_path}"; then
         mycmd.debug "'${full_path}' is not a valid absolute path."
         return 1
     fi
 
-    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${base_path}"; then
+    if ! mycmd.is_valid_absolute_path_of_directory "${base_path}"; then
         mycmd.debug "'${base_path}' is not a valid absolute path of a directory."
         return 1
     fi
@@ -88,10 +88,10 @@ function mycmd:pathname.path_relative_to_directory() {
     fi
 }
 
-function mycmd:pathname.fully_qualified_name_for_path() {
+function mycmd._fully_qualified_name_for_path() {
     local -r full_path="${1}"
 
-    if ! mycmd:pathname.is_valid_absolute_path "${full_path}"; then
+    if ! mycmd.is_valid_absolute_path "${full_path}"; then
         mycmd.debug "'${full_path}' is not a valid absolute path."
         return 1
     fi
@@ -101,7 +101,7 @@ function mycmd:pathname.fully_qualified_name_for_path() {
     for base in "${_MYCMD_SEARCH_PATH[@]}"; do
         local relative_path
 
-        if relative_path=$(mycmd:pathname.path_relative_to_directory "${full_path}" "${base}"); then
+        if relative_path=$(mycmd._path_relative_to_directory "${full_path}" "${base}"); then
             if [[ "${relative_path}" = "." ]]; then
                 echo "mycmd"
             else
@@ -116,10 +116,10 @@ function mycmd:pathname.fully_qualified_name_for_path() {
     return 1
 }
 
-function mycmd:pathname.is_child_of_mycmd_path_directory() {
+function mycmd.is_child_of_mycmd_path_directory() {
     local -r full_path="${1}"
 
-    if ! mycmd:pathname.fully_qualified_name_for_path "${full_path}" >/dev/null; then
+    if ! mycmd._fully_qualified_name_for_path "${full_path}" >/dev/null; then
         mycmd.debug "'${full_path}' is not a child of any of the MyCmd base directories."
         return 1
     fi
@@ -127,7 +127,7 @@ function mycmd:pathname.is_child_of_mycmd_path_directory() {
     return 0
 }
 
-function mycmd:pathname.nullglob_set_wrapper() {
+function mycmd.nullglob_set_wrapper() {
     local nullglob_set
     if shopt -q nullglob; then
         nullglob_set=0
@@ -148,7 +148,7 @@ function mycmd:pathname.nullglob_set_wrapper() {
     return "${result}"
 }
 
-function mycmd:pathname.gather_files_and_directories() {
+function mycmd.gather_files_and_directories() {
     local -r absolute_path="${1}"
 
     local f
@@ -157,7 +157,7 @@ function mycmd:pathname.gather_files_and_directories() {
     done
 }
 
-function mycmd:pathname.walk_path_for_directory() {
+function mycmd._walk_path_for_directory() {
     local -r absolute_path="${1}"
     local -r fully_qualified_name="${2}"
     local -r callback="${3}"
@@ -166,7 +166,7 @@ function mycmd:pathname.walk_path_for_directory() {
     local -a files=()
     local -a child_paths
 
-    readarray -t child_paths < <(mycmd:pathname.nullglob_set_wrapper mycmd:pathname.gather_files_and_directories "${absolute_path}" || true)
+    readarray -t child_paths < <(mycmd.nullglob_set_wrapper mycmd.gather_files_and_directories "${absolute_path}" || true)
     local f
 
     for f in "${child_paths[@]}"; do
@@ -194,13 +194,13 @@ function mycmd:pathname.walk_path_for_directory() {
             return 1
         fi
 
-        mycmd:pathname.walk_path_for_directory "${dir}" "${fully_qualified_name}/${dir_name}" "${callback}"
+        mycmd._walk_path_for_directory "${dir}" "${fully_qualified_name}/${dir_name}" "${callback}"
     done
 
     return 0
 }
 
-function mycmd:pathname.walk_path() {
+function mycmd.walk_path() {
     # TODO: Verify this argument fits the pattern of a fully qualified path
     local -r fully_qualified_name="${1}"
     local -r callback="${2}"
@@ -215,12 +215,12 @@ function mycmd:pathname.walk_path() {
         full_path="${base}${relative_path:+/}${realtive_path}"
 
         if [[ -d "${full_path}" ]]; then
-            mycmd:pathname.walk_path_for_directory "${full_path}" "${fully_qualified_name}" "${callback}"
+            mycmd._walk_path_for_directory "${full_path}" "${fully_qualified_name}" "${callback}"
         fi
     done
 }
 
-function mycmd:pathname.find_support_library_for_command_group() {
+function mycmd.find_support_library_for_command_group() {
     local -r fully_qualified_name="${1}"
     local -r command_group_source_directory="${2}"
     local -r support_library_file_name="${3}"

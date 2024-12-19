@@ -135,7 +135,7 @@ function mycmd:command_group.load_support_lib() {
     readonly source_directory
 
     local support_library_full_path
-    if ! support_library_full_path="$(mycmd:pathname.find_support_library_for_command_group "${fully_qualified_name}" "${source_directory}" "${support_library_file_name}")"; then
+    if ! support_library_full_path="$(mycmd.find_support_library_for_command_group "${fully_qualified_name}" "${source_directory}" "${support_library_file_name}")"; then
         mycmd.debug "Error finding support library '${support_library_file_name}' for command group '${fully_qualified_name}'."
         return 1
     fi

@@ -53,7 +53,7 @@ declare -Agx _MYCMD_ITEM_METADATA_LOADED=()
 # ------------------------------------------------------------------------------
 # MyCmd Registry Discovery Functions
 function mycmd:registry.discover_command_groups_and_commands() {
-    mycmd:pathname.walk_path "mycmd" mycmd:registry._discover_command_groups_and_commands_callback
+    mycmd.walk_path "mycmd" mycmd:registry._discover_command_groups_and_commands_callback
 }
 
 function mycmd:registry._discover_command_groups_and_commands_callback() {
@@ -158,9 +158,9 @@ function mycmd:registry._register_command_group() {
     local -r fully_qualified_name="${1}"
     local -r source_directory="${2}"
 
-    # If this is called by mycmd:pathname.walk_path, assuming directory paths are real and on the MyCmd Search Path
-    if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
-        mycmd.trace "Skipping validation of parameters, assuming they are valid, as called from 'mycmd:pathname.walk_path'."
+    # If this is called by mycmd.walk_path, assuming directory paths are real and on the MyCmd Search Path
+    if mycmd.is_called_by_function "mycmd.walk_path"; then
+        mycmd.trace "Skipping validation of parameters, assuming they are valid, as called from 'mycmd.walk_path'."
     else
         if ! mycmd:registry._validate_directory_contains_command_group "${source_directory}"; then
             mycmd.debug "Directory ${source_directory} does not contain a command group."
@@ -296,12 +296,12 @@ function mycmd:registry._validate_directory_contains_command_group() {
     # - it has a file named <command-group>/<command-group>-lib matching the directory
     local -r source_directory="${1}"
 
-    if ! mycmd:pathname.is_valid_absolute_path_of_directory "${source_directory}"; then
+    if ! mycmd.is_valid_absolute_path_of_directory "${source_directory}"; then
         mycmd.debug "${source_directory} is not a valid absolute path of a directory."
         return 1
     fi
 
-    if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_directory}"; then
+    if ! mycmd.is_child_of_mycmd_path_directory "${source_directory}"; then
         mycmd.debug "${source_directory} is not a descendant of any of the MyCmd base directories."
         return 1
     fi
@@ -324,15 +324,15 @@ function mycmd:registry._validate_directory_contains_command_group() {
 function mycmd:registry._file_is_command() {
     local -r source_file_path="${1}"
 
-    if ! mycmd:pathname.is_valid_absolute_path_of_executable_file "${source_file_path}"; then
+    if ! mycmd.is_valid_absolute_path_of_executable_file "${source_file_path}"; then
         mycmd.debug "'${source_file_path}' is not a valid absolute path of an executable file."
         return 1
     fi
 
-    if mycmd.is_called_by_function "mycmd:pathname.walk_path"; then
-        mycmd.trace "Skipping validation of file is on MyCmd Search path, assuming it is, as called from 'mycmd:pathname.walk_path'."
+    if mycmd.is_called_by_function "mycmd.walk_path"; then
+        mycmd.trace "Skipping validation of file is on MyCmd Search path, assuming it is, as called from 'mycmd.walk_path'."
     else
-        if ! mycmd:pathname.is_child_of_mycmd_path_directory "${source_file_path}"; then
+        if ! mycmd.is_child_of_mycmd_path_directory "${source_file_path}"; then
             mycmd.debug "'${source_file_path}' is not located on the MyCmd Search Path."
             return 1
         fi

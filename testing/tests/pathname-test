@@ -39,115 +39,115 @@ function test_pathname_lib_is_loaded() {
 # shellcheck disable=SC2016
 function test_is_valid_absolute_path() {
     assertFalse '../../mycmd/mycmd-pathname-lib is not absolute' \
-        'mycmd:pathname.is_valid_absolute_path ../../mycmd/mycmd-pathname-lib'
+        'mycmd.is_valid_absolute_path ../../mycmd/mycmd-pathname-lib'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
-        'mycmd:pathname.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing is absolute, but doesn't exist" \
-        'mycmd:pathname.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertTrue "${MYCMD_LIB_DIRECTORY}/mycmd-lib is absolute and exists" \
-        'mycmd:pathname.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+        'mycmd.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
 }
 
 # shellcheck disable=SC2016
 function test_is_valid_absolute_path_of_executed_file() {
     assertFalse '../../bin/mycmd is not an absolute path to an executable file' \
-        'mycmd:pathname.is_valid_absolute_path_of_executable_file ../../bin/mycmd'
+        'mycmd.is_valid_absolute_path_of_executable_file ../../bin/mycmd'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../bin/mycmd is not absolute" \
-        'mycmd:pathname.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}/../bin/mycmd"'
+        'mycmd.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}/../bin/mycmd"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing is absolute, but doesn't exist" \
-        'mycmd:pathname.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY} is absolute, but is a directory" \
-        'mycmd:pathname.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}"'
+        'mycmd.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is absolute and exists but isn't executable" \
-        'mycmd:pathname.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+        'mycmd.is_valid_absolute_path_of_executable_file "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
 
     assertTrue "${MYCMD_BIN_DIRECTORY}/mycmd is absolute, exists, and is an executable file" \
-        'mycmd:pathname.is_valid_absolute_path_of_executable_file "${MYCMD_BIN_DIRECTORY}/mycmd"'
+        'mycmd.is_valid_absolute_path_of_executable_file "${MYCMD_BIN_DIRECTORY}/mycmd"'
 }
 
 # shellcheck disable=SC2016
 function test_is_valid_absolute_path_of_directory() {
     assertFalse '../../mycmd is not an absolute path' \
-        'mycmd:pathname.is_valid_absolute_path_of_directory ../../mycmd'
+        'mycmd.is_valid_absolute_path_of_directory ../../mycmd'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not an absolute path" \
-        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing is absolute, but doesn't exist" \
-        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is absolute and exists, but not a directory" \
-        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
+        'mycmd.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
 
     assertTrue "${MYCMD_LIB_DIRECTORY} is absolute and exists and a directory" \
-        'mycmd:pathname.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}"'
+        'mycmd.is_valid_absolute_path_of_directory "${MYCMD_LIB_DIRECTORY}"'
 }
 
 # shellcheck disable=SC2016,SC2312
 function test_path_relative_to_directory() {
     assertFalse '../../mycmd is not an absolute path' \
-        'mycmd:pathname.path_relative_to_directory ../../mycmd "${MYCMD_LIB_DIRECTORY}"'
+        'mycmd._path_relative_to_directory ../../mycmd "${MYCMD_LIB_DIRECTORY}"'
 
     assertFalse '${MYCMD_LIB_DIRECTORY}/non-existing does not exist' \
-        'mycmd:pathname.path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/non-existing" "${MYCMD_LIB_DIRECTORY}"'
+        'mycmd._path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/non-existing" "${MYCMD_LIB_DIRECTORY}"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not an absolute path" \
-        'mycmd:pathname.path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd._path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
-        'mycmd:pathname.path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd._path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertFalse "${TEST_DIRECTORY} is not relative to ${MYCMD_LIB_DIRECTORY}" \
-        'mycmd:pathname.path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
+        'mycmd._path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
 
     assertEquals "project" \
-        "$(mycmd:pathname.path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}")"
+        "$(mycmd._path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}")"
 }
 
 # shellcheck disable=SC2016
 function test_is_child_of_mycmd_path_directory() {
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
-        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
-        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "/tmp is not a child of a MyCmd path directory" \
-        'mycmd:pathname.is_child_of_mycmd_path_directory /tmp'
+        'mycmd.is_child_of_mycmd_path_directory /tmp'
 
     assertTrue "${MYCMD_LIB_DIRECTORY}/project is a child of a MyCmd path directory" \
-        'mycmd:pathname.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/project"'
+        'mycmd.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/project"'
 
     assertTrue "${TEST_USER_LIB_DIRECTORY}/test-command-group is a child of a MyCmd path directory" \
-        'mycmd:pathname.is_child_of_mycmd_path_directory "${TEST_USER_LIB_DIRECTORY}/test-command-group"'
+        'mycmd.is_child_of_mycmd_path_directory "${TEST_USER_LIB_DIRECTORY}/test-command-group"'
 }
 
 # shellcheck disable=SC2016,SC2312
 function test_fully_qualified_name_for_path() {
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
-        'mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
-        'mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "/tmp is not a child of a MyCmd path directory" \
-        'mycmd:pathname.fully_qualified_name_for_path /tmp'
+        'mycmd._fully_qualified_name_for_path /tmp'
 
     assertEquals "mycmd/project" \
-        "$(mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/project")"
+        "$(mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/project")"
 
     assertEquals "mycmd/test-command-group" \
-        "$(mycmd:pathname.fully_qualified_name_for_path "${TEST_USER_LIB_DIRECTORY}/test-command-group")"
+        "$(mycmd._fully_qualified_name_for_path "${TEST_USER_LIB_DIRECTORY}/test-command-group")"
 
     assertEquals "mycmd" \
-        "$(mycmd:pathname.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
+        "$(mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
 }
 
 declare -Agx walk_path_dir_counts=()
@@ -190,7 +190,7 @@ function test_walk_path() {
     walk_path_file_counts=()
 
     assertTrue 'walk_path runs successfully' \
-        'mycmd:pathname.walk_path "mycmd" callback'
+        'mycmd.walk_path "mycmd" callback'
 
     local key
     for key in "${!TEST_WALK_PATH_DIR_COUNTS[@]}"; do
