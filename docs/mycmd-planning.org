@@ -26,11 +26,11 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Loading command groups
 **** DONE Add task to look at last test log
 **** DONE Execution of commands
+**** DONE Using =mycmd= in shebang lines
 **** TODO Add documentation comments for the registry
 **** TODO Add tasks for executing specific tests
 **** TODO Update command group long descriptions to support multiple lines
 **** TODO Execution of MyCmd commands via =mycmd=
-**** TODO Using =mycmd= in shebang lines
 **** TODO Command Line Parsing
 **** TODO Clean up of launcher environment before execution
 **** TODO Displaying Version Information for Commands
