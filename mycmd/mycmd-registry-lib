@@ -152,6 +152,37 @@ function mycmd:registry.register_mycmd_help_and_version() {
     return 0
 }
 
+function mycmd:registry.find_matching_command_for_path() {
+    local -r source_path="${1}"
+
+    mycmd.trace "Finding matching command for path '${source_path}'."
+
+    local absolute_source_path
+    if ! absolute_source_path="$(mycmd.canonicalize_path "${source_path}")"; then
+        mycmd.debug "Error getting absolute path for '${source_path}'."
+        return 1
+    fi
+    readonly absolute_source_path
+
+    mycmd.trace "Absolute path for '${source_path}' is '${absolute_source_path}'."
+
+    local fully_qualified_name
+    local command_source_path
+
+    for fully_qualified_name in "${_MYCMD_COMMANDS[@]}"; do
+        command_source_path="${_MYCMD_ITEM_SOURCE_FILE_PATHS["${fully_qualified_name}"]}"
+
+        mycmd.trace "Trying to match '${fully_qualified_name}' with source path '${command_source_path}'."
+
+        if [[ "${command_source_path}" == "${absolute_source_path}" ]]; then
+            echo "${fully_qualified_name}"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 # ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Registration Helper Functions
 function mycmd:registry._register_command_group() {

@@ -13,9 +13,9 @@ mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING} -h"
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
-mycmd.defer_at_startup mycmd.trace "Finished starting of test-command."
-mycmd.defer_at_exit mycmd.trace "Finished execution of test-command."
+mycmd.defer_at_startup mycmd.output "Finished starting of test-command."
+mycmd.defer_at_exit mycmd.output "Finished execution of test-command."
 function mycmd.main() {
-    mycmd.trace "Running test-command."
+    mycmd.output "Running test-command."
     return 0
 }
