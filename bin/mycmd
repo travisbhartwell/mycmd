@@ -113,15 +113,21 @@ mycmd_launcher.set_mycmd_user_environment
 # shellcheck source=./mycmd/mycmd-lib
 source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"
 
-_MYCMD_LAUNCHER_SHIFT_AMOUNT="shift-amount"
-_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME="command-fully-qualified-name"
-_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME="command-group-fully-qualified-name"
+_MYCMD_ARGS_SHIFT_AMOUNT="shift-amount"
+_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME="command-fully-qualified-name"
+_MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME="command-group-fully-qualified-name"
+_MYCMD_ARGS_FOUND_HELP="found_help"
+_MYCMD_ARGS_FOUND_VERSION="found_version"
+_MYCMD_ARGS_FOUND_NON_FLAGS="found_non_flags"
 
 function mycmd_launcher.parse_command_line() {
     local -n arguments_ref="${1}"
     shift
 
     local -i shift_amount=0
+    local found_help=false
+    local found_version=false
+    local found_non_flags=false
 
     if [[ "${#}" -gt 0 ]] && [[ "${1}" = /* || "${1}" = ./* || "${1}" = ../* ]] && [[ -e "${1}" ]]; then
         local full_path="${1}"
@@ -133,7 +139,7 @@ function mycmd_launcher.parse_command_line() {
         fi
         readonly fully_qualified_name
 
-        arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]="${fully_qualified_name}"
+        arguments_ref["${_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME}"]="${fully_qualified_name}"
 
         shift
         ((shift_amount += 1))
@@ -168,56 +174,206 @@ function mycmd_launcher.parse_command_line() {
         done
 
         if [[ -n "${command:-}" ]]; then
-            arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]="${command}"
+            arguments_ref["${_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME}"]="${command}"
         else
-            arguments_ref["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${last_seen_command_group}"
+            arguments_ref["${_MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]="${last_seen_command_group}"
         fi
     fi
 
-    arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]="${shift_amount}"
+    local arg
+    for arg in "${@}"; do
+        case "${arg}" in
+            --help | -h) found_help=true ;;
+            --version | -v) found_version=true ;;
+            *) found_non_flags=true ;;
+        esac
+    done
+
+    arguments_ref["${_MYCMD_ARGS_FOUND_HELP}"]="${found_help}"
+    arguments_ref["${_MYCMD_ARGS_FOUND_VERSION}"]="${found_version}"
+    arguments_ref["${_MYCMD_ARGS_FOUND_NON_FLAGS}"]="${found_non_flags}"
+    arguments_ref["${_MYCMD_ARGS_SHIFT_AMOUNT}"]="${shift_amount}"
 
     mycmd.debug "Parsed arguments:"
 
-    if [[ -v arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"] ]]; then
-        mycmd.debug "- Command Fully Qualified Name found:        ${arguments_ref["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]}"
+    if [[ -v arguments_ref["${_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME}"] ]]; then
+        mycmd.debug "- Command Fully Qualified Name found:        ${arguments_ref["${_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME}"]}"
     else
         mycmd.debug "- No command found"
     fi
 
-    if [[ -v arguments_ref["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"] ]]; then
-        mycmd.debug "- Command Group Fully Qualified Name found:  ${arguments_ref["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]}"
+    if [[ -v arguments_ref["${_MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"] ]]; then
+        mycmd.debug "- Command Group Fully Qualified Name found:  ${arguments_ref["${_MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]}"
     else
         mycmd.debug "- No command group found"
     fi
 
-    mycmd.debug "- Args shift count:                          ${arguments_ref["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
+    mycmd.debug "- Args shift count:                          ${arguments_ref["${_MYCMD_ARGS_SHIFT_AMOUNT}"]}"
 
     if (($# > 0)); then
         mycmd.debug "- Remaining arguments:                       ${*}"
     else
         mycmd.debug "- No Remaining arguments on the command line."
     fi
+
+    mycmd.debug "- Found help:                                ${arguments_ref["${_MYCMD_ARGS_FOUND_HELP}"]}"
+    mycmd.debug "- Found version:                             ${arguments_ref["${_MYCMD_ARGS_FOUND_VERSION}"]}"
+    mycmd.debug "- Found non-flags:                           ${arguments_ref["${_MYCMD_ARGS_FOUND_NON_FLAGS}"]}"
+}
+
+function mycmd_launcher.get_shift_amount() {
+    mycmd_launcher._get_arguments_field \
+        "${_MYCMD_ARGS_SHIFT_AMOUNT}" \
+        "${@}"
+}
+
+function mycmd_launcher.get_command_group_fully_qualified_name() {
+    mycmd_launcher._get_arguments_field \
+        "${_MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME}" \
+        "${@}"
+}
+
+function mycmd_launcher.get_command_fully_qualified_name() {
+    mycmd_launcher._get_arguments_field \
+        "${_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME}" \
+        "${@}"
+}
+
+function mycmd_launcher.help_flag_present() {
+    local help_flag_present
+    if ! help_flag_present="$(mycmd_launcher._get_arguments_field \
+        "${_MYCMD_ARGS_FOUND_HELP}" \
+        "${@}")"; then
+        mycmd.debug "Error getting help flag field from arguments."
+        return 1
+    fi
+    readonly help_flag_present
+
+    [[ "${help_flag_present}" == "true" ]]
+}
+
+function mycmd_launcher.version_flag_present() {
+    local version_flag_present
+    if ! version_flag_present="$(mycmd_launcher._get_arguments_field \
+        "${_MYCMD_ARGS_FOUND_VERSION}" \
+        "${@}")"; then
+        mycmd.debug "Error getting version flag field from arguments."
+        return 1
+    fi
+    readonly version_flag_present
+
+    [[ "${version_flag_present}" == "true" ]]
+}
+
+function mycmd_launcher.non_flags_present() {
+    local non_flags_present
+    if ! non_flags_present="$(mycmd_launcher._get_arguments_field \
+        "${_MYCMD_ARGS_FOUND_NON_FLAGS}" \
+        "${@}")"; then
+        mycmd.debug "Error getting version flag field from arguments."
+        return 1
+    fi
+    readonly non_flags_present
+
+    [[ "${non_flags_present}" == "true" ]]
+}
+
+function mycmd_launcher._get_arguments_field() {
+    local -r field_name="${1}"
+    local -n args_struct_ref="${2}"
+
+    if [[ -v args_struct_ref[${field_name}] ]]; then
+        echo "${args_struct_ref["${field_name}"]}"
+        return 0
+    else
+        mycmd.debug "Missing no value for '${field_name}'."
+        return 1
+    fi
+}
+
+function mycmd_launcher.print_help() {
+    local -n args_struct_ref="${1}"
+    shift
+
+    local command_fully_qualified_name
+    if command_fully_qualified_name=$(mycmd_launcher.get_command_fully_qualified_name "${!args_struct_ref}"); then
+        readonly command_fully_qualified_name
+        mycmd.trace "Printing help for command '${command_fully_qualified_name}'."
+        mycmd:command.print_help_by_name "${command_fully_qualified_name}"
+        exit 0
+    fi
+
+    mycmd_launcher.handle_command_group "${!args_struct_ref}" mycmd:command_group.print_help_by_name "${@}"
+
+    exit 0
+}
+
+function mycmd_launcher.print_version() {
+    local -n args_struct_ref="${1}"
+    shift
+
+    local command_fully_qualified_name
+    if command_fully_qualified_name=$(mycmd_launcher.get_command_fully_qualified_name "${!args_struct_ref}"); then
+        readonly command_fully_qualified_name
+        mycmd:command.print_version_by_name "${command_fully_qualified_name}"
+        exit 0
+    fi
+
+    mycmd_launcher.handle_command_group "${!args_struct_ref}" mycmd:command_group.print_version_by_name "${@}"
+
+    exit 0
+}
+
+function mycmd_launcher.handle_command_group() {
+    mycmd.trace "Arguments: ${*}"
+
+    local -n args_struct_ref="${1}"
+    shift
+    local -r action="${1}"
+    shift
+
+    mycmd.trace "Handling command group: ${args_struct_ref[*]}, Action: ${action}"
+
+    local command_group_fully_qualified_name
+    if ! command_group_fully_qualified_name=$(mycmd_launcher.get_command_group_fully_qualified_name "${!args_struct_ref}"); then
+        mycmd.err_exit 1 "Missing expected command group fully qualified name."
+    fi
+    readonly command_group_fully_qualified_name
+
+    # If there are other non-flags present, it was likely a mis-typed command or command group name
+    if mycmd_launcher.non_flags_present "${!args_struct_ref}"; then
+        mycmd.err_exit 1 "Unknown command or command group: ${1}"
+    fi
+
+    "${action}" "${command_group_fully_qualified_name}"
 }
 
 function mycmd_launcher.main() {
     # Manually run the startup deferreds for the launcher
     mycmd.run_startup_deferreds
 
+    # shellcheck disable=SC2034
     declare -A launcher_dispatch=()
     mycmd_launcher.parse_command_line launcher_dispatch "${@}"
 
-    local -r shift_amount="${launcher_dispatch["${_MYCMD_LAUNCHER_SHIFT_AMOUNT}"]}"
+    local -r shift_amount="$(mycmd_launcher.get_shift_amount launcher_dispatch || true)"
     shift "${shift_amount}"
 
-    if [[ -v launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"] ]]; then
-        local -r command_fully_qualified_name="${launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_FULLY_QUALIFIED_NAME}"]}"
-        mycmd:command.execute_by_name "${command_fully_qualified_name}" "${@}"
-    elif [[ -v launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"] ]]; then
-        local -r command_group_fully_qualified_name="${launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]}"
-        mycmd.err_exit 1 "Only found reference to command group: '${command_group_fully_qualified_name}'."
-    else
-        mycmd.err_exit 1 "Unexpected state."
+    if mycmd_launcher.help_flag_present launcher_dispatch; then
+        mycmd_launcher.print_help launcher_dispatch "${@}"
+    elif mycmd_launcher.version_flag_present launcher_dispatch; then
+        mycmd_launcher.print_version launcher_dispatch "${@}"
     fi
+
+    local command_fully_qualified_name
+    if command_fully_qualified_name="$(mycmd_launcher.get_command_fully_qualified_name launcher_dispatch)"; then
+        readonly command_fully_qualified_name
+        local result=0
+        mycmd:command.execute_by_name "${command_fully_qualified_name}" "${@}" || result="${?}"
+        exit "${result}"
+    fi
+
+    mycmd_launcher.handle_command_group launcher_dispatch mycmd:command_group.print_help_by_name "${@}"
 }
 
 mycmd_launcher.main "${@}"

@@ -253,6 +253,11 @@ function mycmd:registry._get_children_of_command_group() {
         fi
     done
 
+    if (( "${#children[@]}" == 0 )); then
+        children_array_ref=()
+        return 0
+    fi
+
     # shellcheck disable=SC2034
     readarray -t children_array_ref < \
         <(printf "%s\n" "${children[@]}" \
