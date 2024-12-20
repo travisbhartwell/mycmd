@@ -13,14 +13,14 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Update command group long descriptions to support multiple lines
 **** DONE Execution of MyCmd commands via =mycmd=
 **** DONE Update =mycmd/project= to work with any changes in the rewrite
+**** DONE Command Line Parsing
+**** DONE Displaying Version Information for Commands
+**** DONE Displaying Version Information for Command Groups
+**** DONE Displaying Help for Commands
+**** DONE Displaying Help for Command Groups
 **** TODO Expand the README
 **** TODO Add documentation comments for the registry
-**** TODO Command Line Parsing
 **** TODO Clean up of launcher environment before execution
-**** TODO Displaying Version Information for Commands
-**** TODO Displaying Version Information for Command Groups
-**** TODO Displaying Help for Commands
-**** TODO Displaying Help for Command Groups
 **** TODO Merge =rewrite= branch into =main=
 **** TODO Make new snapshot tag for local development use
 
