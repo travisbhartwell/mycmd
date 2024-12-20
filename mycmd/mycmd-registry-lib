@@ -216,6 +216,50 @@ function mycmd:registry._item_exists_for_fully_qualified_name() {
 }
 
 # ------------------------------------------------------------------------------
+# MyCmd Registry Command Group Child Functions
+function mycmd:registry.get_child_command_groups() {
+    mycmd:registry._get_children_of_command_group \
+        "${_MYCMD_COMMAND_GROUP_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry.get_child_commands() {
+    mycmd:registry._get_children_of_command_group \
+        "${_MYCMD_COMMAND_TYPE}" \
+        "${@}"
+}
+
+function mycmd:registry._get_children_of_command_group() {
+    local -r item_type="${1}"
+    local -r fully_qualified_name="${2}"
+    local -n children_array_ref="${3}"
+
+    if ! mycmd:registry.command_group_exists_for_fully_qualified_name "${fully_qualified_name}"; then
+        mycmd.debug "'${fully_qualified_name}' is not a command group."
+        return 1
+    fi
+
+    local -a children=()
+    local child_fully_qualified_name
+    local parent_fully_qualified_name
+    local child_type
+
+    for child_fully_qualified_name in "${!_MYCMD_ITEM_PARENT_COMMAND_GROUPS[@]}"; do
+        parent_fully_qualified_name="${_MYCMD_ITEM_PARENT_COMMAND_GROUPS["${child_fully_qualified_name}"]}"
+        child_type="${_MYCMD_ITEM_TYPES["${child_fully_qualified_name}"]}"
+
+        if [[ ("${parent_fully_qualified_name}" == "${fully_qualified_name}") && "${child_type}" = "${item_type}" ]]; then
+            children+=("${child_fully_qualified_name}")
+        fi
+    done
+
+    # shellcheck disable=SC2034
+    readarray -t children_array_ref < \
+        <(printf "%s\n" "${children[@]}" \
+            | LC_ALL=en_US.UTF-8 sort || true)
+}
+
+# ------------------------------------------------------------------------------
 # MyCmd Registry Item Private Registration Helper Functions
 function mycmd:registry._register_command_group() {
     local -r fully_qualified_name="${1}"
@@ -865,6 +909,55 @@ function mycmd:registered_item._source_item() {
     unset _MYCMD_FULLY_QUALIFIED_NAME
 
     return "${result}"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Registry Item Common Help Printing Functions
+function mycmd:registered_item.print_item_version() {
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    if ! mycmd:registered_item._load_item_help_and_version "${!item_struct_ref}"; then
+        mycmd.debug "Error loading item help and version information."
+        return 1
+    fi
+
+    local namespaced_parts
+    namespaced_parts="$(mycmd:registered_item.get_namespaced_parts_as_string "${!item_struct_ref}")"
+    readonly namespaced_parts
+
+    local version
+    version="$(mycmd:registered_item.get_version "${!item_struct_ref}")"
+    readonly version
+
+    mycmd.output "${namespaced_parts} version ${version}"
+}
+
+function mycmd:registered_item.print_item_help() {
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    if ! mycmd:registered_item._load_item_help_and_version "${!item_struct_ref}"; then
+        mycmd.debug "Error loading item help and version information."
+        return 1
+    fi
+
+    mycmd:registered_item.print_item_version "${!item_struct_ref}"
+    mycmd.output ""
+
+    local short_description
+    short_description="$(mycmd:registered_item.get_short_description "${!item_struct_ref}")"
+    readonly short_description
+
+    mycmd.output "${short_description}"
+
+    local help_text
+    if help_text="$(mycmd:registered_item.get_help_text "${!item_struct_ref}")"; then
+        mycmd.output "\n${help_text}"
+    else
+        mycmd.trace "No help text defined."
+    fi
+    readonly help_text
 }
 
 mycmd.trace "The MyCmd Registry support library has been sourced."

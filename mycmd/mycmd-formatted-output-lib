@@ -73,8 +73,9 @@ function mycmd.print_table() {
         mycmd.trace "Key: ${key_width} Value: ${value_width}"
 
         total=$((key_width + value_width + 1))
+        # https://www.compart.com/en/unicode/U+23AF
         # shellcheck disable=SC2312
-        printf -v rule '=%.0s' $(seq 1 "${total}")
+        printf -v rule '\u23af%.0s' $(seq 1 "${total}")
 
         mycmd.output "\n${heading}\n"
 

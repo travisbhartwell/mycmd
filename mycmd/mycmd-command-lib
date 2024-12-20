@@ -85,6 +85,37 @@ alias mycmd:command.is_metadata_loaded='mycmd:registered_item.is_metadata_loaded
 alias mycmd:command.load_command='mycmd:registered_item.load_item'
 
 # ------------------------------------------------------------------------------
+# Command Help Printing
+alias mycmd:command.print_version='mycmd:registered_item.print_item_version'
+alias mycmd:command.print_help='mycmd:registered_item.print_item_help'
+
+function mycmd:command.print_version_by_name() {
+    local -r fully_qualified_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command
+
+    if ! mycmd:registry.get_command "${fully_qualified_name}" command; then
+        mycmd.debug "Unknown command '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command.print_version command
+}
+
+function mycmd:command.print_help_by_name() {
+    local -r fully_qualified_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command
+
+    if ! mycmd:registry.get_command "${fully_qualified_name}" command; then
+        mycmd.debug "Unknown command '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command.print_help command
+}
+
+# ------------------------------------------------------------------------------
 # Command Execution Functions
 function mycmd:command.execute_by_name() {
     local -r fully_qualified_name="${1}"
