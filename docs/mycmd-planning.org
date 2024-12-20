@@ -5,6 +5,25 @@
 
 This will be when I first merge the =rewrite= branch into =main=. Some of the work, such as getting CI integrated will have to happen post =main= merge, so the first MVP is not going to be the initial release. Basically, the done signal will be that I can switch my personal MyCmd install to use this commit.
 
+*** Features
+**** DONE Loading command groups
+**** DONE Add task to look at last test log
+**** DONE Execution of commands
+**** DONE Using =mycmd= in shebang lines
+**** DONE Update command group long descriptions to support multiple lines
+**** DONE Execution of MyCmd commands via =mycmd=
+**** DONE Update =mycmd/project= to work with any changes in the rewrite
+**** TODO Expand the README
+**** TODO Add documentation comments for the registry
+**** TODO Command Line Parsing
+**** TODO Clean up of launcher environment before execution
+**** TODO Displaying Version Information for Commands
+**** TODO Displaying Version Information for Command Groups
+**** TODO Displaying Help for Commands
+**** TODO Displaying Help for Command Groups
+**** TODO Merge =rewrite= branch into =main=
+**** TODO Make new snapshot tag for local development use
+
 *** MyCmd Registry Implementation
 **** DONE Create =registry-test=
 **** DONE Copy discovery functions to =mycmd-registry-lib=
@@ -22,29 +41,6 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Call =mycmd:registry.register_mycmd_version_and_description= in =mycmd-lib=
 **** DONE Add test for =mycmd-registry-lib= loading
 
-*** Features
-**** DONE Loading command groups
-**** DONE Add task to look at last test log
-**** DONE Execution of commands
-**** DONE Using =mycmd= in shebang lines
-**** TODO Expand the README
-**** TODO Get a better source code line counter integrated
-**** TODO Add documentation comments for the registry
-**** TODO Add tasks for executing specific tests
-**** TODO Update command group long descriptions to support multiple lines
-**** TODO Execution of MyCmd commands via =mycmd=
-**** TODO Command Line Parsing
-**** TODO Clean up of launcher environment before execution
-**** TODO Displaying Version Information for Commands
-**** TODO Displaying Version Information for Command Groups
-**** TODO Displaying Help for Commands
-**** TODO Displaying Help for Command Groups
-**** TODO Fix =mycmd.init_bin= to work all at once
-**** TODO Installation Shell Script and Instructions
-**** TODO Zsh completion support
-**** TODO Update =mycmd/project= to work with any changes in the rewrite
-**** TODO Use mycmd:formatted_output in MyCmd's =myproject= instead of Gum
-**** TODO Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
 *** Functions and Refactors Needed
 **** DONE =mycmd.canonicalize_path= -> Something in =mycmd-pathname-lib=
 **** DONE =mycmd.command_help=
@@ -52,12 +48,19 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE nullglob wrapper
 **** DONE =mycmd.load_command_group_support_lib=
 **** DONE =mycmd.source_mycmd_lib=
+
 ** 0.1 Release
 
 This will be the release with full CI working.
 
 *** Features
-
+**** TODO Fix =mycmd.init_bin= to work all at once
+**** TODO Installation Shell Script and Instructions
+**** TODO Zsh completion support
+**** TODO Add tasks for executing specific tests
+**** TODO Use mycmd:formatted_output in MyCmd's =myproject=
+**** TODO Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
+**** TODO Get a better source code line counter integrated
 **** TODO User documentation for =mycmd= use
 **** TODO Documentation for MyCmd command group and command authors
 **** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions

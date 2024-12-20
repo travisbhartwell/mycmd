@@ -214,9 +214,9 @@ function mycmd_launcher.main() {
         mycmd:command.execute_by_name "${command_fully_qualified_name}" "${@}"
     elif [[ -v launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"] ]]; then
         local -r command_group_fully_qualified_name="${launcher_dispatch["${_MYCMD_LAUNCHER_COMMAND_GROUP_FULLY_QUALIFIED_NAME}"]}"
-        mycmd.output "Only found reference to command group: '${command_group_fully_qualified_name}'."
+        mycmd.err_exit 1 "Only found reference to command group: '${command_group_fully_qualified_name}'."
     else
-        mycmd.log "Unexpected state"
+        mycmd.err_exit 1 "Unexpected state."
     fi
 }
 
