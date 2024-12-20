@@ -18,9 +18,9 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Displaying Version Information for Command Groups
 **** DONE Displaying Help for Commands
 **** DONE Displaying Help for Command Groups
+**** DONE Clean up of launcher environment before execution
 **** TODO Expand the README
 **** TODO Add documentation comments for the registry
-**** TODO Clean up of launcher environment before execution
 **** TODO Merge =rewrite= branch into =main=
 **** TODO Make new snapshot tag for local development use
 

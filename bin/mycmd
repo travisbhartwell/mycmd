@@ -33,6 +33,15 @@ fi
 
 # ------------------------------------------------------------------------------
 # Setting up environment
+declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=(
+    "_MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME"
+    "_MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME"
+    "_MYCMD_ARGS_FOUND_HELP"
+    "_MYCMD_ARGS_FOUND_NON_FLAGS"
+    "_MYCMD_ARGS_FOUND_VERSION"
+    "_MYCMD_ARGS_SHIFT_AMOUNT"
+    "_MYCMD_LAUNCHER_SELF_FILE"
+    "_MYCMD_LAUNCHER_VARS_TO_CLEANUP")
 
 function mycmd_launcher.set_mycmd_system_environment() {
     _MYCMD_LAUNCHER_SELF_FILE="${BASH_SOURCE[0]}"
@@ -110,15 +119,39 @@ function mycmd_launcher.set_mycmd_user_environment() {
 mycmd_launcher.set_mycmd_system_environment
 mycmd_launcher.set_mycmd_user_environment
 
+# Manually clean up functions
+unset -f mycmd_launcher.set_mycmd_system_environment
+unset -f mycmd_launcher.set_mycmd_user_environment
+
 # shellcheck source=./mycmd/mycmd-lib
 source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"
 
-_MYCMD_ARGS_SHIFT_AMOUNT="shift-amount"
+function mycmd_launcher.clean_environment() {
+    # First, unset any launcher local functions
+    local -a launcher_functions
+    # shellcheck disable=SC2312
+    readarray -t launcher_functions < <(compgen -A function | grep "^mycmd_launcher\.")
+
+    local f
+    for f in "${launcher_functions[@]}"; do
+        mycmd.trace "Unsetting function '${f}'."
+        unset -f "${f}"
+    done
+
+    # Then, unset any variables not meant to be inherited
+    local v
+    for v in "${_MYCMD_LAUNCHER_VARS_TO_CLEANUP[@]}"; do
+        mycmd.trace "Unsetting launcher variable '${v}'"
+        unset -v "${v}"
+    done
+}
+
 _MYCMD_ARGS_COMMAND_FULLY_QUALIFIED_NAME="command-fully-qualified-name"
 _MYCMD_ARGS_COMMAND_GROUP_FULLY_QUALIFIED_NAME="command-group-fully-qualified-name"
 _MYCMD_ARGS_FOUND_HELP="found_help"
-_MYCMD_ARGS_FOUND_VERSION="found_version"
 _MYCMD_ARGS_FOUND_NON_FLAGS="found_non_flags"
+_MYCMD_ARGS_FOUND_VERSION="found_version"
+_MYCMD_ARGS_SHIFT_AMOUNT="shift-amount"
 
 function mycmd_launcher.parse_command_line() {
     local -n arguments_ref="${1}"
@@ -368,6 +401,8 @@ function mycmd_launcher.main() {
     local command_fully_qualified_name
     if command_fully_qualified_name="$(mycmd_launcher.get_command_fully_qualified_name launcher_dispatch)"; then
         readonly command_fully_qualified_name
+        mycmd_launcher.clean_environment
+
         local result=0
         mycmd:command.execute_by_name "${command_fully_qualified_name}" "${@}" || result="${?}"
         exit "${result}"
