@@ -27,6 +27,8 @@ if [[ ! -v _MYCMD_LOADING_LIB ]]; then
     source "${_MYCMD_LIB_DIR}/mycmd-loading-lib"
 fi
 
+mycmd.load_mycmd_lib_support_lib "command"
+mycmd.load_mycmd_lib_support_lib "formatted-output"
 mycmd.load_mycmd_lib_support_lib "output"
 mycmd.load_mycmd_lib_support_lib "pathname"
 mycmd.load_mycmd_lib_support_lib "registry"
@@ -101,6 +103,115 @@ alias mycmd:command_group.is_metadata_loaded='mycmd:registered_item.is_metadata_
 # ------------------------------------------------------------------------------
 # Command Group Loading Alias
 alias mycmd:command_group.load_command_group='mycmd:registered_item.load_item'
+
+# ------------------------------------------------------------------------------
+# Command Group Help Printing
+alias mycmd:command_group.print_version='mycmd:registered_item.print_item_version'
+alias mycmd:command_group.print_help='mycmd:registered_item.print_item_help'
+
+function mycmd:command_group.print_version_by_name() {
+    local -r fully_qualified_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command_group
+
+    if ! mycmd:registry.get_command_group "${fully_qualified_name}" command_group; then
+        mycmd.debug "Unknown command group '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command_group.print_version command_group
+}
+
+function mycmd:command_group.print_help_by_name() {
+    local -r fully_qualified_name="${1}"
+    # shellcheck disable=SC2034
+    local -A command_group
+
+    if ! mycmd:registry.get_command_group "${fully_qualified_name}" command_group; then
+        mycmd.debug "Unknown command group '${fully_qualified_name}'."
+        return 1
+    fi
+
+    mycmd:command_group.print_help command_group
+    mycmd:command_group._print_child_command_groups_help_section "${fully_qualified_name}"
+    mycmd:command_group._print_child_commands_help_section "${fully_qualified_name}"
+}
+
+function mycmd:command_group._print_child_command_groups_help_section() {
+    local -r fully_qualified_name="${1}"
+    local -a child_command_groups
+
+    mycmd:registry.get_child_command_groups "${fully_qualified_name}" child_command_groups
+
+    if (("${#child_command_groups[@]}" == 0)); then
+        mycmd.trace "No child command groups to display."
+        return 0
+    fi
+
+    local -A table=()
+
+    local child_fully_qualified_name
+    for child_fully_qualified_name in "${child_command_groups[@]}"; do
+        # shellcheck disable=SC2034
+        local -A child=()
+        if ! mycmd:registry.get_command_group "${child_fully_qualified_name}" child; then
+            mycmd.debug "Error getting child command group '${child_fully_qualified_name}'"
+            return 1
+        fi
+
+        local name
+        name="$(mycmd:command_group.get_name child)"
+
+        local short_description
+        short_description="$(mycmd:command_group.get_short_description child)"
+
+        # shellcheck disable=SC2034
+        table["${name}"]="${short_description}"
+    done
+
+    mycmd.print_table table \
+        "The following child command groups are defined:" \
+        "Group Name" \
+        "Description"
+}
+
+function mycmd:command_group._print_child_commands_help_section() {
+    local -r fully_qualified_name="${1}"
+    local -a child_commands
+
+    mycmd:registry.get_child_commands "${fully_qualified_name}" child_commands
+
+    if (("${#child_commands[@]}" == 0)); then
+        mycmd.trace "No child commands to display."
+        return 0
+    fi
+
+    local -A table=()
+
+    local child_fully_qualified_name
+    for child_fully_qualified_name in "${child_commands[@]}"; do
+        # shellcheck disable=SC2034
+        local -A child=()
+        if ! mycmd:registry.get_command "${child_fully_qualified_name}" child; then
+            mycmd.debug "Error getting child command '${child_fully_qualified_name}'"
+            return 1
+        fi
+
+        local name
+        name="$(mycmd:command.get_name child)"
+
+        local short_description
+        short_description="$(mycmd:command.get_short_description child)"
+
+        # shellcheck disable=SC2034
+        table["${name}"]="${short_description}"
+    done
+
+    mycmd.print_table table \
+        "The following child commands are defined:" \
+        "Command Name" \
+        "Description"
+}
 
 # ------------------------------------------------------------------------------
 # Command Group Support Library Loading Functions
