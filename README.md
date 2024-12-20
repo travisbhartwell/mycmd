@@ -1,6 +1,18 @@
 # MyCmd
 
-Tool for writing and running commands from a command directory
+Tool for writing and running commands from a command directory.
+
+## MyCmd Key Concepts
+
+1. MyCmd is a tool to execute scripts found in directories in the [MyCmd Search Path](docs/mycmd-path.org). Each of these scripts are in a hierarchal structure.
+
+2. A script that is executed is called a **command**. 
+
+3. However, the **command** script isn't run directly by the user. `mycmd` is a launcher that sets everything up and then runs the specified **command**. When launching, the hierarchy is specified by spaces, and not slashes.
+
+4. Each command is part of a **command group**. Command groups are hierarchical. `mycmd` is the implicit top level command group. The **command group** is the mechanism for grouping related commands together, and also for code reuse. The **command group** consists of a directory named for the command group, as well as a shell library, by convention the **command group** name suffixed by `-lib`. 
+
+5. MyCmd also provides a set of common routines that make writing **commands** easier.
 
 ## Development Blog
 
