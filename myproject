@@ -628,8 +628,21 @@ function get_local_snapshot_tags() {
     local -r tags_array_ref_name="${1}"
     project:git.list_tags "${tags_array_ref_name}" "${LOCAL_SNAPSHOT_TAG_PREFIX}-*"
 }
-project.register_task list-local-snapshots \
-    get_local_snapshot_tags
+
+function list-local-snapshots() {
+    local -a tags=()
+    get_local_snapshot_tags tags
+
+    if (("${#tags[@]}" == 0)); then
+        mycmd.output "There are no local snapshots defined."
+    fi
+
+    local tag
+    for tag in "${tags[@]}"; do
+        mycmd.output "${tag}"
+    done
+}
+project.register_task list-local-snapshots
 
 function get_latest_local_snapshot_tag() {
     local -a existing_tags=()
@@ -703,8 +716,21 @@ function get_development_snapshot_tags() {
     local -r tags_array_ref_name="${1}"
     project:git.list_tags "${tags_array_ref_name}" "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}-*"
 }
-project.register_task list-development-snapshots \
-    get_development_snapshot_tags
+
+function list-development-snapshots() {
+    local -a tags=()
+    get_development_snapshot_tags tags
+
+    if (("${#tags[@]}" == 0)); then
+        mycmd.output "There are no development snapshots defined."
+    fi
+
+    local tag
+    for tag in "${tags[@]}"; do
+        mycmd.output "${tag}"
+    done
+}
+project.register_task list-development-snapshots
 
 function get_latest_development_snapshot_tag() {
     local -a existing_tags=()
