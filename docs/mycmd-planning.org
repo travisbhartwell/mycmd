@@ -20,7 +20,6 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Displaying Help for Command Groups
 **** DONE Clean up of launcher environment before execution
 **** TODO Expand the README
-**** TODO Add documentation comments for the registry
 **** TODO Merge =rewrite= branch into =main=
 **** TODO Make new snapshot tag for local development use
 
@@ -54,6 +53,8 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 This will be the release with full CI working.
 
 *** Features
+**** TODO Add documentation comments for the registry
+**** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
 **** TODO Fix =mycmd.init_bin= to work all at once
 **** TODO Installation Shell Script and Instructions
 **** TODO Zsh completion support
