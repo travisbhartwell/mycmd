@@ -4,7 +4,7 @@ Tool for writing and running commands from a command directory.
 
 ## MyCmd Key Concepts
 
-1. MyCmd is a tool to execute scripts found in directories in the [MyCmd Search Path](docs/mycmd-path.org). Each of these scripts are in a hierarchal structure.
+1. MyCmd is a tool to execute scripts found in directories in the [MyCmd Search Path](docs/mycmd-path.org). Each of these scripts are in a hierarchical structure.
 
 2. A script that is executed is called a **command**. 
 
