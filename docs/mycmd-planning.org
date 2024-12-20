@@ -19,8 +19,8 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 **** DONE Displaying Help for Commands
 **** DONE Displaying Help for Command Groups
 **** DONE Clean up of launcher environment before execution
-**** TODO Expand the README
-**** TODO Merge =rewrite= branch into =main=
+**** DONE Expand the README
+**** DONE Merge =rewrite= branch into =main=
 **** TODO Make new snapshot tag for local development use
 
 *** MyCmd Registry Implementation
@@ -53,6 +53,7 @@ This will be when I first merge the =rewrite= branch into =main=. Some of the wo
 This will be the release with full CI working.
 
 *** Features
+
 **** TODO Add documentation comments for the registry
 **** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
 **** TODO Fix =mycmd.init_bin= to work all at once
@@ -79,6 +80,7 @@ This will be the release with full CI working.
 **** TODO Feature detection for Bash version requirements
 **** TODO Metadata caching for command groups and commands
 **** TODO Release announcement video
+**** TODO Gracefully handle inability to create log files
 
 ** Post 0.1 Release
 *** TODO Utility to generate the flamegraphs from trace logs

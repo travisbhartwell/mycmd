@@ -253,7 +253,7 @@ function mycmd:registry._get_children_of_command_group() {
         fi
     done
 
-    if (( "${#children[@]}" == 0 )); then
+    if (("${#children[@]}" == 0)); then
         children_array_ref=()
         return 0
     fi

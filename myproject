@@ -20,6 +20,10 @@ readonly VENDOR_WORKING_DIR="${MYPROJECT_BASE_DIR}/vendor/.working"
 readonly TMP_WORKING_DIR="${MYPROJECT_BASE_DIR}/tmp"
 readonly DOCS_DIR="${MYPROJECT_BASE_DIR}/docs"
 
+if [[ ! -d "${TMP_WORKING_DIR}" ]]; then
+    mkdir -p "${TMP_WORKING_DIR}" || true
+fi
+
 WORKTREES_PARENT_DIR="$(cd "$(dirname "${MYPROJECT_BASE_DIR}")" &>/dev/null && pwd -P)"
 readonly WORKTREES_PARENT_DIR
 
