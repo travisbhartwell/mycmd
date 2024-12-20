@@ -19,7 +19,7 @@ I made the following changes to fix suggestions from CoPilot:
 
 It appears that CoPilot doesn't recognize the language of some of my files and so it will be less than useful in the future.
 
-I merged the changes into `main`, and wrote [this development log entry](../../2024-12-20-mycmd-rewrite-branch-merged) to celebrate.
+I merged the changes into `main`, and wrote [this development log entry](../2024-12-20-mycmd-rewrite-branch-merged/) to celebrate.
 
 ## MyCmd: Miscellaneous Changes
 
