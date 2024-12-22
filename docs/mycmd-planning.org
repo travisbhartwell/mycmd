@@ -8,6 +8,7 @@ This will be the release with full CI working.
 *** Clean Up and Conventions
 **** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
 **** TODO Finalize coding standards and fix any breakage
+**** TODO Evaluate if there is a way to ensure class invariants, i.e. the parallel assoc arrays are in sync
 
 *** Continuous Integration
 **** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions

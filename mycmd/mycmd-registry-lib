@@ -517,19 +517,12 @@ function mycmd:registry._get_item() {
 
     mycmd.trace "Attempting to get '${fully_qualified_name}' of type '${item_type}'."
 
-    if [[ ! -v _MYCMD_ITEM_SOURCE_FILE_PATHS[${fully_qualified_name}] ]]; then
-        mycmd.debug "Unknown item: '${fully_qualified_name}'."
-        return 1
-    fi
-
-    local -r registered_type="${_MYCMD_ITEM_TYPES[${fully_qualified_name}]}"
-    if [[ "${registered_type}" != "${item_type}" ]]; then
-        mycmd.debug "Item '${fully_qualified_name}' has registered type '${registered_type}', not '${item_type}'."
+    if ! mycmd:registry._item_exists_for_fully_qualified_name "${item_type}" "${fully_qualified_name}"; then
         return 1
     fi
 
     mycmd.trace "Returning Item definition:"
-    item_struct_ref["${_ITEM_TYPE_FIELD}"]="${registered_type}"
+    item_struct_ref["${_ITEM_TYPE_FIELD}"]="${_MYCMD_ITEM_TYPES[${fully_qualified_name}]}"
     mycmd.trace "- ${_ITEM_TYPE_FIELD}: ${item_struct_ref["${_ITEM_TYPE_FIELD}"]}"
 
     item_struct_ref["${_ITEM_NAME_FIELD}"]="$(basename "${fully_qualified_name}")"
