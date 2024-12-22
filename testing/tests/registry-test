@@ -90,6 +90,18 @@ function test_directory_is_command_group() {
         "mycmd:registry._validate_directory_contains_command_group ${MYCMD_LIB_DIRECTORY}/foo"
 }
 
+# shellcheck disable=SC2312
+function test_get_command_group_from_file() {
+    assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/project/run' is not a command group library or command group support library file" \
+        "mycmd:registry.get_command_group_from_file ${MYCMD_LIB_DIRECTORY}/project/run"
+
+    assertEquals "'${MYCMD_LIB_DIRECTORY}/project/project-lib' returns 'mycmd/project'" \
+        "mycmd/project" "$(mycmd:registry.get_command_group_from_file "${MYCMD_LIB_DIRECTORY}/project/project-lib")"
+
+    assertEquals "'${MYCMD_LIB_DIRECTORY}/project/project-git-lib' returns 'mycmd/project'" \
+        "mycmd/project" "$(mycmd:registry.get_command_group_from_file "${MYCMD_LIB_DIRECTORY}/project/project-git-lib")"
+}
+
 function test_get_invalid_command_groups() {
     # shellcheck disable=SC2034
     local -A command_group

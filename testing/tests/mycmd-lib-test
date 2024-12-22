@@ -88,7 +88,7 @@ function oneTimeSetUp() {
     # shellcheck source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
 
-    # Log library contstants
+    # Log library constants
     mycmd.trace "Logging defined library constants:"
 
     local constant
