@@ -312,25 +312,29 @@ project.register_task_with_fileset count-mycmd-lib-source-lines \
 
 #----------------------------------------
 # Test execution
+# shellcheck disable=SC2034
 function summarize_test_results() {
     local -n results_ref="${1}"
 
-    mycmd.output "Testing Summary:"
-    mycmd.output "Result       Test File"
-    mycmd.output "-----------------------------------------"
+    local -A result_table=()
     local test_file
     local result
 
     for test_file in "${!results_ref[@]}"; do
         result="${results_ref["${test_file}"]}"
+
         if ((result == 0)); then
             # Green Check: https://www.compart.com/en/unicode/U+2705
-            mycmd.output " \u2705          ${test_file}"
+            result_table["${test_file}"]="\u2705"
         else
             # Red X: https://www.compart.com/en/unicode/U+274C
-            mycmd.output " \u274c          ${test_file}"
+            result_table["${test_file}"]="\u274c"
         fi
     done
+
+    mycmd.print_table result_table \
+        "Testing Summary:" \
+        "Test File" "Result"
 }
 
 function execute-test() {
