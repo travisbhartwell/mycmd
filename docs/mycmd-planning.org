@@ -1,96 +1,69 @@
 #+title: Mycmd Planning
 
 * Milestones
-** MVP
-
-This will be when I first merge the =rewrite= branch into =main=. Some of the work, such as getting CI integrated will have to happen post =main= merge, so the first MVP is not going to be the initial release. Basically, the done signal will be that I can switch my personal MyCmd install to use this commit.
-
-*** Features
-**** DONE Loading command groups
-**** DONE Add task to look at last test log
-**** DONE Execution of commands
-**** DONE Using =mycmd= in shebang lines
-**** DONE Update command group long descriptions to support multiple lines
-**** DONE Execution of MyCmd commands via =mycmd=
-**** DONE Update =mycmd/project= to work with any changes in the rewrite
-**** DONE Command Line Parsing
-**** DONE Displaying Version Information for Commands
-**** DONE Displaying Version Information for Command Groups
-**** DONE Displaying Help for Commands
-**** DONE Displaying Help for Command Groups
-**** DONE Clean up of launcher environment before execution
-**** DONE Expand the README
-**** DONE Merge =rewrite= branch into =main=
-**** TODO Make new snapshot tag for local development use
-
-*** MyCmd Registry Implementation
-**** DONE Create =registry-test=
-**** DONE Copy discovery functions to =mycmd-registry-lib=
-**** DONE Implement minimal =test_all_command_groups_are_registered= in =registry-test=
-**** DONE Implement minimal =test_all_commands_are_registered= in =registry-test=
-**** DONE Copy =test_all_commands_are_registered= to =registry-test=
-**** DONE Implement =mycmd:registry.register_command=
-**** DONE Implement =mycmd:registry.register_item=
-**** DONE Copy =test_all_command_groups_are_registered= to =registry-test=
-**** DONE Implement =mycmd:registry.register_command_group=
-**** DONE Further break down tasks
-**** DONE Load =mycmd-command-group-lib= in =mycmd-registry-lib=
-**** DONE Load =mycmd-command-lib= in =mycmd-registry-lib=
-**** DONE Load =mycmd-registry-lib= in =mycmd-lib=
-**** DONE Call =mycmd:registry.register_mycmd_version_and_description= in =mycmd-lib=
-**** DONE Add test for =mycmd-registry-lib= loading
-
-*** Functions and Refactors Needed
-**** DONE =mycmd.canonicalize_path= -> Something in =mycmd-pathname-lib=
-**** DONE =mycmd.command_help=
-**** DONE =mycmd.command_version=
-**** DONE nullglob wrapper
-**** DONE =mycmd.load_command_group_support_lib=
-**** DONE =mycmd.source_mycmd_lib=
-
 ** 0.1 Release
 
 This will be the release with full CI working.
 
-*** Features
-
-**** TODO Add documentation comments for the registry
+*** Clean Up and Conventions
 **** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
-**** TODO Fix =mycmd.init_bin= to work all at once
-**** TODO Installation Shell Script and Instructions
-**** TODO Zsh completion support
-**** TODO Add tasks for executing specific tests
-**** TODO Use mycmd:formatted_output in MyCmd's =myproject=
-**** TODO Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
-**** TODO Get a better source code line counter integrated
-**** TODO User documentation for =mycmd= use
-**** TODO Documentation for MyCmd command group and command authors
+**** TODO Finalize coding standards and fix any breakage
+
+*** Continuous Integration
 **** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions
 **** TODO Tests and Linters Running in GitHub Actions
 **** TODO Pull Request workflow configured with GitHub Actions that creates snapshot tags
+
+*** Documentation
+**** TODO Add documentation comments for the registry
+**** TODO User documentation for =mycmd= use
+**** TODO Documentation for MyCmd command group and command authors
+**** TODO Release announcement video
+
+*** Features and Bugs
+**** TODO Fix =mycmd.init_bin= to work all at once
+**** TODO =mycmd/create= Command Group for creating new command groups and commands from templates
+**** TODO =mycmd/logging= works correctly on Mac OS and Linux
+**** TODO Feature detection for Bash version requirements
+**** TODO Metadata caching for command groups and commands
+**** TODO Gracefully handle inability to create log files
+**** TODO Add full help text for =mycmd= Command Group
+**** TODO Add support for reading snapshot info for versions
+**** TODO Potentially support more than two columns in =mycmd.print_table=
+
+*** Installation
+**** TODO Installation Shell Script and Instructions
+
+*** Interactive Shell Integration
+**** TODO Zsh completion support
 **** TODO Bash Completion Support
 **** TODO Fish Completion Support
 **** TODO =mycmd/shell= Command Group for shell integration
-**** TODO =mycmd/create= Command Group for creating new command groups and commands from templates
-**** TODO =mycmd/logging= works correctly on Mac OS and Linux
-**** TODO Finalize coding standards and fix any breakage
+
+*** Project Task Runner
+**** TODO Separate =mycmd/project= into its own project
+**** TODO Out of band =myproject= files for work projects
+**** TODO =project.find_files_for_filset= should be additive
+
+*** Project Tasks
+**** TODO Add tasks for executing specific tests
+**** TODO Use =mycmd-formatted_output-lib= in MyCmd's =myproject=
+**** TODO Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
+**** TODO Get a better source code line counter integrated
 **** TODO Get local git hooks set up and working
 **** TODO Audit support library loading
 **** TODO Use log rotation for MyCmd test logs
-**** TODO Feature detection for Bash version requirements
-**** TODO Metadata caching for command groups and commands
-**** TODO Release announcement video
-**** TODO Gracefully handle inability to create log files
+**** TODO Fix =myproject= filesets to handle non-shell files
+**** TODO Add linting and formatting tasks for Python files
 
 ** Post 0.1 Release
-*** TODO Utility to generate the flamegraphs from trace logs
-*** TODO Separate =mycmd/project= into its own project
 *** TODO Rewrite =mycmd/sessions= into its own project
 *** TODO Figure out Test Coverage
-*** TODO Out of band =myproject= files for work projects
-*** TODO Better support for executing commands and =mycmd/project= tasks in Emacs
+*** TODO Better support for executing commands and =mycmd/project= tasks in Emacs with something outside my own dotfiles
 *** TODO Providing packages for MyCmd for package managers
+*** TODO Potentially own Homebrew tap for installing with Homebrew
 *** TODO Support for custom completion for commands
+*** TODO Add MyCmd to [[https://github.com/oils-for-unix/oils/wiki/The-Biggest-Shell-Programs-in-the-World][The Biggest Shell Programs in the World]]
 
 * Side Quests
 ** =bashdoc=
@@ -119,15 +92,10 @@ Also, I should see if there are ways to instrument this to make sure I am not ac
 ** Are there diagrams I can create about MyCmd's structure that would help?
 
 * Bugs
-** TODO =project.find_files_for_filset= should be additive
-** DONE Command group loading needs to set environment variables
 
 * Tasks
-** TODO Fix =myproject= filesets to handle non-shell files
-** TODO Add MyCmd to [[https://github.com/oils-for-unix/oils/wiki/The-Biggest-Shell-Programs-in-the-World][The Biggest Shell Programs in the World]] when 0.1 is released
 
 * Development Log Entries
-** DONE Why Bash?
 ** TODO 0.1 Release Announcement
 ** TODO Higher Order Functions in Bash
 ** TODO Pseudo-structs
