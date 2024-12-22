@@ -11,6 +11,8 @@ I did small clean up tasks today, including fixing a bug that I discovered when 
 
 I am continuing to make incremental progress to meet my December Adventure and keep up momentum towards the MyCmd initial release.
 
+I also pushed a new snapshot tag [snapshot-r3-2024-12-21](https://github.com/travisbhartwell/mycmd/releases/tag/snapshot-r3-2024-12-21) based on the first commit above, with the fix for the issue I discovered.
+
 ## MyCmd Project Task Runner
 
 I took some time to doing some writing with my [FreeWrite Alpha](https://getfreewrite.com/products/alpha) about the next steps for my project task runner project. I am planning on separating this out into its own project and repository before I create a MyCmd project release. I really like stream of conscious writing for just getting my thoughts out.
