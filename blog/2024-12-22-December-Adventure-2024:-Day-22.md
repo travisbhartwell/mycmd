@@ -9,7 +9,7 @@ Today, I did some more small clean up tasks from my list:
 * [commit 1944c3e8a1589c5fa518a862ffbdfe89db6ee92c](https://github.com/travisbhartwell/mycmd/commit/1944c3e8a1589c5fa518a862ffbdfe89db6ee92c): Add task `execute-single-file-tests` to allow running just a single test file's tests, or a subset of that file's tests.
 * [commit b8917361d11c0353ba1238a9f3ec935accc4d471](https://github.com/travisbhartwell/mycmd/commit/b8917361d11c0353ba1238a9f3ec935accc4d471): Fix a bug in `project.list_files` and add some more project task runner tasks.
 
-## MyCmd Project Task Runner
+## MyCmd: Project Task Runner
 
 As I start to think about separating out the project task runner from MyCmd into its own project, I wanted to do an evaluation of everywhere I use it in my personal projects. I put together this meta [myproject file](https://gist.github.com/travisbhartwell/6d0a0bd237eb710af680d3be88807f40) that I use the Mac OS [mdfind](https://ss64.com/mac/mdfind.html) command to find all files named `myproject` on my local system and then symlink them all into place in an archive directory, using the project directory name for the symlink name.
 
