@@ -25,6 +25,9 @@ readonly _MYCMD_OUTPUT_LIB=1
 #   echo for interal implementation use for functions that are meant to be called
 #   in sub-shells to capture output.
 
+# Auto close file descriptors
+shopt -s varredir_close
+
 # These file descriptors are set up to make output easier
 exec {_MYCMD_OUTPUT_FD}>&1
 readonly _MYCMD_OUTPUT_FD

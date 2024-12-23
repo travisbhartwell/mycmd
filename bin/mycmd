@@ -18,6 +18,9 @@ if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
         PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[*]}]:'
         export PS4
 
+        # Auto close file descriptors
+        shopt -s varredir_close
+
         exec {_MYCMD_EARLY_TRACE_LOG_FD}>>"${_MYCMD_EARLY_TRACE_LOG_FILE}"
         readonly _MYCMD_EARLY_TRACE_LOG_FD
         export _MYCMD_EARLY_TRACE_LOG_FD
