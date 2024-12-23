@@ -957,6 +957,12 @@ function mycmd:registered_item.print_item_version() {
 
     local version
     version="$(mycmd:registered_item.get_version "${!item_struct_ref}")"
+
+    local git_version_info
+    if git_version_info="$(mycmd:registered_item._get_git_version_information "${!item_struct_ref}")"; then
+        readonly git_version_info
+        version="${version}-${git_version_info}"
+    fi
     readonly version
 
     mycmd.output "${namespaced_parts} version ${version}"
@@ -987,6 +993,44 @@ function mycmd:registered_item.print_item_help() {
         mycmd.trace "No help text defined."
     fi
     readonly help_text
+}
+
+function mycmd:registered_item._get_git_version_information() {
+    if ! mycmd.init_bin_no_exit git; then
+        mycmd.debug "git not found, skipping git version check."
+        return 1
+    fi
+
+    # shellcheck disable=SC2178
+    local -n item_struct_ref="${1}"
+
+    local source_directory
+    if ! source_directory="$(mycmd:registered_item.get_source_directory "${!item_struct_ref}")"; then
+        return 1
+    fi
+    readonly source_directory
+
+    cd "${source_directory}"
+
+    # Check if the item source is in a git worktree
+    if ! mycmd.bin_execute git rev-parse --is-inside-work-tree &>/dev/null; then
+        return 1
+    fi
+
+    local git_descriptor
+    # Check to see if the checkout is on a tag
+    if git_descriptor="$(mycmd.bin_execute git describe --exact-match HEAD 2>/dev/null)"; then
+        echo "${git_descriptor}"
+        return 0
+    fi
+
+    # Otherwise, print the 8 character abbreviated hash
+    if ! git_descriptor="$(mycmd.bin_execute git rev-parse --short=8 HEAD 2>/dev/null)"; then
+        return 1
+    fi
+
+    echo "${git_descriptor}"
+    return 0
 }
 
 mycmd.trace "The MyCmd Registry support library has been sourced."
