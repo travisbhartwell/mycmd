@@ -41,6 +41,20 @@ function test_base_mycmd_command_group() {
     assertEquals "This is a help\nMessage" \
         "$(mycmd:command_group.get_help_text mycmd_command_group)"
     assertEquals "0.1" "$(mycmd:command_group.get_version mycmd_command_group)"
+
+    local -a child_commands
+    mycmd:registry.get_child_commands "mycmd" child_commands
+
+    local -r child_command_count=1
+    assertEquals "There are ${child_command_count} registered child commands" \
+        "${child_command_count}" "${#child_commands[@]}"
+
+    local -a child_command_groups
+    mycmd:registry.get_child_command_groups "mycmd" child_command_groups
+
+    local -r child_command_group_count=5
+    assertEquals "There are ${child_command_group_count} registered child command groups" \
+        "${child_command_group_count}" "${#child_command_groups[@]}"
 }
 
 # shellcheck disable=SC2034,SC2312
