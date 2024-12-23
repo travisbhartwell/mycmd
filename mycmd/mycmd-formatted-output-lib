@@ -48,6 +48,25 @@ else
 
         mycmd.call_if_function_exists "${fn}" "${@}"
     }
+
+    # Alias the debug and trace functions to add color
+    shopt -s expand_aliases
+
+    function mycmd.formatted_debug() {
+        if [[ -n "${MYCMD_DEBUG-}" ]]; then
+            # shellcheck disable=SC2312
+            mycmd.log "[$(mycmd.ansi red)DEBUG$(mycmd.ansi resetForeground)] $*"
+        fi
+    }
+    alias mycmd.debug=mycmd.formatted_debug
+
+    function mycmd.formatted_trace() {
+        if [[ -n "${MYCMD_TRACE-}" ]]; then
+            # shellcheck disable=SC2312
+            mycmd.log "[$(mycmd.ansi yellow)TRACE$(mycmd.ansi resetForeground)] $*"
+        fi
+    }
+    alias mycmd.trace=mycmd.formatted_trace
 fi
 
 # ------------------------------------------------------------------------------
