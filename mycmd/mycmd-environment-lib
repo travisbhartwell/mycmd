@@ -85,7 +85,7 @@ function mycmd._set_mycmd_search_path() {
     else
         local p
         local abs_p
-        OLD_IFS="${IFS}"
+        local OLD_IFS="${IFS}"
         IFS=":"
         for p in ${MYCMD_SEARCH_PATH}; do
             if abs_p="$(mycmd._get_absolute_path "${p}")"; then

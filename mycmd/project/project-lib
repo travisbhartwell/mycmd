@@ -355,7 +355,7 @@ function project.add_files_to_fileset() {
 function project.list-files() {
     local -n fileset_to_list="${1}"
 
-    echo "${fileset_to_list[*]}" | tr ' ' '\n'
+    printf '%s\n' "${fileset_to_list[@]}"
 }
 
 function project.load_task_library() {

@@ -50,6 +50,9 @@ This will be the release with full CI working.
 **** DONE Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
 **** DONE Use =mycmd-formatted_output-lib= in MyCmd's =myproject=
 **** DONE Add tasks for executing specific tests
+**** DONE Fix =project.list-files= to handle spaces in names
+**** TODO Validate MYPROJECT_BASE_DIR gets set correctly when not run from project root
+**** TODO =project.find_files_for_filset= should support symlinks and files with spaces in them
 **** TODO Get a better source code line counter integrated
 **** TODO Get local git hooks set up and working
 **** TODO Audit support library loading
