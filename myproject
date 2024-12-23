@@ -337,9 +337,21 @@ function summarize_test_results() {
         "Test File" "Result"
 }
 
+function get-test-log-file() {
+    local description
+    description="$(date '+%Y-%m-%d-%H%M%S')"
+    readonly description
+
+    local -r test_log_file="${TMP_WORKING_DIR}/test-output-${description}.log"
+
+    echo "${test_log_file}"
+}
+
 function execute-test() {
     local -r test_log_file="${1}"
-    local -r test_file="${2}"
+    shift
+    local -r test_file="${1}"
+    shift
 
     if [[ ! -e "${test_file}" ]]; then
         mycmd.log "Test file not found: ${test_file}"
@@ -358,12 +370,32 @@ function execute-test() {
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
         PATH="${BIN_DIR}:${PATH}" \
-        "${test_file}" || result=$?
+        "${test_file}" "${@}" || result=$?
 
     mycmd.log "Result of ${test_file}: ${result}"
     echo "Result of ${test_file}: ${result}" >>"${test_log_file}"
     return "${result}"
 }
+
+function execute-single-file-tests() {
+    local -r test_file="${1}"
+    shift
+
+    local test_log_file
+    test_log_file="$(get-test-log-file)"
+    readonly test_log_file
+
+    if (($# > 0)); then
+        # https://github.com/kward/shunit2?tab=readme-ov-file#-running-specific-tests-from-the-command-line
+        # Prefix the arguments with --
+        set -- "${test_log_file}" "${test_file}" -- "${@}"
+    else
+        set -- "${test_log_file}" "${test_file}"
+    fi
+
+    execute-test "${@}"
+}
+project.register_task execute-single-file-tests
 
 function execute-all-tests() {
     local -n test_fileset="${1}"
@@ -371,11 +403,9 @@ function execute-all-tests() {
     local -A results=()
     local result
 
-    local description
-    description="$(date '+%Y-%m-%d-%H%M%S')"
-    readonly description
-
-    local -r test_log_file="${TMP_WORKING_DIR}/test-output-${description}.log"
+    local test_log_file
+    test_log_file="$(get-test-log-file)"
+    readonly test_log_file
 
     local final_result=0
 

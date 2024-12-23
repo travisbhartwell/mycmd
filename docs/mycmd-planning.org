@@ -49,7 +49,7 @@ This will be the release with full CI working.
 *** Project Tasks
 **** DONE Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
 **** DONE Use =mycmd-formatted_output-lib= in MyCmd's =myproject=
-**** TODO Add tasks for executing specific tests
+**** DONE Add tasks for executing specific tests
 **** TODO Get a better source code line counter integrated
 **** TODO Get local git hooks set up and working
 **** TODO Audit support library loading
