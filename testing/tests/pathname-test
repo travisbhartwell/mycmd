@@ -130,24 +130,24 @@ function test_is_child_of_mycmd_path_directory() {
 }
 
 # shellcheck disable=SC2016,SC2312
-function test_fully_qualified_name_for_path() {
+function testfully_qualified_name_for_path() {
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
-        'mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not absolute" \
-        'mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "/tmp is not a child of a MyCmd path directory" \
-        'mycmd._fully_qualified_name_for_path /tmp'
+        'mycmd.fully_qualified_name_for_path /tmp'
 
     assertEquals "mycmd/project" \
-        "$(mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/project")"
+        "$(mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/project")"
 
     assertEquals "mycmd/test-command-group" \
-        "$(mycmd._fully_qualified_name_for_path "${TEST_USER_LIB_DIRECTORY}/test-command-group")"
+        "$(mycmd.fully_qualified_name_for_path "${TEST_USER_LIB_DIRECTORY}/test-command-group")"
 
     assertEquals "mycmd" \
-        "$(mycmd._fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
+        "$(mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}")"
 }
 
 declare -Agx walk_path_dir_counts=()

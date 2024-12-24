@@ -88,7 +88,7 @@ function mycmd._path_relative_to_directory() {
     fi
 }
 
-function mycmd._fully_qualified_name_for_path() {
+function mycmd.fully_qualified_name_for_path() {
     local -r full_path="${1}"
 
     if ! mycmd.is_valid_absolute_path "${full_path}"; then
@@ -119,7 +119,7 @@ function mycmd._fully_qualified_name_for_path() {
 function mycmd.is_child_of_mycmd_path_directory() {
     local -r full_path="${1}"
 
-    if ! mycmd._fully_qualified_name_for_path "${full_path}" >/dev/null; then
+    if ! mycmd.fully_qualified_name_for_path "${full_path}" >/dev/null; then
         mycmd.debug "'${full_path}' is not a child of any of the MyCmd base directories."
         return 1
     fi

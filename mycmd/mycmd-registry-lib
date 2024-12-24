@@ -191,27 +191,24 @@ function mycmd:registry.get_command_group_from_file() {
         return 1
     fi
 
-    # Checking against the source directory instead of the source file to allow this to be called
-    # for either command groups or command group support libraries
     local source_directory
     source_directory="$(dirname "${source_file_path}")"
     readonly source_directory
 
     local fully_qualified_name
-    local potential_source_directory
+    if ! fully_qualified_name="$(mycmd.fully_qualified_name_for_path "${source_directory}")"; then
+        mycmd.debug "'${source_file_path}' is not on the MyCmd search path."
+        return 1
+    fi
+    readonly fully_qualified_name
 
-    for fully_qualified_name in "${_MYCMD_COMMAND_GROUPS[@]}"; do
-        potential_source_directory="${_MYCMD_ITEM_SOURCE_DIRECTORIES["${fully_qualified_name}"]}"
+    if ! mycmd:registry.command_group_exists_for_fully_qualified_name "${fully_qualified_name}"; then
+        mycmd.debug "No command group found for source file '${source_file_path}'."
+        return 1
+    fi
 
-        if [[ "${potential_source_directory}" == "${source_directory}" ]]; then
-            echo "${fully_qualified_name}"
-            return 0
-        fi
-    done
-
-    mycmd.debug "No command group found for source file '${source_file_path}'."
-
-    return 1
+    echo "${fully_qualified_name}"
+    return 0
 }
 
 function mycmd:registry.command_group_exists_for_fully_qualified_name() {

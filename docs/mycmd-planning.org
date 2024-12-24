@@ -9,6 +9,7 @@ This will be the release with full CI working.
 **** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
 **** TODO Finalize coding standards and fix any breakage
 **** TODO Evaluate if there is a way to ensure class invariants, i.e. the parallel assoc arrays are in sync
+**** TODO Audit support library loading
 
 *** Continuous Integration
 **** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions
@@ -45,17 +46,16 @@ This will be the release with full CI working.
 **** TODO Separate =mycmd/project= into its own project
 **** TODO Out of band =myproject= files for work projects
 **** TODO =project.find_files_for_filset= should be additive
+**** TODO Validate MYPROJECT_BASE_DIR gets set correctly when not run from project root
+**** TODO =project.find_files_for_filset= should support symlinks and files with spaces in them
 
 *** Project Tasks
 **** DONE Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
 **** DONE Use =mycmd-formatted_output-lib= in MyCmd's =myproject=
 **** DONE Add tasks for executing specific tests
 **** DONE Fix =project.list-files= to handle spaces in names
-**** TODO Validate MYPROJECT_BASE_DIR gets set correctly when not run from project root
-**** TODO =project.find_files_for_filset= should support symlinks and files with spaces in them
 **** TODO Get a better source code line counter integrated
 **** TODO Get local git hooks set up and working
-**** TODO Audit support library loading
 **** TODO Use log rotation for MyCmd test logs
 **** TODO Fix =myproject= filesets to handle non-shell files
 **** TODO Add linting and formatting tasks for Python files
@@ -66,6 +66,7 @@ This will be the release with full CI working.
 *** TODO Better support for executing commands and =mycmd/project= tasks in Emacs with something outside my own dotfiles
 *** TODO Providing packages for MyCmd for package managers
 *** TODO Potentially own Homebrew tap for installing with Homebrew
+*** TODO Mise plugin for MyCmd?
 *** TODO Support for custom completion for commands
 *** TODO Add MyCmd to [[https://github.com/oils-for-unix/oils/wiki/The-Biggest-Shell-Programs-in-the-World][The Biggest Shell Programs in the World]]
 
