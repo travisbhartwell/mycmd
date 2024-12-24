@@ -24,13 +24,13 @@ This will be the release with full CI working.
 
 *** Features and Bugs
 **** DONE Add support for reading snapshot info for versions
+**** DONE Add full help text for =mycmd= Command Group
 **** TODO Fix =mycmd.init_bin= to work all at once
 **** TODO =mycmd/create= Command Group for creating new command groups and commands from templates
 **** TODO =mycmd/logging= works correctly on Mac OS and Linux
 **** TODO Feature detection for Bash version requirements
 **** TODO Metadata caching for command groups and commands
 **** TODO Gracefully handle inability to create log files
-**** TODO Add full help text for =mycmd= Command Group
 **** TODO Potentially support more than two columns in =mycmd.print_table=
 
 *** Installation

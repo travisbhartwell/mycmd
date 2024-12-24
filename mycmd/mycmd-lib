@@ -52,7 +52,28 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 # TODO: Generate this more intelligently, including snapshot information
 declare -rgx _MYCMD_VERSION=0.1
 readonly _MYCMD_SHORT_DESCRIPTION="MyCmd: The Bash Command Framework"
-readonly _MYCMD_HELP_TEXT="MyCmd is a framework for creating and managing Bash commands and scripts."
+readonly _MYCMD_HELP_TEXT="MyCmd is a framework for creating and managing Bash commands and scripts.
+
+Usage:
+
+mycmd [-h | --help] [-v | --version]
+
+mycmd <command_group>... [-h | --help] [-v | --version] [arguments]
+      See the help for the individual command groups for further details.
+
+mycmd <command_group>... <command> [-h | --help] [-v | --version] [arguments]
+      See the help for the individual sub commands for further details.
+
+The following environment variables are recognized, if set:
+
+MYCMD_SYSTEM_BASE_DIR    - the base directory for system defined MyCmd Command Groups.
+MYCMD_USER_BASE_DIR      - the base directory for user defined MyCmd Command Groups. Defaults to ${HOME}/mycmd if not set. This path is required to exist.
+MYCMD_SEARCH_PATH        - colon (:) separated list of paths to search for MyCmd Command Groups and Commands.
+MYCMD_SHELL_TRACE        - enables Bash's xtrace (set -x) for the executing command.
+MYCMD_SHELL_VERBOSE      - enables Bash's verbose mode (set -v) for the executing command.
+MYCMD_DEBUG              - enables output of debug logging in the executing command.
+MYCMD_TRACE              - enables output of trace logging in the executing command.
+MYCMD_LOG_FILE           - filename for MyCmd logging to output to instead of stderr."
 
 function mycmd.register_all_command_groups_and_commands() {
     mycmd:registry.discover_command_groups_and_commands
