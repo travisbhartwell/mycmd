@@ -6,59 +6,142 @@
 This will be the release with full CI working.
 
 *** Clean Up and Conventions
-**** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
-**** TODO Finalize coding standards and fix any breakage
-**** TODO Evaluate if there is a way to ensure class invariants, i.e. the parallel assoc arrays are in sync
-**** TODO Audit support library loading
+**** General Coding Standards and Conventions
+***** TODO Update[[file:mycmd-concepts-and-conventions.org][ MyCmd Concepts and Conventions]] with full coding standards sufficient for contributors to understand my style and standards
+***** TODO Finalize coding standards and fix any breakage
+***** TODO Audit all code to classify functions as
+****** File Private Functions
+****** File Public but MyCmd Internal Functions
+****** Public Functions
+**** Logging and Error Handling Standards
+***** TODO Evaluate all uses of =mycmd.debug=, =mycmd.trace=, and =mycmd.log=. Define a standard of when to use what and update things to match.
+
+**** General Code Quality
+***** TODO Evaluate if there is a way to ensure class invariants, i.e. the parallel assoc arrays are in sync
+***** TODO Audit support library loading
 
 *** Continuous Integration
-**** TODO Using =mycmd= and =mycmd/project= to build itself in GitHub Actions
-**** TODO Tests and Linters Running in GitHub Actions
-**** TODO Pull Request workflow configured with GitHub Actions that creates snapshot tags
+**** Goals
+***** Use =mycmd= and =mycmd/project= to build itself in GitHub Actions
+***** Tests and Linters Running in GitHub Actions
+***** Pull Request workflow configured with GitHub Actions
+***** Main Pull Request merge actions that creates snapshot tags
+**** Tasks
+***** TODO Gather links to GHA documentation and examples
+***** TODO Find out what software is available in GHA images
+***** TODO Document all software needed to run full release and testing
+***** TODO Figure out what will be needed from Mise
 
 *** Documentation
-**** TODO Add documentation comments for the registry
-**** TODO User documentation for =mycmd= use
-**** TODO Documentation for MyCmd command group and command authors
-**** TODO Release announcement video
+**** Code Comments and Documentation
+***** Audit each implementation source file and do the following:
+****** TODO Create TODO for each public function that needs documented
+****** TODO For each concept, decide what should be inline in code comments and what should be in [[file:mycmd-concepts-and-conventions.org][ MyCmd Concepts and Conventions]]
+****** TODO Create TODO for each concept that needs documented (such as the Registry)
+
+***** Add needed code documentation
+****** TODO Add documentation comments for the registry
+****** TODO Clean up documentation comments for Command Groups
+****** TODO Clean up documentation comments for Commands
+
+**** Documentation Mechanics
+***** TODO Explore [[https://docs.grit.io/language/overview][GritQL]] as potential for generating docs
+***** TODO Experiment with quick-n-dirty script with =grep=, =sed=, etc to extract and generate Markdown docs
+***** TODO Figure out how to deploy documentation parallel to the development log
+
+**** End User Documentation
+***** TODO Create placeholder Markdown end user documentation file in the =docs= folder
+***** TODO Write outline for end user documentation
+
+**** Command Group and Command Author Documentation
+***** TODO Create placeholder Markdown author documentation file in the =docs= folder
+***** TODO Write outline for author documentation
+
+**** Release Announcement
+***** TODO Take notes on details to add to release announcement
+***** TODO Make notes of demos to create
+***** TODO Choose tool to generate demo GIFs or MP4s
+***** TODO Generate demo GIFs
+***** TODO Write script for YouTube release announcement video
+***** TODO Record Youtube release announcement video
+***** TODO Write release announcement post
 
 *** Features and Bugs
-**** DONE Add support for reading snapshot info for versions
-**** DONE Add full help text for =mycmd= Command Group
-**** TODO Fix =mycmd.init_bin= to work all at once
-**** TODO =mycmd/create= Command Group for creating new command groups and commands from templates
-**** TODO =mycmd/logging= works correctly on Mac OS and Linux
-**** TODO Feature detection for Bash version requirements
-**** TODO Metadata caching for command groups and commands
-**** TODO Gracefully handle inability to create log files
-**** TODO Potentially support more than two columns in =mycmd.print_table=
+**** Cross Platform Support
+***** TODO Freewrite design ideas for all-at-once =mycmd.init_bin=
+***** TODO Fix =mycmd.init_bin= to work all at once
+***** TODO Audit the project code and catalog external dependencies required (GNU coreutils, etc)
+
+**** =mycmd/create= Command Group
+***** TODO Freewrite features needed for =mycmd/create=
+***** TODO Explore how =envsubst= works for variables you don't want expanded
+***** TODO Implement =mycmd create new-command-group=
+***** TODO Implement =mycmd create new-command-group-support-lib=
+***** TODO Implement =mycmd create new-command=
+
+**** Bash Required Features Detection
+***** TODO Audit the project code and catalog Bash features required
+***** TODO Look at Bash changelog for when features were added
+***** TODO Find Oils post with info about feature detection
+***** TODO Implement feature detection for Bash version requirements
+
+**** Log File Handling
+***** TODO Gracefully handle inability to create log files
+***** TODO =mycmd/logging= works correctly on Mac OS and Linux
+***** TODO Audit =mycmd/logging= code for required updates
+
+**** Formatted Output
+***** TODO Potentially support more than two columns in =mycmd.print_table=
+
+**** Metadata Caching and Loading
+***** TODO Freewrite metadata cache design and ideas
+***** TODO Implement Metadata cache for command groups and commands
 
 *** Installation
-**** TODO Installation Shell Script and Instructions
+**** Installation Instructions
+***** TODO Create placeholder Markdown installation documentation file in the =docs= folder
+***** TODO Add brief section to [[file:~/Developer/Personal/mycmd/main/README.md][README]] with install instructions
+***** TODO Document required dependencies
+
+**** TODO Installation Shell Script
+***** TODO Implement feature detection for Bash version requirements for install script
+***** TODO Implement external dependency detection for install script
+***** TODO Implement installing from release
+***** TODO Implement installing from Git checkout (branch, snapshot, or HEAD)
 
 *** Interactive Shell Integration
-**** TODO Zsh completion support
-**** TODO Bash Completion Support
-**** TODO Fish Completion Support
-**** TODO =mycmd/shell= Command Group for shell integration
+**** =mycmd/shell= Command Group for shell integration
+***** TODO Freewrite about design and requirements for =mycmd/shell= Command Group
+
+**** Completion Support
+***** Goals
+****** Have a =--completion= parameter to =mycmd= that outputs metadata for completion
+****** Implement specific completion for each shell that interprets that metadata
+***** Tasks
+****** TODO Explore tools that generate completion for multiple shells to figure out commonality
+****** TODO Implement Zsh completion support
+****** TODO Implement Bash completion support
+****** TODO Implement Fish completion support
 
 *** Project Task Runner
 **** TODO Separate =mycmd/project= into its own project
 **** TODO Out of band =myproject= files for work projects
 **** TODO =project.find_files_for_filset= should be additive
-**** TODO Validate MYPROJECT_BASE_DIR gets set correctly when not run from project root
 **** TODO =project.find_files_for_filset= should support symlinks and files with spaces in them
 
 *** Project Tasks
-**** DONE Convert =nullglob-wrapper= in MyCmd's =myproject= to use the ones from pathname
-**** DONE Use =mycmd-formatted_output-lib= in MyCmd's =myproject=
-**** DONE Add tasks for executing specific tests
-**** DONE Fix =project.list-files= to handle spaces in names
-**** TODO Get a better source code line counter integrated
-**** TODO Get local git hooks set up and working
-**** TODO Use log rotation for MyCmd test logs
-**** TODO Fix =myproject= filesets to handle non-shell files
-**** TODO Add linting and formatting tasks for Python files
+**** Support all development and support file types
+***** TODO Fix =myproject= filesets to handle non-shell files
+***** TODO Add linting and formatting tasks for Python files
+
+**** Project Metrics
+***** TODO Get a better source code line counter integrated
+
+**** Project Development Environment
+***** TODO Get local git hooks set up and working
+
+**** Testing
+***** TODO Use log rotation for MyCmd test logs
 
 ** Post 0.1 Release
 *** TODO Rewrite =mycmd/sessions= into its own project
