@@ -50,11 +50,11 @@ This will be the release with full CI working.
 ***** TODO Figure out how to deploy documentation parallel to the development log
 
 **** End User Documentation
-***** TODO Create placeholder Markdown end user documentation file in the =docs= folder
+***** DONE Create placeholder Markdown end user documentation file in the =docs= folder
 ***** TODO Write outline for end user documentation
 
 **** Command Group and Command Author Documentation
-***** TODO Create placeholder Markdown author documentation file in the =docs= folder
+***** DONE Create placeholder Markdown author documentation file in the =docs= folder
 ***** TODO Write outline for author documentation
 
 **** Release Announcement
@@ -86,6 +86,7 @@ This will be the release with full CI working.
 ***** TODO Implement feature detection for Bash version requirements
 
 **** Log File Handling
+***** TODO Audit all places where creating a file could fail and make tasks to fix
 ***** TODO Gracefully handle inability to create log files
 ***** TODO =mycmd/logging= works correctly on Mac OS and Linux
 ***** TODO Audit =mycmd/logging= code for required updates
@@ -99,8 +100,9 @@ This will be the release with full CI working.
 
 *** Installation
 **** Installation Instructions
-***** TODO Create placeholder Markdown installation documentation file in the =docs= folder
-***** TODO Add brief section to [[file:~/Developer/Personal/mycmd/main/README.md][README]] with install instructions
+***** DONE Create placeholder Markdown installation documentation file in the =docs= folder
+***** TODO Write outline of installation instructions
+***** TODO Add brief section to [[file:~/Developer/Personal/mycmd/main/README.md][README]] with install instructions and link to detailed documentation
 ***** TODO Document required dependencies
 
 **** TODO Installation Shell Script
