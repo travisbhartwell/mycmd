@@ -94,7 +94,7 @@ function project.get_default_task() {
 # - returns 0 if the file is found in the current directory or any parent
 # if found, the absolute path of the location of the file is echoed
 function project.find_up() {
-    local -r name_to_find="${1}"
+    local -n names_to_find="${1}"
     local starting_dir="${2}"
 
     if ! starting_dir="$(mycmd.canonicalize_path "${starting_dir}")"; then
@@ -102,25 +102,30 @@ function project.find_up() {
         return 1
     fi
 
-    local -r possible_path="${starting_dir}/${name_to_find}"
+    local name
+    for name in "${names_to_find[@]}"; do
+        local -r possible_path="${starting_dir}/${name}"
 
-    if [[ -e "${possible_path}" ]]; then
-        echo "${possible_path}"
-        return 0
-    fi
+        if [[ -e "${possible_path}" ]]; then
+            echo "${possible_path}"
+            return 0
+        fi
+    done
 
     if [[ "${starting_dir}" = "/" ]]; then
-        mycmd.debug "File '${name_to_find}' not found"
+        mycmd.debug "Files named '${names_to_find[*]}' not found"
         return 1
     fi
 
-    project.find_up "${name_to_find}" "${starting_dir}/.."
+    project.find_up "${!names_to_find}" "${starting_dir}/.."
 }
 
 function project.find_closest_project_file() {
     local -r starting_dir="${1}"
+    # shellcheck disable=SC2034
+    local -a myproject_file_names=("myproject-tasks" "myproject")
 
-    project.find_up myproject "${starting_dir}"
+    project.find_up myproject_file_names "${starting_dir}"
 }
 
 function project.load_project_file() {
