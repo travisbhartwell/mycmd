@@ -104,7 +104,7 @@ function project.find_up() {
 
     local name
     for name in "${names_to_find[@]}"; do
-        local -r possible_path="${starting_dir}/${name}"
+        local possible_path="${starting_dir}/${name}"
 
         if [[ -e "${possible_path}" ]]; then
             echo "${possible_path}"
