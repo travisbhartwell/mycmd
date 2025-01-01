@@ -71,6 +71,13 @@ This will be the release with full CI working.
 ***** TODO Freewrite design ideas for all-at-once =mycmd.init_bin=
 ***** TODO Fix =mycmd.init_bin= to work all at once
 ***** TODO Audit the project code and catalog external dependencies required (GNU coreutils, etc)
+***** Platform Standard User Directories Support
+****** TODO Implement Mac OS user configuration directory =~/Library/Application Support/mycmd=
+****** TODO Implement Mac OS user caches directory =~/Library/Caches/mycmd=
+****** TODO Implement Linux user configuration directory =~/.config/mycmd= or =XDG_CONFIG_HOME=
+****** TODO Implement Linux user caches directory =~/.cache/mycmd= or =XDG_CACHE_HOME=
+****** TODO Implement get named configuration file for command group or command
+****** TODO Implement get named cache file for command group or command
 
 **** =mycmd/create= Command Group
 ***** TODO Freewrite features needed for =mycmd/create=
