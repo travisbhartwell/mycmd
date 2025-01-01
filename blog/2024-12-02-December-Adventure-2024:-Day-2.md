@@ -5,6 +5,7 @@ Today, I finished a draft of a development log entry that I've been meaning to w
 ## Other Things
 
 I haven't had time to do much more today. However, ideas bouncing around in my head that I started researching:
+
 * I want to explore writing tools in [Janet](https://janet-lang.org) to see how the language feels to use.
 * I started at looking the requirements for implement a new major mode in Emacs.
 
