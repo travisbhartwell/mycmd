@@ -271,4 +271,32 @@ function mycmd:command_group._get_support_library_file_name() {
     echo "${command_group_name}-${support_library_name}-lib"
 }
 
+# ------------------------------------------------------------------------------
+# Command Group Config and Cache File Functions
+function mycmd:command_group.get_cache_file() {
+    local -r cache_file_name="${1}"
+
+    local fully_qualified_name
+    if ! fully_qualified_name="$(mycmd._dispatch_with_calling_file mycmd:registry.get_command_group_from_file)"; then
+        mycmd.debug "Error getting command group from file '${BASH_SOURCE[1]}'."
+        return 1
+    fi
+    readonly fully_qualified_name
+
+    mycmd.get_user_cache_file "${fully_qualified_name}" "${cache_file_name}"
+}
+
+function mycmd:command_group.get_config_file() {
+    local -r config_file_name="${1}"
+
+    local fully_qualified_name
+    if ! fully_qualified_name="$(mycmd._dispatch_with_calling_file mycmd:registry.get_command_group_from_file)"; then
+        mycmd.debug "Error getting command group from file '${BASH_SOURCE[1]}'."
+        return 1
+    fi
+    readonly fully_qualified_name
+
+    mycmd.get_user_config_file "${fully_qualified_name}" "${config_file_name}"
+}
+
 mycmd.trace "The MyCmd Command Group support library has been sourced."

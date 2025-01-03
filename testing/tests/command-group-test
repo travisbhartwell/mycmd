@@ -6,21 +6,37 @@ if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
     echo >&2 "Error fetching test directory."
     exit 1
 fi
+readonly TEST_DIRECTORY
 
 if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching test vendor directory."
     exit 1
 fi
+readonly TEST_VENDOR_DIRECTORY
 
 if ! TEST_USER_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../user-base" && pwd -P); then
     echo >&2 "Error fetching test user base directory."
     exit 1
 fi
+readonly TEST_USER_LIB_DIRECTORY
 
 if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching MyCmd lib directory."
     exit 1
 fi
+readonly MYCMD_LIB_DIRECTORY
+
+if ! TEST_USER_DIR="$(mktemp -q -d -t "test-user-XXXXXX")"; then
+    echo >&2 "Error getting temporary directory for test user directory."
+    exit 1
+fi
+
+# On Mac OS, the TMPDIR is a symlink, so this gets the resolved path
+if ! TEST_USER_DIR=$(cd "${TEST_USER_DIR}" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test user directory."
+    exit 1
+fi
+readonly TEST_USER_DIR
 
 function test_mycmd_command_group_lib_is_loaded() {
     assertTrue 'MyCmd Lib Command Group Support Lib is loaded' '[ -v _MYCMD_COMMAND_GROUP_LIB ]'
@@ -57,7 +73,7 @@ function test_base_mycmd_command_group() {
         "${child_command_group_count}" "${#child_command_groups[@]}"
 }
 
-# shellcheck disable=SC2034,SC2312
+# shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_shell_extended_command_group() {
     local -A shell_extended_command_group
     mycmd:registry.get_command_group "mycmd/shell/extended" shell_extended_command_group
@@ -75,15 +91,27 @@ function test_shell_extended_command_group() {
         "$(mycmd:command_group.get_help_text shell_extended_command_group)"
     assertEquals "1.0" "$(mycmd:command_group.get_version shell_extended_command_group)"
 
-    mycmd.trace "Loading the command groups:"
     assertTrue 'Successfullly loads the command groups' \
         'mycmd:command_group.load_command_group shell_extended_command_group'
 
     assertTrue 'MyCmd Shell Group Lib Loaded' '[ -v _MYCMD_SHELL_LIB ]'
     assertTrue 'MyCmd Shell Extended Group Lib Loaded' '[ -v _MYCMD_SHELL_EXTENDED_LIB ]'
+
+    local -r expected_config_file="${TEST_USER_DIR}/config/mycmd/shell/extended/config.json"
+    assertEquals "${expected_config_file}" "${_MYCMD_SHELL_EXTENDED_CONFIG}"
+    assertTrue "'${expected_config_file}' exists" \
+        '[[ -e "${expected_config_file}" ]]'
+
+    local -r expected_cache_file="${TEST_USER_DIR}/cache/mycmd/shell/extended/cache-file"
+    assertEquals "${expected_cache_file}" "${_MYCMD_SHELL_EXTENDED_CACHE}"
+    assertTrue "'${expected_cache_file}' exists" \
+        '[[ -e "${expected_cache_file}" ]]'
 }
 
 function oneTimeSetUp() {
+    export _MYCMD_TEST_USER_CACHE_HOME="${TEST_USER_DIR}/cache/mycmd"
+    export _MYCMD_TEST_USER_CONFIG_HOME="${TEST_USER_DIR}/config/mycmd"
+
     # shellcheck source=../../mycmd/mycmd-command-group-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-group-lib"
 
@@ -93,6 +121,12 @@ function oneTimeSetUp() {
         "MyCmd Short Description" \
         "This is a help\nMessage" \
         "0.1"
+}
+
+function oneTimeTearDown() {
+    if [[ -d "${TEST_USER_DIR}" ]]; then
+        rm -rf "${TEST_USER_DIR}" || true
+    fi
 }
 
 # shellcheck source=../vendor/shunit2

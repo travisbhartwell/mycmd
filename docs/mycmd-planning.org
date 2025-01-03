@@ -101,6 +101,7 @@ This will be the release with full CI working.
 
 **** Formatted Output
 ***** TODO Potentially support more than two columns in =mycmd.print_table=
+***** TODO Allow using =mycmd.debug= and =mycmd.trace= instead of =mycmd.output= for table output
 
 **** Metadata Caching and Loading
 ***** TODO Freewrite metadata cache design and ideas
@@ -108,6 +109,9 @@ This will be the release with full CI working.
 
 **** Command Group and Command Testing
 ***** TODO Freewrite about potential tools and patterns for testing commands and command groups
+
+**** Pathname Handling
+***** TODO Handle strings with un-expanded =~=
 
 *** Installation
 **** Installation Instructions

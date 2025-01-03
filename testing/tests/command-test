@@ -6,22 +6,37 @@ if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
     echo >&2 "Error fetching test directory."
     exit 1
 fi
+readonly TEST_DIRECTORY
 
 if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching test vendor directory."
     exit 1
 fi
+readonly TEST_VENDOR_DIRECTORY
 
 if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching MyCmd lib directory."
     exit 1
 fi
+readonly MYCMD_LIB_DIRECTORY
+
+if ! TEST_USER_DIR="$(mktemp -q -d -t "test-user-XXXXXX")"; then
+    echo >&2 "Error getting temporary directory for test user directory."
+    exit 1
+fi
+
+# On Mac OS, the TMPDIR is a symlink, so this gets the resolved path
+if ! TEST_USER_DIR=$(cd "${TEST_USER_DIR}" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching test user directory."
+    exit 1
+fi
+readonly TEST_USER_DIR
 
 function test_mycmd_command_lib_is_loaded() {
     assertTrue 'MyCmd Lib Command Support Lib is loaded' '[ -v _MYCMD_COMMAND_LIB ]'
 }
 
-# shellcheck disable=SC2034,SC2154,SC2312
+# shellcheck disable=SC2016,SC2034,SC2154,SC2312
 function test_test-command() {
     local -A command
     mycmd:registry.get_command "mycmd/test-command" command
@@ -41,14 +56,33 @@ function test_test-command() {
 
     assertTrue 'test-command can be executed' \
         'mycmd:command.execute command'
+
+    local -r expected_config_file="${TEST_USER_DIR}/config/mycmd/test-command/config.ini"
+    assertEquals "${expected_config_file}" "${_TEST_COMMAND_CONFIG}"
+    assertTrue "'${expected_config_file}' exists" \
+        '[[ -e "${expected_config_file}" ]]'
+
+    local -r expected_cache_file="${TEST_USER_DIR}/cache/mycmd/test-command/cache-file"
+    assertEquals "${expected_cache_file}" "${_TEST_COMMAND_CACHE}"
+    assertTrue "'${expected_cache_file}' exists" \
+        '[[ -e "${expected_cache_file}" ]]'
 }
 
 function oneTimeSetUp() {
+    export _MYCMD_TEST_USER_CACHE_HOME="${TEST_USER_DIR}/cache/mycmd"
+    export _MYCMD_TEST_USER_CONFIG_HOME="${TEST_USER_DIR}/config/mycmd"
+
     # shellcheck source=../../mycmd/mycmd-command-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-lib"
 
     # This will be called in mycmd-lib normally
     mycmd:registry.discover_command_groups_and_commands
+}
+
+function oneTimeTearDown() {
+    if [[ -d "${TEST_USER_DIR}" ]]; then
+        rm -rf "${TEST_USER_DIR}" || true
+    fi
 }
 
 # shellcheck source=../vendor/shunit2

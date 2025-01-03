@@ -226,14 +226,14 @@ function mycmd.find_support_library_for_command_group() {
     local -r support_library_file_name="${3}"
 
     # Strip the leading mycmd from the fully qualified name
-    local realtive_path="${fully_qualified_name#mycmd/}"
-    realtive_path="${fully_qualified_name#mycmd}"
+    local relative_path="${fully_qualified_name#mycmd/}"
+    relative_path="${relative_path#mycmd}"
 
     local base
     local full_path
     local start=false
     for base in "${_MYCMD_SEARCH_PATH[@]}"; do
-        full_path="${base}${relative_path:+/}${realtive_path}"
+        full_path="${base}${relative_path:+/}${relative_path}"
 
         if [[ -d "${full_path}" ]]; then
             if [[ "${full_path}" = "${command_group_source_directory}" ]]; then

@@ -46,6 +46,87 @@ function mycmd.is_linux() {
 }
 
 # ------------------------------------------------------------------------------
+# Platform Standard User Directories Support
+
+# Allow overriding the user config home in tests
+if [[ -v _MYCMD_TEST_USER_CONFIG_HOME ]]; then
+    readonly _MYCMD_USER_CONFIG_DIRECTORY="${_MYCMD_TEST_USER_CONFIG_HOME}"
+elif mycmd.is_mac_os; then
+    readonly _MYCMD_USER_CONFIG_DIRECTORY="${HOME}/Library/Application Support/mycmd"
+else
+    # Falling back to the XDG standard for Linux and other OSes
+    if [[ -v XDG_CONFIG_HOME ]]; then
+        readonly _MYCMD_USER_CONFIG_DIRECTORY="${XDG_CONFIG_HOME}/mycmd"
+    else
+        readonly _MYCMD_USER_CONFIG_DIRECTORY="${HOME}/.config/mycmd"
+    fi
+fi
+
+if ! [[ -d "${_MYCMD_USER_CONFIG_DIRECTORY}" ]]; then
+    mycmd.trace "Creating missing MyCmd User Configuration directory at '${_MYCMD_USER_CONFIG_DIRECTORY}'."
+    mkdir -p "${_MYCMD_USER_CONFIG_DIRECTORY}" || true
+fi
+
+mycmd.trace "Using MyCmd User Configuration directory '${_MYCMD_USER_CONFIG_DIRECTORY}'."
+
+function mycmd.get_user_config_file() {
+    local -r fully_qualified_name="${1}"
+    local -r config_file_name="${2}"
+
+    local relative_path="${fully_qualified_name#mycmd/}"
+    relative_path="${relative_path#mycmd}"
+    readonly relative_path
+
+    local -r fully_qualified_config_path="${_MYCMD_USER_CONFIG_DIRECTORY}/${relative_path}"
+
+    if ! [[ -d "${fully_qualified_config_path}" ]]; then
+        mycmd.trace "Creating missing configuration directory '${fully_qualified_config_path}' for '${fully_qualified_name}'."
+        mkdir -p "${fully_qualified_config_path}" || true
+    fi
+
+    echo "${fully_qualified_config_path}/${config_file_name}"
+}
+
+# Allow overriding the user cache home in tests
+if [[ -v _MYCMD_TEST_USER_CACHE_HOME ]]; then
+    readonly _MYCMD_USER_CACHE_DIRECTORY="${_MYCMD_TEST_USER_CACHE_HOME}"
+elif mycmd.is_mac_os; then
+    readonly _MYCMD_USER_CACHE_DIRECTORY="${HOME}/Library/Caches/mycmd"
+else
+    # Falling back to the XDG standard for Linux and other OSes
+    if [[ -v XDG_CACHE_HOME ]]; then
+        reaodnly _MYCMD_USER_CACHE_DIRECTORY="${XDG_CACHE_HOME}/mycmd"
+    else
+        readonly _MYCMD_USER_CACHE_DIRECTORY="${HOME}/.cache/mycmd"
+    fi
+fi
+
+if ! [[ -d "${_MYCMD_USER_CACHE_DIRECTORY}" ]]; then
+    mycmd.trace "Creating missing MyCmd User Cache directory at '${_MYCMD_USER_CACHE_DIRECTORY}'."
+    mkdir -p "${_MYCMD_USER_CACHE_DIRECTORY}" || true
+fi
+
+mycmd.trace "Using MyCmd User Cache directory '${_MYCMD_USER_CACHE_DIRECTORY}'."
+
+function mycmd.get_user_cache_file() {
+    local -r fully_qualified_name="${1}"
+    local -r cache_file_name="${2}"
+
+    local relative_path="${fully_qualified_name#mycmd/}"
+    relative_path="${relative_path#mycmd}"
+    readonly relative_path
+
+    local -r fully_qualified_cache_path="${_MYCMD_USER_CACHE_DIRECTORY}/${relative_path}"
+
+    if ! [[ -d "${fully_qualified_cache_path}" ]]; then
+        mycmd.trace "Creating missing cache directory '${fully_qualified_cache_path}' for '${fully_qualified_name}'."
+        mkdir -p "${fully_qualified_cache_path}" || true
+    fi
+
+    echo "${fully_qualified_cache_path}/${cache_file_name}"
+}
+
+# ------------------------------------------------------------------------------
 # Convenience methods for locating common utilities cross platform
 
 # MYCMD_BIN

@@ -19,4 +19,18 @@ mycmd:command_group.register_help_text "Library for common routines for extended
 [[ -n "${_MYCMD_SHELL_EXTENDED_LIB:-}" ]] && return
 readonly _MYCMD_SHELL_EXTENDED_LIB=1
 
+_MYCMD_SHELL_EXTENDED_CONFIG="$(mycmd:command_group.get_config_file "config.json")"
+readonly _MYCMD_SHELL_EXTENDED_CONFIG
+
+mycmd.trace "Using configuration file '${_MYCMD_SHELL_EXTENDED_CONFIG}'"
+
+touch "${_MYCMD_SHELL_EXTENDED_CONFIG}"
+
+_MYCMD_SHELL_EXTENDED_CACHE="$(mycmd:command_group.get_cache_file "cache-file")"
+readonly _MYCMD_SHELL_EXTENDED_CACHE
+
+mycmd.trace "Using cache file '${_MYCMD_SHELL_EXTENDED_CACHE}'"
+
+touch "${_MYCMD_SHELL_EXTENDED_CACHE}"
+
 mycmd.trace "The MyCmd Shell Extended command group library has been sourced."

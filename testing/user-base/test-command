@@ -13,9 +13,22 @@ mycmd:command.register_help_text "${_MYCMD_NAMESPACED_PARTS_STRING} -h"
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
+_TEST_COMMAND_CONFIG="$(mycmd:command.get_config_file "config.ini")"
+readonly _TEST_COMMAND_CONFIG
+
+_TEST_COMMAND_CACHE="$(mycmd:command.get_cache_file "cache-file")"
+readonly _TEST_COMMAND_CACHE
+
 mycmd.defer_at_startup mycmd.output "Finished starting of test-command."
 mycmd.defer_at_exit mycmd.output "Finished execution of test-command."
 function mycmd.main() {
     mycmd.output "Running test-command."
+
+    mycmd.trace "Using configuration file '${_TEST_COMMAND_CONFIG}'."
+    touch "${_TEST_COMMAND_CONFIG}"
+
+    mycmd.trace "Using cache file '${_TEST_COMMAND_CACHE}'."
+    touch "${_TEST_COMMAND_CACHE}"
+
     return 0
 }

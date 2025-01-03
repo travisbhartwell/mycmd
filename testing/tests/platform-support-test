@@ -6,16 +6,25 @@ if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
     echo >&2 "Error fetching test directory."
     exit 1
 fi
+readonly TEST_DIRECTORY
 
 if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching test vendor directory."
     exit 1
 fi
+readonly TEST_VENDOR_DIRECTORY
 
 if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching MyCmd lib directory."
     exit 1
 fi
+readonly MYCMD_LIB_DIRECTORY
+
+if ! TMP_WORKING_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../tmp" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching the temp working directory."
+    exit 1
+fi
+readonly TMP_WORKING_DIRECTORY
 
 function test_mycmd_platform_support_lib_is_loaded() {
     assertTrue 'MyCmd Platform Support Lib is loaded' '[ -v _MYCMD_PLATFORM_SUPPORT_LIB ]'
@@ -54,7 +63,30 @@ function test_init_bin__exits() {
         "This should be not printed"
 }
 
+# shellcheck disable=SC2154,SC2312
+function test_user_config_home() {
+    local -r expected_user_config="${TMP_WORKING_DIRECTORY}/config/mycmd"
+    assertEquals "_MYCMD_USER_CONFIG_DIRECTORY is '${expected_user_config}'" \
+        "${expected_user_config}" "${_MYCMD_USER_CONFIG_DIRECTORY}"
+
+    local -r config_file="${expected_user_config}/logging/config.json"
+    assertEquals "${config_file}" "$(mycmd.get_user_config_file "mycmd/logging" config.json)"
+}
+
+# shellcheck disable=SC2154,SC2312
+function test_user_cache_home() {
+    local -r expected_user_cache="${TMP_WORKING_DIRECTORY}/cache/mycmd"
+    assertEquals "_MYCMD_USER_CACHE_DIRECTORY is '${expected_user_cache}'" \
+        "${expected_user_cache}" "${_MYCMD_USER_CACHE_DIRECTORY}"
+
+    local -r cache_file="${expected_user_cache}/logging/cache-file"
+    assertEquals "${cache_file}" "$(mycmd.get_user_cache_file "mycmd/logging" cache-file)"
+}
+
 function oneTimeSetUp() {
+    export _MYCMD_TEST_USER_CACHE_HOME="${TMP_WORKING_DIRECTORY}/cache/mycmd"
+    export _MYCMD_TEST_USER_CONFIG_HOME="${TMP_WORKING_DIRECTORY}/config/mycmd"
+
     # shellcheck source=../../mycmd/mycmd-platform-support-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-platform-support-lib"
 }

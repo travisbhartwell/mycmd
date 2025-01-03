@@ -29,6 +29,7 @@ fi
 
 mycmd.load_mycmd_lib_support_lib "function-calling"
 mycmd.load_mycmd_lib_support_lib "output"
+mycmd.load_mycmd_lib_support_lib "platform-support"
 mycmd.load_mycmd_lib_support_lib "registry"
 
 # ------------------------------------------------------------------------------
@@ -167,6 +168,20 @@ function mycmd:command.execute() {
     mycmd.main "${@}" || result=$?
 
     return "${result}"
+}
+
+# ------------------------------------------------------------------------------
+# Command Config and Cache File Functions
+function mycmd:command.get_cache_file() {
+    local -r cache_file_name="${1}"
+
+    mycmd.get_user_cache_file "${_MYCMD_FULLY_QUALIFIED_NAME}" "${cache_file_name}"
+}
+
+function mycmd:command.get_config_file() {
+    local -r config_file_name="${1}"
+
+    mycmd.get_user_config_file "${_MYCMD_FULLY_QUALIFIED_NAME}" "${config_file_name}"
 }
 
 mycmd.trace "The MyCmd Command support library has been sourced."
