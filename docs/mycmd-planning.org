@@ -78,6 +78,7 @@ This will be the release with full CI working.
 ****** TODO Implement Linux user caches directory =~/.cache/mycmd= or =XDG_CACHE_HOME=
 ****** TODO Implement get named configuration file for command group or command
 ****** TODO Implement get named cache file for command group or command
+****** TODO Implement mechanism for testing to override user directory locations
 
 **** =mycmd/create= Command Group
 ***** TODO Freewrite features needed for =mycmd/create=
@@ -104,6 +105,9 @@ This will be the release with full CI working.
 **** Metadata Caching and Loading
 ***** TODO Freewrite metadata cache design and ideas
 ***** TODO Implement Metadata cache for command groups and commands
+
+**** Command Group and Command Testing
+***** TODO Freewrite about potential tools and patterns for testing commands and command groups
 
 *** Installation
 **** Installation Instructions
