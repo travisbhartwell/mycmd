@@ -277,4 +277,34 @@ function new-december-adventure-post() {
 }
 project.register_task new-december-adventure-post
 
+#----------------------------------------
+# Weekly Progress reports
+readonly WEEKLY_PROGRESS_TEMPLATE="${TEMPLATE_DIR}/weekly-progress.md.template"
+
+mycmd.init_bin envsubst
+function new-weekly-progress-update-post() {
+    local post_date
+    post_date="$(date '+%Y-%m-%d')"
+    readonly post_date
+
+    WEEK="$(date '+%V')"
+    export WEEK
+    YEAR="$(date '+%Y')"
+    export YEAR
+
+    local -r post_file_name="${BLOG_DIR}/${post_date}-MyCmd-and-MyProject-Weekly-Progress-Report:-${YEAR}-Week-${WEEK}.md"
+
+    if [[ -e "${post_file_name}" ]]; then
+        mycmd.log "Post '${post_file_name}' already exists, not overwriting."
+        return 1
+    fi
+
+    mycmd.bin_execute envsubst \
+        <"${WEEKLY_PROGRESS_TEMPLATE}" \
+        >"${post_file_name}"
+
+    mycmd.output "Generated new Weekly Progress Update Post for ${post_date}: '${post_file_name}'."
+}
+project.register_task new-weekly-progress-update-post
+
 project.register_default_task generate
