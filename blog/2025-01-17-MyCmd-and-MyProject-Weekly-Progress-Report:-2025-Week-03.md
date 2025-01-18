@@ -17,7 +17,7 @@ I pushed [eight commits](https://github.com/travisbhartwell/myproject/commits/ma
 * Documenting Concepts and Conventions in the [Concepts and Conventions Document](https://github.com/travisbhartwell/myproject/blob/000291b7a3b3aa14e2179037bede6dc31ad28b8b/docs/myproject-concepts-and-conventions.org?plain=1) regarding task definition directories, project root directories, and naming of variables related to these concepts.
 * Updating the naming of variables to match the conventions documented above.
 * Organizing the library and test files.
-* Documenting the design of the Task Registry and added tasks to those.
+* Documenting the design of the Task Registry in the [Design Document](https://github.com/travisbhartwell/myproject/blob/000291b7a3b3aa14e2179037bede6dc31ad28b8b/docs/myproject-design.org?plain=1) and added tasks to the [Planning Document](https://github.com/travisbhartwell/myproject/blob/000291b7a3b3aa14e2179037bede6dc31ad28b8b/docs/myproject-planning.org?plain=1) to accomplish that design.
 * A minimal implementation of a Task Registry that only stores the task fully qualified name and the function for the task.
 * A minimal loader of a task definition file.
 
