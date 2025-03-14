@@ -46,7 +46,7 @@ function test_log_rotation() {
     assertTrue 'log-file.3 exists' '[[ -e "${test_directory}/log-file.3" ]]'
     assertEquals 'log-file.3 has expected content' 'log-file.2' "$(cat "${test_directory}"/log-file.3 || true)"
     assertTrue 'log-file.4.gz exists' '[[ -e "${test_directory}/log-file.4.gz" ]]'
-    assertEquals 'log-file.4.gz has expected content' 'log-file.3' "$(gzcat "${test_directory}"/log-file.4.gz || true)"
+    assertEquals 'log-file.4.gz has expected content' 'log-file.3' "$(mycmd.bin_execute zcat "${test_directory}"/log-file.4.gz || true)"
 
     echo "another-log-file" >"${test_directory}/log-file"
 
@@ -59,7 +59,7 @@ function test_log_rotation() {
     assertTrue 'log-file.3 exists' '[[ -e "${test_directory}/log-file.3" ]]'
     assertEquals 'log-file.3 has expected content' 'log-file.1' "$(cat "${test_directory}"/log-file.3 || true)"
     assertTrue 'log-file.4.gz exists' '[[ -e "${test_directory}/log-file.4.gz" ]]'
-    assertEquals 'log-file.4.gz has expected content' 'log-file.2' "$(gzcat "${test_directory}"/log-file.4.gz || true)"
+    assertEquals 'log-file.4.gz has expected content' 'log-file.2' "$(mycmd.bin_execute zcat "${test_directory}"/log-file.4.gz || true)"
     assertTrue \
         'log-file.5 does not exist' \
         '[[ ! -e "${test_directory}/log-file.5" ]]'

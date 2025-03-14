@@ -32,11 +32,12 @@ function logging._faketty() {
     fi
 }
 
+mycmd.defer_at_startup mycmd.init_bin zcat
 function logging.cat_log() {
     local -r log_file="${1}"
 
     if [[ "${log_file}" =~ .+\.gz$ ]]; then
-        gzcat "${log_file}"
+        mycmd.bin_execute zcat "${log_file}"
     else
         cat "${log_file}"
     fi

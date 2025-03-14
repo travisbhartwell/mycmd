@@ -245,6 +245,22 @@ function mycmd._init_bin() {
                 found_command=1
             fi
             ;;
+        "zcat+Darwin")
+            local gzcat_path
+            if gzcat_path=$(mycmd._locate_bin gzcat); then
+                MYCMD_BIN[${command}]="${gzcat_path}"
+            else
+                found_command=1
+            fi
+            ;;
+        "zcat+Linux")
+            local zcat_path
+            if zcat_path=$(mycmd._locate_bin zcat); then
+                MYCMD_BIN[${command}]="${zcat_path}"
+            else
+                found_command=1
+            fi
+            ;;
         *)
             if command_path=$(mycmd._locate_bin "${command}"); then
                 MYCMD_BIN[${command}]="${command_path}"
