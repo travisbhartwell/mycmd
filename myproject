@@ -186,8 +186,12 @@ function list-mycmd-lib-functions-with-source-file() {
 }
 project.register_task_with_fileset list-mycmd-lib-functions-with-source-file list-mycmd-lib-functions-with-source-file MYCMD_LIB_FILES
 
-mycmd.defer_at_startup mycmd.init_bin index-shell-functions
 function generate-shell-function-index() {
+    if ! mycmd.init_bin index-shell-functions; then
+        mycmd.log "Neccessary tool 'index-shell-functions' not found."
+        return 1
+    fi
+
     local -n fileset="${1}"
 
     # TODO: Handle subdirectories
@@ -203,7 +207,7 @@ project.register_task_with_fileset index-mycmd-lib \
     generate-shell-function-index \
     MYCMD_LIB_FILES
 
-mycmd.init_bin grep
+mycmd.defer_at_startup mycmd.init_bin grep
 function catalog-mycmd-lib-function-call-tree() {
     local -n fileset="${1}"
     local -a functions
@@ -248,7 +252,7 @@ project.register_task_with_fileset catalog-mycmd-lib-function-call-tree \
     catalog-mycmd-lib-function-call-tree \
     MYCMD_LIB_FILES
 
-mycmd.init_bin grep
+mycmd.defer_at_startup mycmd.init_bin grep
 function catalog-mycmd-lib-function-callers() {
     local -n implementation_fileset="${1}"
     local -a functions
@@ -460,8 +464,12 @@ project.register_task remove-test-logs
 
 #----------------------------------------
 # Benchmarking
-mycmd.defer_at_startup mycmd.init_bin hyperfine
 function execute-benchmark() {
+    if ! mycmd.init_bin hyperfine; then
+        mycmd.log "Required tool 'hyperfine' not found."
+        return 1
+    fi
+
     local -r output_csv="${1}"
     local -r benchmark_command="${2}"
 
@@ -536,9 +544,13 @@ function remove-temporary-file() {
     fi
 }
 
-mycmd.defer_at_startup mycmd.init_bin flamegraph.pl
 readonly GENERATE_PERF_FILE="${SUPPORT_DIR}/analysis/generate-perf-file.py"
 function create-flamegraph-from-shell-trace() {
+    if ! mycmd.init_bin flamegraph.pl; then
+        mycmd.log "Required tool 'flamegraph.pl' not found."
+        return 1
+    fi
+
     local -r shell_trace_log="${1}"
     local -r flamegraph_svg_file="${2}"
 
@@ -805,10 +817,14 @@ function get_previous_snapshot_tag() {
     return 1
 }
 
-mycmd.defer_at_startup mycmd.init_bin gum
 function promote_local_snapshot_to_development() {
     if (($# == 0)); then
         mycmd.log "Missing snapshot to promote."
+        return 1
+    fi
+
+    if ! mycmd.init_bin gum; then
+        mycmd.log "Required tool 'gum' not found."
         return 1
     fi
 
@@ -992,8 +1008,12 @@ project.register_task update-snapshot-worktree-to-latest-development-snapshot \
 
 #----------------------------------------
 # Repo Stats
-mycmd.init_bin git-quick-stats
 function git-quick-stats() {
+    if ! mycmd.init_bin git-quick-stats; then
+        mycmd.log "Required tool 'git-quick-stats' not found."
+        return 1
+    fi
+
     # shellcheck disable=SC2154
     /usr/bin/env PATH="${HOMEBREW_PREFIX}/opt/coreutils/libexec/gnubin:${PATH}" \
         git quick-stats "${@}"

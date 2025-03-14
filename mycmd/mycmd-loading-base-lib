@@ -34,7 +34,7 @@ function mycmd.capture_unprotected_functions() {
     local -n array_ref="${1}"
     # shellcheck disable=SC2034
     readarray -t array_ref < <(declare -F \
-        | grep -v "^declare \-fr" \
+        | grep -v '^declare -fr' \
         | cut -d' ' -f3 \
         | sort -u \
         || true)
@@ -47,7 +47,7 @@ function mycmd._capture_unprotected_functions_except_pattern() {
 
     # shellcheck disable=SC2034
     readarray -t array_ref < <(declare -F \
-        | grep -v "^declare \-fr" \
+        | grep -v '^declare -fr' \
         | cut -d' ' -f3 \
         | sort -u \
         | grep -v "${except_pattern}" \

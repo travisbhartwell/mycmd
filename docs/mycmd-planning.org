@@ -67,18 +67,19 @@ This will be the release with full CI working.
 ***** TODO Write release announcement post
 
 *** Features and Bugs
+
 **** Cross Platform Support
 ***** TODO Freewrite design ideas for all-at-once =mycmd.init_bin=
 ***** TODO Fix =mycmd.init_bin= to work all at once
 ***** TODO Audit the project code and catalog external dependencies required (GNU coreutils, etc)
 ***** Platform Standard User Directories Support
-****** TODO Implement Mac OS user configuration directory =~/Library/Application Support/mycmd=
-****** TODO Implement Mac OS user caches directory =~/Library/Caches/mycmd=
-****** TODO Implement Linux user configuration directory =~/.config/mycmd= or =XDG_CONFIG_HOME=
-****** TODO Implement Linux user caches directory =~/.cache/mycmd= or =XDG_CACHE_HOME=
-****** TODO Implement get named configuration file for command group or command
-****** TODO Implement get named cache file for command group or command
-****** TODO Implement mechanism for testing to override user directory locations
+****** DONE Implement Mac OS user configuration directory =~/Library/Application Support/mycmd=
+****** DONE Implement Mac OS user caches directory =~/Library/Caches/mycmd=
+****** DONE Implement Linux user configuration directory =~/.config/mycmd= or =XDG_CONFIG_HOME=
+****** DONE Implement Linux user caches directory =~/.cache/mycmd= or =XDG_CACHE_HOME=
+****** DONE Implement get named configuration file for command group or command
+****** DONE Implement get named cache file for command group or command
+****** DONE Implement mechanism for testing to override user directory locations
 
 **** =mycmd/create= Command Group
 ***** TODO Freewrite features needed for =mycmd/create=
@@ -112,6 +113,12 @@ This will be the release with full CI working.
 
 **** Pathname Handling
 ***** TODO Handle strings with un-expanded =~=
+
+**** Item Registry
+***** TODO =mycmd:registry._get_item= should unset blank fields if set in case array is being re-used
+
+**** Help Functions
+***** TODO Implement =mycmd.print_command_help= or something similar
 
 *** Installation
 **** Installation Instructions
