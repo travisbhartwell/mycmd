@@ -95,9 +95,9 @@ This will be the release with full CI working.
 ***** TODO Implement feature detection for Bash version requirements
 
 **** Log File Handling
+***** DONE =mycmd/logging= works correctly on Mac OS and Linux
 ***** TODO Audit all places where creating a file could fail and make tasks to fix
 ***** TODO Gracefully handle inability to create log files
-***** TODO =mycmd/logging= works correctly on Mac OS and Linux
 ***** TODO Audit =mycmd/logging= code for required updates
 
 **** Formatted Output

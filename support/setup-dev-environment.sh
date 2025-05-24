@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-readonly GIT_REPO_URL=git@github.com:travisbhartwell/mycmd.git
+if [[ -n "${MYCMD_USE_GIT_HTTPS-}" ]]; then
+    readonly GIT_REPO_URL=https://github.com/travisbhartwell/mycmd.git
+else
+    readonly GIT_REPO_URL=git@github.com:travisbhartwell/mycmd.git
+fi
 
 function absolute_dir_path() {
     local -r p="${1}"
