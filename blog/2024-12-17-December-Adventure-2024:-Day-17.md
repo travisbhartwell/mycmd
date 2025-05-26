@@ -25,7 +25,7 @@ Today, on the Nova discord, Arnaldur described an [Entity Component System](http
 >
 > I'm pretty sure there isn't anything more to it in the general sense
 
-It made me realize that what I've been implementing using the [Pseudo-Struct Pattern](../2024-12-07-december-adventure-2024:-day-7//#mycmd-development-pattern-pseudo-structs) and the implementation of the Registry and the common type, Registered Item, for Command Groups and Commands is essentially an ECS using this definition. The entity id that I use is the fully qualified name, such as `mycmd/shell/extended`.
+It made me realize that what I've been implementing using the [Pseudo-Struct Pattern](../2024-12-07-december-adventure-2024:-day-7/#mycmd-development-pattern-pseudo-structs) and the implementation of the Registry and the common type, Registered Item, for Command Groups and Commands is essentially an ECS using this definition. The entity id that I use is the fully qualified name, such as `mycmd/shell/extended`.
 
 I think I want to read more about how ECS are implemented and used to see if I can find improvements to the pattern in my implementation.
 
