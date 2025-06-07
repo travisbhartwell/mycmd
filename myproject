@@ -171,6 +171,7 @@ project.register_task preview
 mycmd.defer_at_startup mycmd.init_bin find
 function clean() {
     mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type f -name '*.html' -delete || true
+    mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type d -empty -delete || true
 }
 project.register_task clean
 
@@ -284,7 +285,7 @@ readonly WEEKLY_PROGRESS_TEMPLATE="${TEMPLATE_DIR}/weekly-progress.md.template"
 mycmd.init_bin envsubst
 function new-weekly-progress-update-post() {
     local post_date
-    post_date="$(date '+%Y-%m-%d')"
+    post_date="$(gdate --date='this Friday' '+%Y-%m-%d')"
     readonly post_date
 
     WEEK="$(date '+%V')"
