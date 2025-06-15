@@ -3,6 +3,7 @@
 ## MyProject Demo
 
 My demoable goals for this week were:
+
 - Clean up the output `mycmd myproject list-tasks` -- sorting tasks from `main` first and listing tasks by their namespaced parts strings instead of fully qualified names.
 - Allow arguments at task registration time.
 - Allow arguments at task execution time.
@@ -26,12 +27,12 @@ I pushed [8 commits](https://github.com/travisbhartwell/myproject/commits/main/?
 ## Next Week
 
 My plans for next week include the following:
+
 - updating the conventions and concepts document and design document to reflect the latest changes
-- cleaning up the test suites. There's a bit of redundancy in some things that I don't need.
+- cleaning up the test suites. There's a bit of redundancy in some things that I don't need
 - designing and implementing the support for filesets
 
 Filesets are a concept from my original implementation. Essentially a fileset is a global array that has a list of a filenames. Tasks can be registered with filesets and they act on the files in that set. I think I want to make this new implementation a bit cleaner conceptually so I have some things to revisit first.
-
 
 ---
 
