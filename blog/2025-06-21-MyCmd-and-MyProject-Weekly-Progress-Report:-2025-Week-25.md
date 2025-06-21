@@ -10,6 +10,7 @@ I had some ideas of how I could instrument my tests, building on the ideas I hav
 
 With the work I did this week, I was able to instrument my tests and then generate `.coverage` files, that show the project source, with each line annotated with the following:
 
+- The number of times the line was executed
 - A `-`, if the line was not executed
 - A blank space ` `, if the line was blank or was the end of a compound statement (`fi`, `else`, `done`, `esac`, or `}`)
 - A `#`, if the line contained only a comment
