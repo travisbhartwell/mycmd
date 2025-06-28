@@ -44,7 +44,7 @@ That said, I am looking for a new job right now; please reach out with my contac
 
 ## Next Week
 
-I started working on fileset support this week but haven't yet made any commits. I will finish this work
+I started working on fileset support this week but haven't yet made any commits. I will finish the fileset work next week. I'm making pretty good progress on MyProject!
 
 ---
 
