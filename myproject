@@ -699,6 +699,27 @@ function remove-test-output() {
 }
 project.register_task remove-test-output
 
+readonly TEST_TEMPLATE_FILE="${SUPPORT_DIR}/test-template-file"
+
+function new-test-file() {
+    local -r test_file_name="${1}"
+
+    if [[ "${test_file_name}" != *-test ]]; then
+        mycmd.log "Test file '${test_file_name}' doesn't end with '-test'".
+        return 1
+    fi
+
+    local -r test_file="${TEST_FILES_BASE}/${test_file_name}"
+
+    if [[ -e "${test_file}" ]]; then
+        mycmd.log "Test file '${test_file}' already exists."
+        return 1
+    fi
+
+    cp "${TEST_TEMPLATE_FILE}" "${test_file}"
+}
+project.register_task new-test-file
+
 #----------------------------------------
 # Benchmarking
 function execute-benchmark() {
