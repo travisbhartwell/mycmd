@@ -7,6 +7,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 (return 0 >/dev/null 2>&1) || {
+    # coverage skip: 2
     echo >&2 "$0 is a library only meant to be sourced."
     exit 1
 }
@@ -190,6 +191,7 @@ function mycmd._walk_path_for_directory() {
     local dir_name
     for dir in "${dirs[@]}"; do
         if ! dir_name="$(basename "${dir}")"; then
+            # coverage skip: 2
             mycmd.debug "Error getting basename of '${dir}'."
             return 1
         fi

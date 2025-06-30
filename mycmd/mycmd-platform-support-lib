@@ -15,6 +15,7 @@ set -o nounset -o errexit -o errtrace -o pipefail
 readonly _MYCMD_PLATFORM_SUPPORT_LIB=1
 
 if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    # coverage skip: 3
     readonly _MYCMD_PLATFORM_SUPPORT_LIB_SELF_FILE="${BASH_SOURCE[0]}"
     _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_PLATFORM_SUPPORT_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
     readonly _MYCMD_LIB_DIR
@@ -24,6 +25,7 @@ fi
 # Source Required Support Libraries
 
 if [[ ! -v _MYCMD_LOADING_BASE_LIB ]]; then
+    # coverage skip: 2
     # shellcheck source=./mycmd-loading-base-lib
     source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
 fi
@@ -38,10 +40,12 @@ _MYCMD_OS="$(uname -s)"
 readonly _MYCMD_OS
 
 function mycmd.is_mac_os() {
+    # coverage skip: 1
     [[ "${_MYCMD_OS}" == "Darwin" ]]
 }
 
 function mycmd.is_linux() {
+    # coverage skip: 1
     [[ "${_MYCMD_OS}" == "Linux" ]]
 }
 
@@ -52,8 +56,10 @@ function mycmd.is_linux() {
 if [[ -v _MYCMD_TEST_USER_CONFIG_HOME ]]; then
     readonly _MYCMD_USER_CONFIG_DIRECTORY="${_MYCMD_TEST_USER_CONFIG_HOME}"
 elif mycmd.is_mac_os; then
+    # coverage skip: 1
     readonly _MYCMD_USER_CONFIG_DIRECTORY="${HOME}/Library/Application Support/mycmd"
 else
+    # coverage skip: 6
     # Falling back to the XDG standard for Linux and other OSes
     if [[ -v XDG_CONFIG_HOME ]]; then
         readonly _MYCMD_USER_CONFIG_DIRECTORY="${XDG_CONFIG_HOME}/mycmd"
@@ -91,8 +97,10 @@ function mycmd.get_user_config_file() {
 if [[ -v _MYCMD_TEST_USER_CACHE_HOME ]]; then
     readonly _MYCMD_USER_CACHE_DIRECTORY="${_MYCMD_TEST_USER_CACHE_HOME}"
 elif mycmd.is_mac_os; then
+    # coverage skip: 1
     readonly _MYCMD_USER_CACHE_DIRECTORY="${HOME}/Library/Caches/mycmd"
 else
+    # coverage skip: 6
     # Falling back to the XDG standard for Linux and other OSes
     if [[ -v XDG_CACHE_HOME ]]; then
         reaodnly _MYCMD_USER_CACHE_DIRECTORY="${XDG_CACHE_HOME}/mycmd"

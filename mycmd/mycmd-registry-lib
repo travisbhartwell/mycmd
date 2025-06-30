@@ -7,6 +7,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 (return 0 >/dev/null 2>&1) || {
+    # coverage skip: 2
     echo >&2 "$0 is a library only meant to be sourced."
     exit 1
 }
@@ -90,6 +91,7 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
 # MyCmd Registry Item Public Registration Functions
 function mycmd:registry.register_version() {
     if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        # coverage skip: 2
         mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_STRING must be set."
         return 1
     fi
@@ -102,6 +104,7 @@ function mycmd:registry.register_version() {
 
 function mycmd:registry.register_short_description() {
     if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        # coverage skip: 2
         mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_STRING must be set."
         return 1
     fi
@@ -114,6 +117,7 @@ function mycmd:registry.register_short_description() {
 
 function mycmd:registry.register_help_text() {
     if [[ ! -v _MYCMD_SOURCING_FOR_HELP && ! -v _MYCMD_FULLY_QUALIFIED_NAME && ! -v _MYCMD_NAMESPACED_PARTS_STRING ]]; then
+        # coverage skip: 2
         mycmd.debug "Error: _MYCMD_SOURCING_FOR_HELP, _MYCMD_FULLY_QUALIFIED_NAME, and _MYCMD_NAMESPACED_PARTS_STRING must be set."
         return 1
     fi
@@ -419,6 +423,7 @@ function mycmd:registry._command_group_source_file_path_for_directory() {
 
     local name
     if ! name="$(basename "${source_directory}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting basename of '${source_directory}'."
         return 1
     fi
@@ -580,12 +585,14 @@ function mycmd:registry._reload_item() {
     local -n item_struct_ref="${1}"
 
     if [[ ! -v item_struct_ref["${_ITEM_TYPE_FIELD}"] ]]; then
+        # coverage skip: 2
         mycmd.debug "Item referenced by item_struct_ref not properly formed."
         return 1
     fi
     local -r item_type="${item_struct_ref["${_ITEM_TYPE_FIELD}"]}"
 
     if [[ ! -v item_struct_ref["${_ITEM_FULLY_QUALIFIED_NAME_FIELD}"] ]]; then
+        # coverage skip: 2
         mycmd.debug "Item referenced by item_struct_ref not properly formed."
         return 1
     fi
@@ -670,6 +677,7 @@ function mycmd:registered_item.get_type() {
 function mycmd:registered_item.is_command_group() {
     local item_type
     if ! item_type="$(mycmd:registered_item.get_type "${@}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting type field from item."
         return 1
     fi
@@ -681,6 +689,7 @@ function mycmd:registered_item.is_command_group() {
 function mycmd:registered_item.is_command() {
     local item_type
     if ! item_type="$(mycmd:registered_item.get_type "${@}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting type field from item."
         return 1
     fi
@@ -776,6 +785,7 @@ function mycmd:registered_item.is_metadata_loaded() {
     if ! is_metadata_loaded="$(mycmd:registered_item._get_required_field_from_item_struct \
         "${_ITEM_METADATA_LOADED_FIELD}" \
         "${@}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting metadata loaded field from registered item."
         return 1
     fi

@@ -7,6 +7,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 (return 0 >/dev/null 2>&1) || {
+    # coverage skip: 2
     echo >&2 "$0 is a library only meant to be sourced."
     exit 1
 }
@@ -15,6 +16,7 @@ set -o nounset -o errexit -o errtrace -o pipefail
 readonly _MYCMD_LOADING_LIB=1
 
 if [[ ! -v _MYCMD_LIB_DIR ]]; then
+    # coverage skip: 3
     readonly _MYCMD_LOADING_LIB_SELF_FILE="${BASH_SOURCE[0]}"
     _MYCMD_LIB_DIR=$(cd "$(dirname "${_MYCMD_LOADING_LIB_SELF_FILE}")" &>/dev/null && pwd -P)
     readonly _MYCMD_LIB_DIR
@@ -24,6 +26,7 @@ fi
 # Source Required Support Libraries
 
 if [[ ! -v _MYCMD_LOADING_BASE_LIB ]]; then
+    # coverage skip: 2
     # shellcheck source=./mycmd-loading-base-lib
     source "${_MYCMD_LIB_DIR}/mycmd-loading-base-lib"
 fi

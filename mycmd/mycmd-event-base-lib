@@ -7,6 +7,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 (return 0 >/dev/null 2>&1) || {
+    # coverage skip: 2
     echo >&2 "$0 is a library only meant to be sourced."
     exit 1
 }
@@ -34,6 +35,7 @@ mycmd._load_mycmd_lib_support_lib "vendoring"
 # ------------------------------------------------------------------------------
 # Event Handling Support
 if ! mycmd.load_vendor_library "bashup.events"; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required vendor library 'bashup.events' missing."
 fi
 

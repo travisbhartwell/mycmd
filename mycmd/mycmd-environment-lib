@@ -7,6 +7,7 @@
 set -o nounset -o errexit -o errtrace -o pipefail
 
 (return 0 >/dev/null 2>&1) || {
+    # coverage skip: 2
     echo >&2 "$0 is a library only meant to be sourced."
     exit 1
 }
@@ -30,28 +31,34 @@ fi
 # ------------------------------------------------------------------------------
 # Validate environment
 if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" ]]; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required environment variable MYCMD_SYSTEM_BASE_DIR is not set."
 fi
 
 if [[ ! -d "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_SYSTEM_BASE_DIR, '${MYCMD_SYSTEM_BASE_DIR}' does not exist."
 fi
 mycmd.trace "MYCMD_SYSTEM_BASE_DIR: ${MYCMD_SYSTEM_BASE_DIR}"
 
 if [[ -z "${MYCMD_USER_BASE_DIR-}" ]]; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required environment variable MYCMD_USER_BASE_DIR is not set."
 fi
 
 if [[ ! -d "${MYCMD_USER_BASE_DIR}" ]]; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_USER_BASE_DIR, '${MYCMD_USER_BASE_DIR}' does not exist."
 fi
 mycmd.trace "MYCMD_USER_BASE_DIR:   ${MYCMD_USER_BASE_DIR}"
 
 if [[ -z "${MYCMD_VENDOR_DIR-}" ]]; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required environment variable MYCMD_VENDOR_DIR is not set."
 fi
 
 if [[ ! -d "${MYCMD_VENDOR_DIR}" ]]; then
+    # coverage skip: 1
     mycmd.err_exit 1 "Required directory referenced in environment variable MYCMD_VENDOR_DIR, '${MYCMD_VENDOR_DIR}' does not exist."
 fi
 mycmd.trace "MYCMD_VENDOR_DIR:      ${MYCMD_VENDOR_DIR}"
