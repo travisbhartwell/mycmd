@@ -6,16 +6,15 @@ if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
     echo >&2 "Error fetching test directory."
     exit 1
 fi
+readonly TEST_DIRECTORY
 
 if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching test vendor directory."
     exit 1
 fi
+readonly TEST_VENDOR_DIRECTORY
 
-if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching MyCmd lib directory."
-    exit 1
-fi
+source "${TEST_DIRECTORY}/testing-support-lib"
 
 # ------------------------------------------------------------------------------
 # Verify that MyCmb Lib and each of the Support Libraries are Loaded, Including Transitive Dependencies
@@ -84,17 +83,16 @@ function test_mycmd_function_calling_lib_is_loaded() {
     assertTrue 'MyCmd Function Calling Lib is loaded' '[ -v _MYCMD_FUNCTION_CALLING_LIB ]'
 }
 
+# shellcheck disable=SC2154
 function oneTimeSetUp() {
-    # shellcheck source=../../mycmd/mycmd-lib
+    start_tracing
+
+    # shellcheck source=../..emycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
+}
 
-    # Log library constants
-    mycmd.trace "Logging defined library constants:"
-
-    local constant
-    while read -r constant; do
-        mycmd.trace "Constant: '${constant}'."
-    done < <(declare -r | grep ".*_LIB=.*" | sed -r -n 's/declare -r (.*)=.*/\1/p' | sort || true)
+function oneTimeTearDown() {
+    cleanup_tracing
 }
 
 # shellcheck source=../vendor/shunit2

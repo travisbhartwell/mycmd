@@ -7,15 +7,7 @@ if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
     exit 1
 fi
 
-if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching test vendor directory."
-    exit 1
-fi
-
-if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching MyCmd lib directory."
-    exit 1
-fi
+source "${TEST_DIRECTORY}/testing-support-lib"
 
 function test_mycmd_lib_is_loaded() {
     assertTrue 'MyCmd Lib is loaded' '[ -v _MYCMD_LIB ]'
@@ -70,9 +62,16 @@ function test_log_rotation() {
 }
 
 function oneTimeSetUp() {
+    start_tracing
+
+    # shellcheck disable=SC2154 source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
     mycmd.source_mycmd_lib "logging"
 }
 
-# shellcheck source=../vendor/shunit2
+function oneTimeTearDown() {
+    cleanup_tracing
+}
+
+# shellcheck disable=SC2154 source=../vendor/shunit2
 . "${TEST_VENDOR_DIRECTORY}/shunit2"

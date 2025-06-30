@@ -1,0 +1,110 @@
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+## Common routines and variables across test suites
+
+[[ -n "${_MYCMD_TEST_SUPPORT_LIB:-}" ]] && return
+readonly _MYCMD_TEST_SUPPORT_LIB=1
+
+if [[ ! -v TEST_DIRECTORY ]]; then
+    if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching test directory."
+        exit 1
+    fi
+    export TEST_DIRECTORY
+    readonly TEST_DIRECTORY
+fi
+
+if [[ ! -v TEST_VENDOR_DIRECTORY ]]; then
+    if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching test vendor directory."
+        exit 1
+    fi
+    export TEST_VENDOR_DIRECTORY
+    readonly TEST_VENDOR_DIRECTORY
+fi
+
+if [[ ! -v MYCMD_LIB_DIRECTORY ]]; then
+    if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching MyCmd lib directory."
+        exit 1
+    fi
+    export MYCMD_LIB_DIRECTORY
+    readonly MYCMD_LIB_DIRECTORY
+fi
+
+function start_tracing() {
+    if [[ -v _TEST_TRACE_FILE ]]; then
+        PS4='+${BASH_SOURCE}:${LINENO}# '
+        export PS4
+
+        shopt -s varredir_close
+        exec {_trace_log_fd}>>"${_TEST_TRACE_FILE}"
+        export _trace_log_fd
+        BASH_XTRACEFD="${_trace_log_fd}"
+        export BASH_XTRACEFD
+
+        set -o xtrace
+    else
+        echo >&2 "Missing environment variable _TEST_TRACE_FILE, skipping tracing."
+    fi
+}
+
+function setup_test_user_lib_directory() {
+    if ! TEST_USER_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../user-base" && pwd -P); then
+        echo >&2 "Error fetching test user base directory."
+        exit 1
+    fi
+    readonly TEST_USER_LIB_DIRECTORY
+    export TEST_USER_LIB_DIRECTORY
+}
+
+function setup_test_user_directory() {
+    if ! TEST_USER_DIR="$(mktemp -q -d -t "test-user-XXXXXX")"; then
+        echo >&2 "Error getting temporary directory for test user directory."
+        exit 1
+    fi
+
+    # On Mac OS, the TMPDIR is a symlink, so this gets the resolved path
+    if ! TEST_USER_DIR=$(cd "${TEST_USER_DIR}" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching test user directory."
+        exit 1
+    fi
+    readonly TEST_USER_DIR
+    export TEST_USER_DIR
+
+    export _MYCMD_TEST_USER_CACHE_HOME="${TEST_USER_DIR}/cache/mycmd"
+    export _MYCMD_TEST_USER_CONFIG_HOME="${TEST_USER_DIR}/config/mycmd"
+}
+
+function setup_mycmd_tmp_directory() {
+    if ! MYCMD_TMP_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../tmp" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching MyCmd tmp directory."
+        exit 1
+    fi
+    export MYCMD_TMP_DIRECTORY
+    readonly MYCMD_TMP_DIRECTORY
+
+    if [[ ! -v _MYCMD_TEST_USER_CACHE_HOME ]]; then
+        export _MYCMD_TEST_USER_CACHE_HOME="${MYCMD_TMP_DIRECTORY}/cache/mycmd"
+    fi
+
+    if [[ ! -v _MYCMD_TEST_USER_CONFIG_HOME ]]; then
+        export _MYCMD_TEST_USER_CONFIG_HOME="${MYCMD_TMP_DIRECTORY}/config/mycmd"
+    fi
+}
+
+function cleanup_test_user_directory() {
+    if [[ -d "${TEST_USER_DIR}" ]]; then
+        rm -rf "${TEST_USER_DIR}" || true
+    fi
+}
+
+function cleanup_tracing() {
+    if [[ -v _TEST_TRACE_FILE ]]; then
+        set +o xtrace
+        # Relying on varredir_close to automatically close the fd on exit
+        unset PS4
+        unset BASH_XTRACEFD
+    fi
+}
