@@ -349,7 +349,7 @@ function coverage-output-and-percent() {
     coverage_pct="$(echo "r((${covered_lines_count}/${counted_lines}) * 100, 2)" | bc -l)"
     readonly coverage_pct
 
-    echo "${covered_lines_count} / ${counted_lines} = ${coverage_pct}%"
+    printf "%5d / %5d = %.2f%%" "${covered_lines_count}" "${counted_lines}" "${coverage_pct}"
 }
 
 function generate-coverage-reports() {
@@ -421,6 +421,7 @@ function generate-coverage-reports() {
             elif [[ ("${in_multi_line_statement}" == "yes") &&
                 (("${in_unclosed_string}" == "no") ||
                 (("${in_unclosed_string}" == "yes") && ("${line}" =~ ${closed_string}))) ]]; then
+
                 group+=("${line_number}")
 
                 # We are in the final line of the multi-line statement
