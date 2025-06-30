@@ -341,21 +341,24 @@ function summarize_test_results() {
         "Test File" "Result"
 }
 
-function get-test-log-file() {
+function get-test-output-directory() {
     local description
     description="$(date '+%Y-%m-%d-%H%M%S')"
     readonly description
 
-    local -r test_log_file="${TMP_WORKING_DIR}/test-output-${description}.log"
-
-    echo "${test_log_file}"
+    local -r test_output_directory="${TMP_WORKING_DIR}/test-output-${description}"
+    mkdir -p "${test_output_directory}" &>/dev/null || true
+    echo "${test_output_directory}"
 }
 
 function execute-test() {
-    local -r test_log_file="${1}"
+    local -r test_output_directory="${1}"
     shift
     local -r test_file="${1}"
     shift
+
+    local -r test_log_file="${test_output_directory}/test-output.log"
+    local -r test_trace_log_file="${test_output_directory}/test-trace.log"
 
     if [[ ! -e "${test_file}" ]]; then
         mycmd.log "Test file not found: ${test_file}"
@@ -373,6 +376,7 @@ function execute-test() {
         MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
+        _TEST_TRACE_FILE="${test_trace_log_file}" \
         PATH="${BIN_DIR}:${PATH}" \
         "${test_file}" "${@}" || result=$?
 
@@ -385,16 +389,16 @@ function execute-single-file-tests() {
     local -r test_file="${1}"
     shift
 
-    local test_log_file
-    test_log_file="$(get-test-log-file)"
-    readonly test_log_file
+    local test_output_directory
+    test_output_directory="$(get-test-output-directory)"
+    readonly test_output_directory
 
     if (($# > 0)); then
         # https://github.com/kward/shunit2?tab=readme-ov-file#-running-specific-tests-from-the-command-line
         # Prefix the arguments with --
-        set -- "${test_log_file}" "${test_file}" -- "${@}"
+        set -- "${test_output_directory}" "${test_file}" -- "${@}"
     else
-        set -- "${test_log_file}" "${test_file}"
+        set -- "${test_output_directory}" "${test_file}"
     fi
 
     execute-test "${@}"
@@ -407,16 +411,16 @@ function execute-all-tests() {
     local -A results=()
     local result
 
-    local test_log_file
-    test_log_file="$(get-test-log-file)"
-    readonly test_log_file
+    local test_output_directory
+    test_output_directory="$(get-test-output-directory)"
+    readonly test_output_directory
 
     local final_result=0
 
     for test_file in "${test_fileset[@]}"; do
         result=0
 
-        execute-test "${test_log_file}" "${test_file}" || result=$?
+        execute-test "${test_output_directory}" "${test_file}" || result=$?
         # shellcheck disable=SC2034
         results["${test_file}"]="${result}"
 
@@ -433,7 +437,7 @@ project.register_task_with_fileset execute-all-tests \
     TEST_FILES
 
 function get-last-test-log() {
-    local -a test_log_files=("${TMP_WORKING_DIR}"/test-output-*.log)
+    local -a test_log_files=("${TMP_WORKING_DIR}"/test-output-*/test-output.log)
 
     if ((${#test_log_files[@]} == 0)); then
         return 1
@@ -457,10 +461,10 @@ function page-last-test-log() {
 }
 project.register_task page-last-test-log
 
-function remove-test-logs() {
-    rm -f "${TMP_WORKING_DIR}"/test-output-*.log 2>/dev/null || true
+function remove-test-output() {
+    rm -rf "${TMP_WORKING_DIR}"/test-output-* 2>/dev/null || true
 }
-project.register_task remove-test-logs
+project.register_task remove-test-output
 
 #----------------------------------------
 # Benchmarking

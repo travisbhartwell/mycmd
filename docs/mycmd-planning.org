@@ -110,6 +110,7 @@ This will be the release with full CI working.
 
 **** Command Group and Command Testing
 ***** TODO Freewrite about potential tools and patterns for testing commands and command groups
+***** TODO Add ability to capture the output of the =mycmd-output-lib= functions for testing
 
 **** Pathname Handling
 ***** TODO Handle strings with un-expanded =~=
