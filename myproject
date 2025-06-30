@@ -341,6 +341,213 @@ function summarize_test_results() {
         "Test File" "Result"
 }
 
+function generate-coverage-reports() {
+    local -r test_output_directory="${1}"
+    # shellcheck disable=SC2178
+    local -n covered_files_ref="${2}"
+    # shellcheck disable=SC2178
+    local -n covered_lines_ref="${3}"
+
+    local -A coverage_summary=()
+
+    local -i total_counted_lines=0
+    local -i total_covered_lines=0
+    local file_name
+    local base_file_name
+    local base_directory
+    local coverage_file_name
+    local coverage_directory
+    local line
+    local line_number
+    local status
+    local counted_lines
+    local missed_lines
+    local covered_lines_count
+    local skip_lines
+    local -r coverage_re="^[[:space:]]*# coverage skip: *"
+
+    for file_name in "${!covered_files_ref[@]}"; do
+        base_directory=$(dirname "${file_name}")
+        coverage_directory="${test_output_directory}/${base_directory}"
+        mkdir -p "${coverage_directory}" &>/dev/null || true
+
+        base_file_name="$(basename "${file_name}")"
+        coverage_file_name="${coverage_directory}/${base_file_name}.coverage"
+
+        counted_lines=0
+        missed_lines=0
+        skip_lines=0
+
+        local -a lines=()
+        # Read the lines into a 1-based array
+        readarray -t -O 1 lines <"${MYPROJECT_BASE_DIR}/${file_name}"
+
+        local cover_count=0
+        local in_multi_line_statement="no"
+        local -a group=()
+        local group_line_number
+
+        for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
+            line="${lines[${line_number}]}"
+
+            if [[ -v covered_lines_ref["${file_name}:${line_number}"] ]]; then
+                cover_count="${covered_lines_ref["${file_name}:${line_number}"]}"
+            fi
+
+            if [[ "${line}" == *\\ ]]; then
+                in_multi_line_statement="yes"
+                group+=("${line_number}")
+            elif [[ "${in_multi_line_statement}" == "yes" ]]; then
+                group+=("${line_number}")
+
+                # We are in the final line of the multi-line statement
+                if ((cover_count > 0)); then
+                    for group_line_number in "${group[@]}"; do
+                        covered_lines_ref["${file_name}:${group_line_number}"]="${cover_count}"
+                    done
+
+                    cover_count=0
+                fi
+
+                group=()
+                in_multi_line_statement="no"
+            elif ((cover_count > 0)); then
+                cover_count=0
+            fi
+        done
+
+        for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
+            line="${lines[${line_number}]}"
+
+            status="-"
+
+            if [[ -v covered_lines_ref["${file_name}:${line_number}"] ]]; then
+                status="${covered_lines_ref["${file_name}:${line_number}"]}"
+                counted_lines=$((counted_lines + 1))
+                skip_lines=0
+            elif ((skip_lines > 0)); then
+                skip_lines=$((skip_lines - 1))
+                status="S"
+            elif [[ "${line}" =~ ^$ ]]; then
+                status=" "
+            elif [[ "${line}" =~ ${coverage_re} ]]; then
+                status="#"
+                skip_lines="${line##*: }"
+            elif [[ "${line}" =~ ^[[:space:]]*# ]]; then
+                status="#"
+            elif [[ "${line}" =~ ^[[:space:]]*(fi|else|done|esac|\}) ]]; then
+                status=" "
+            elif [[ "${line}" =~ ^[[:space:]]*function ]]; then
+                status="F"
+            fi
+
+            if [[ "${status}" == "-" ]]; then
+                missed_lines=$((missed_lines + 1))
+                counted_lines=$((counted_lines + 1))
+                if [[ ! -v _COVERAGE_NO_ANSI ]]; then
+                    # shellcheck disable=SC2312
+                    line="$(mycmd.ansi red)${line}$(mycmd.ansi resetForeground)"
+                fi
+            fi
+
+            printf "%5s: %s\\n" "${status}" "${line}"
+        done >"${coverage_file_name}"
+
+        covered_lines_count=$((counted_lines - missed_lines))
+        # shellcheck disable=SC2034
+        coverage_summary["${file_name}"]="${covered_lines_count} / ${counted_lines}"
+        total_counted_lines=$((total_counted_lines + counted_lines))
+        total_covered_lines=$((total_covered_lines + covered_lines_count))
+    done
+
+    mycmd.print_table coverage_summary \
+        "Code Coverage Summary:" \
+        "Implementation File" "Covered Lines / Counted Lines"
+
+    local coverage_pct
+    coverage_pct="$(echo "r((${total_covered_lines}/${total_counted_lines}) * 100, 2)" | bc -l)"
+    readonly coverage_pct
+
+    mycmd.output "\nTotal coverage: ${total_covered_lines} / ${total_counted_lines} = ${coverage_pct}%"
+}
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function get-coverage-data-from-trace() {
+    local -r test_output_directory="${1}"
+    local -r test_trace_log_file="${test_output_directory}/test-trace.log"
+
+    if [[ ! -e "${test_trace_log_file}" ]]; then
+        mycmd.log "Trace log file '${test_trace_log_file}' not found."
+        return 1
+    fi
+
+    # Based on bashcov:
+    # https://github.com/zyga/bashcov/blob/7e4c7a23cdea6f80562ea4b206cb19d862bd7b38/bashcov#L18-L55
+    local -A -i covered_files=()
+    local -A -i covered_lines=()
+
+    local filename
+    local line_number
+    local count
+
+    while IFS=: read -r filename line_number count; do
+        # shellcheck disable=SC2034
+        covered_files["${filename}"]=1
+        # shellcheck disable=SC2034
+        covered_lines["${filename}:${line_number}"]="${count}"
+    done < <(
+        grep -E "^[+]+(${SYSTEM_BASE}|${BIN_DIR})/.*:" "${test_trace_log_file}" \
+            | mycmd.bin_execute sed -r \
+                -e "s%${MYPROJECT_BASE_DIR}/%%" \
+                -e 's/^[+]*//' \
+                -e 's/\#.*//' \
+            | sort \
+            | uniq -c \
+            | mycmd.bin_execute sed -E \
+                's/^[[:space:]]*([0-9]+)[[:space:]]+([^:]+):([0-9]+)/\2:\3:\1/' || true
+    )
+
+    if (("${#covered_files[@]}" == 0 || "${#covered_lines[@]}" == 0)); then
+        mycmd.log "Error getting coverage data"
+        return 1
+    fi
+
+    generate-coverage-reports "${test_output_directory}" covered_files covered_lines
+}
+
+function get-last-test-coverage-dir() {
+    local -a test_coverage_dirs=("${TMP_WORKING_DIR}"/test-output-*/myproject)
+
+    if ((${#test_coverage_dirs[@]} == 0)); then
+        return 1
+    fi
+
+    local -a sorted_dirs
+    readarray -t sorted_dirs < <(printf '%s\n' "${test_coverage_dirs[@]}" | sort -r || true)
+    local -r last_test_coverage_dir="${sorted_dirs[0]}"
+    echo "${last_test_coverage_dir}"
+}
+
+function page-last-test-coverage-reports() {
+    local pager="bat"
+
+    if ! mycmd.init_bin_no_exit "${pager}"; then
+        mycmd.trace "Tool 'bat' not found, falling back to 'less'."
+        pager="less"
+    fi
+    readonly pager
+
+    local last_test_coverage_dir
+    if ! last_test_coverage_dir="$(mycmd.nullglob_set_wrapper get-last-test-coverage-dir)"; then
+        mycmd.output "No test coverage files found."
+        return 1
+    fi
+    readonly last_test_coverage_dir
+
+    "${pager}" "${last_test_coverage_dir}"/*
+}
+project.register_task page-last-test-coverage-reports
+
 function get-test-output-directory() {
     local description
     description="$(date '+%Y-%m-%d-%H%M%S')"
@@ -429,6 +636,7 @@ function execute-all-tests() {
         fi
     done
 
+    get-coverage-data-from-trace "${test_output_directory}"
     summarize_test_results results
     return "${final_result}"
 }
