@@ -376,6 +376,9 @@ function generate-coverage-reports() {
     local covered_lines_count
     local skip_lines
     local -r coverage_re="^[[:space:]]*# coverage skip: *"
+    local -r unclosed_string='^[^"]+"[^"]*$'
+    local -r no_quotes='^[^"]+$'
+    local -r closed_string='^[^"]+"$'
 
     for file_name in "${!covered_files_ref[@]}"; do
         base_directory=$(dirname "${file_name}")
@@ -395,6 +398,7 @@ function generate-coverage-reports() {
 
         local cover_count=0
         local in_multi_line_statement="no"
+        local in_unclosed_string="no"
         local -a group=()
         local group_line_number
 
@@ -408,7 +412,15 @@ function generate-coverage-reports() {
             if [[ "${line}" == *\\ ]]; then
                 in_multi_line_statement="yes"
                 group+=("${line_number}")
-            elif [[ "${in_multi_line_statement}" == "yes" ]]; then
+            elif [[ ("${in_multi_line_statement}" == "no") && ("${line}" =~ ${unclosed_string}) ]]; then
+                in_multi_line_statement="yes"
+                in_unclosed_string="yes"
+                group+=("${line_number}")
+            elif [[ ("${in_multi_line_statement}" == "yes") && ("${in_unclosed_string}" == "yes") && ("${line}" =~ ${no_quotes}) ]]; then
+                group+=("${line_number}")
+            elif [[ ("${in_multi_line_statement}" == "yes") &&
+                (("${in_unclosed_string}" == "no") ||
+                (("${in_unclosed_string}" == "yes") && ("${line}" =~ ${closed_string}))) ]]; then
                 group+=("${line_number}")
 
                 # We are in the final line of the multi-line statement
@@ -422,6 +434,7 @@ function generate-coverage-reports() {
 
                 group=()
                 in_multi_line_statement="no"
+                in_unclosed_string="no"
             elif ((cover_count > 0)); then
                 cover_count=0
             fi
