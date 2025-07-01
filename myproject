@@ -352,6 +352,124 @@ function coverage-output-and-percent() {
     printf "%5d / %5d = %.2f%%" "${covered_lines_count}" "${counted_lines}" "${coverage_pct}"
 }
 
+readonly UNCLOSED_STRING_RE='^[^"]+"[^"]+$'
+readonly CLOSED_STRING_RE='^[^"]+"$'
+readonly CLOSED_PARENTHESIS_RE='^[^)]+)$'
+
+readonly LINE_STATE_NORMAL='normal'
+readonly LINE_STATE_MULTI_LINE='multi-line-statement'
+readonly LINE_STATE_UNCLOSED_PARENTHESIS='unclosed-parenthesis'
+readonly LINE_STATE_CLOSED_PARENTHESIS='closed-parenthesis'
+readonly LINE_STATE_UNCLOSED_STRING='unclosed-string'
+readonly LINE_STATE_CLOSED_STRING='closed-string'
+
+function classify_line() {
+    local -r line="${1}"
+    local -r previous_state="${2}"
+
+    if [[ "${line}" == *\\ ]]; then
+        echo "${LINE_STATE_MULTI_LINE}"
+    elif [[ "${line}" == *\( ]]; then
+        echo "${LINE_STATE_UNCLOSED_PARENTHESIS}"
+    elif [[ "${line}" =~ ${UNCLOSED_STRING_RE} ]]; then
+        echo "${LINE_STATE_UNCLOSED_STRING}"
+    elif [[ "${previous_state}" == "${LINE_STATE_UNCLOSED_PARENTHESIS}" ]]; then
+        if [[ "${line}" =~ ${CLOSED_PARENTHESIS_RE} ]]; then
+            echo "${LINE_STATE_CLOSED_PARENTHESIS}"
+        else
+            echo "${LINE_STATE_UNCLOSED_PARENTHESIS}"
+        fi
+    elif [[ "${previous_state}" == "${LINE_STATE_UNCLOSED_STRING}" ]]; then
+        if [[ "${line}" =~ ${CLOSED_STRING_RE} ]]; then
+            echo "${LINE_STATE_CLOSED_STRING}"
+        else
+            echo "${LINE_STATE_UNCLOSED_STRING}"
+        fi
+    else
+        echo "${LINE_STATE_NORMAL}"
+    fi
+}
+
+readonly ACTION_RESET_COVERAGE="reset-coverage"
+readonly ACTION_ADD_TO_GROUP="add-to-group"
+readonly ACTION_FINISH_GROUP="finish-group"
+
+function choose_coverage_update_action() {
+    local -r previous_state="${1}"
+    local -r current_state="${2}"
+
+    if [[ ("${previous_state}" == "${LINE_STATE_MULTI_LINE}") && ("${current_state}" == "${LINE_STATE_NORMAL}") ]]; then
+        echo "${ACTION_FINISH_GROUP}"
+    elif [[ ("${previous_state}" == "${LINE_STATE_UNCLOSED_PARENTHESIS}") && ("${current_state}" == "${LINE_STATE_CLOSED_PARENTHESIS}") ]]; then
+        echo "${ACTION_FINISH_GROUP}"
+    elif [[ ("${previous_state}" == "${LINE_STATE_UNCLOSED_STRING}") && ("${current_state}" == "${LINE_STATE_CLOSED_STRING}") ]]; then
+        echo "${ACTION_FINISH_GROUP}"
+    elif [[ "${current_state}" == "${LINE_STATE_MULTI_LINE}" ||
+        "${current_state}" == "${LINE_STATE_UNCLOSED_PARENTHESIS}" ||
+        "${current_state}" == "${LINE_STATE_UNCLOSED_STRING}" ]]; then
+        echo "${ACTION_ADD_TO_GROUP}"
+    else
+        echo "${ACTION_RESET_COVERAGE}"
+    fi
+}
+
+function update_multi_line_coverge_data() {
+    local -n covered_lines_data="${1}"
+    local -r file_name="${2}"
+    local -n file_lines="${3}"
+
+    local line_number
+    local line
+    local cover_count=0
+    local previous_line_state="${LINE_STATE_NORMAL}"
+    local line_state
+    local coverage_action
+    local -a group=()
+    local group_line_number
+
+    for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
+        line="${file_lines[${line_number}]}"
+
+        if [[ -v covered_lines_data["${file_name}:${line_number}"] ]]; then
+            cover_count="${covered_lines_data["${file_name}:${line_number}"]}"
+        fi
+
+        line_state="$(classify_line "${line}" "${previous_line_state}")"
+        coverage_action="$(choose_coverage_update_action "${previous_line_state}" "${line_state}")"
+
+        case "${coverage_action}" in
+            "${ACTION_ADD_TO_GROUP}")
+                group+=("${line_number}")
+                previous_line_state="${line_state}"
+                ;;
+
+            "${ACTION_FINISH_GROUP}")
+                group+=("${line_number}")
+
+                if ((cover_count > 0)); then
+                    for group_line_number in "${group[@]}"; do
+                        covered_lines_data["${file_name}:${group_line_number}"]="${cover_count}"
+                    done
+
+                    cover_count=0
+                fi
+
+                group=()
+                previous_line_state="${LINE_STATE_NORMAL}"
+                ;;
+
+            "${ACTION_RESET_COVERAGE}")
+                cover_count=0
+                previous_line_state="${line_state}"
+                ;;
+
+            *)
+                mycmd.log "Invalid action: '${coverage_action}'"
+                ;;
+        esac
+    done
+}
+
 function generate-coverage-reports() {
     local -r test_output_directory="${1}"
     # shellcheck disable=SC2178
@@ -376,10 +494,6 @@ function generate-coverage-reports() {
     local covered_lines_count
     local skip_lines
     local -r coverage_re="^[[:space:]]*# coverage skip: *"
-    local -r unclosed_string='^[^"]+"[^"]*$'
-    local -r no_quotes='^[^"]+$'
-    local -r closed_string='^[^"]+"$'
-
     for file_name in "${!covered_files_ref[@]}"; do
         base_directory=$(dirname "${file_name}")
         coverage_directory="${test_output_directory}/${base_directory}"
@@ -396,50 +510,7 @@ function generate-coverage-reports() {
         # Read the lines into a 1-based array
         readarray -t -O 1 lines <"${MYPROJECT_BASE_DIR}/${file_name}"
 
-        local cover_count=0
-        local in_multi_line_statement="no"
-        local in_unclosed_string="no"
-        local -a group=()
-        local group_line_number
-
-        for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
-            line="${lines[${line_number}]}"
-
-            if [[ -v covered_lines_ref["${file_name}:${line_number}"] ]]; then
-                cover_count="${covered_lines_ref["${file_name}:${line_number}"]}"
-            fi
-
-            if [[ "${line}" == *\\ ]]; then
-                in_multi_line_statement="yes"
-                group+=("${line_number}")
-            elif [[ ("${in_multi_line_statement}" == "no") && ("${line}" =~ ${unclosed_string}) ]]; then
-                in_multi_line_statement="yes"
-                in_unclosed_string="yes"
-                group+=("${line_number}")
-            elif [[ ("${in_multi_line_statement}" == "yes") && ("${in_unclosed_string}" == "yes") && ("${line}" =~ ${no_quotes}) ]]; then
-                group+=("${line_number}")
-            elif [[ ("${in_multi_line_statement}" == "yes") &&
-                (("${in_unclosed_string}" == "no") ||
-                (("${in_unclosed_string}" == "yes") && ("${line}" =~ ${closed_string}))) ]]; then
-
-                group+=("${line_number}")
-
-                # We are in the final line of the multi-line statement
-                if ((cover_count > 0)); then
-                    for group_line_number in "${group[@]}"; do
-                        covered_lines_ref["${file_name}:${group_line_number}"]="${cover_count}"
-                    done
-
-                    cover_count=0
-                fi
-
-                group=()
-                in_multi_line_statement="no"
-                in_unclosed_string="no"
-            elif ((cover_count > 0)); then
-                cover_count=0
-            fi
-        done
+        update_multi_line_coverge_data "${!covered_lines_ref}" "${file_name}" lines
 
         for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
             line="${lines[${line_number}]}"
