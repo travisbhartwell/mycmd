@@ -496,7 +496,7 @@ function generate-coverage-reports() {
     local -r coverage_re="^[[:space:]]*# coverage skip: *"
     for file_name in "${!covered_files_ref[@]}"; do
         base_directory=$(dirname "${file_name}")
-        coverage_directory="${test_output_directory}/${base_directory}"
+        coverage_directory="${test_output_directory}/coverage/${base_directory}"
         mkdir -p "${coverage_directory}" &>/dev/null || true
 
         base_file_name="$(basename "${file_name}")"
@@ -612,7 +612,7 @@ function get-coverage-data-from-trace() {
 }
 
 function get-last-test-coverage-dir() {
-    local -a test_coverage_dirs=("${TMP_WORKING_DIR}"/test-output-*/myproject)
+    local -a test_coverage_dirs=("${TMP_WORKING_DIR}"/test-output-*/coverage)
 
     if ((${#test_coverage_dirs[@]} == 0)); then
         return 1
@@ -640,7 +640,8 @@ function page-last-test-coverage-reports() {
     fi
     readonly last_test_coverage_dir
 
-    "${pager}" "${last_test_coverage_dir}"/*
+    shopt -s globstar
+    "${pager}" "${last_test_coverage_dir}"/**/*.coverage
 }
 project.register_task page-last-test-coverage-reports
 
