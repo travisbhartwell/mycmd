@@ -6,6 +6,7 @@ if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
     echo >&2 "Error fetching test directory."
     exit 1
 fi
+readonly TEST_DIRECTORY
 
 source "${TEST_DIRECTORY}/testing-support-lib"
 
