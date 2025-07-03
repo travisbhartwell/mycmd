@@ -6,17 +6,17 @@
 [[ -n "${_MYCMD_TEST_SUPPORT_LIB:-}" ]] && return
 readonly _MYCMD_TEST_SUPPORT_LIB=1
 
-if [[ ! -v TEST_DIRECTORY ]]; then
-    if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
-        echo >&2 "Error fetching test directory."
+if [[ ! -v TESTS_DIRECTORY ]]; then
+    if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching tests directory."
         exit 1
     fi
-    export TEST_DIRECTORY
-    readonly TEST_DIRECTORY
+    export TESTS_DIRECTORY
+    readonly TESTS_DIRECTORY
 fi
 
 if [[ ! -v TEST_VENDOR_DIRECTORY ]]; then
-    if ! TEST_VENDOR_DIRECTORY=$(cd "${TEST_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+    if ! TEST_VENDOR_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
         echo >&2 "Error fetching test vendor directory."
         exit 1
     fi
@@ -25,12 +25,21 @@ if [[ ! -v TEST_VENDOR_DIRECTORY ]]; then
 fi
 
 if [[ ! -v MYCMD_LIB_DIRECTORY ]]; then
-    if ! MYCMD_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
+    if ! MYCMD_LIB_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../../mycmd" &>/dev/null && pwd -P); then
         echo >&2 "Error fetching MyCmd lib directory."
         exit 1
     fi
     export MYCMD_LIB_DIRECTORY
     readonly MYCMD_LIB_DIRECTORY
+fi
+
+if [[ ! -v MYCMD_BIN_DIRECTORY ]]; then
+    if ! MYCMD_BIN_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../../bin" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching MyCmd tmp directory."
+        exit 1
+    fi
+    export MYCMD_BIN_DIRECTORY
+    readonly MYCMD_BIN_DIRECTORY
 fi
 
 function start_tracing() {
@@ -51,7 +60,7 @@ function start_tracing() {
 }
 
 function setup_test_user_lib_directory() {
-    if ! TEST_USER_LIB_DIRECTORY=$(cd "${TEST_DIRECTORY}/../user-base" && pwd -P); then
+    if ! TEST_USER_LIB_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../user-base" && pwd -P); then
         echo >&2 "Error fetching test user base directory."
         exit 1
     fi
@@ -78,7 +87,7 @@ function setup_test_user_directory() {
 }
 
 function setup_mycmd_tmp_directory() {
-    if ! MYCMD_TMP_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../tmp" &>/dev/null && pwd -P); then
+    if ! MYCMD_TMP_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../../tmp" &>/dev/null && pwd -P); then
         echo >&2 "Error fetching MyCmd tmp directory."
         exit 1
     fi

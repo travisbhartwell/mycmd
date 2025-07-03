@@ -2,15 +2,16 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash disable=SC2317
 
-if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching test directory."
+if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching tests directory."
     exit 1
 fi
-readonly TEST_DIRECTORY
+readonly TESTS_DIRECTORY
 
-source "${TEST_DIRECTORY}/testing-support-lib"
+# shellcheck source=./testing-support-lib
+source "${TESTS_DIRECTORY}/testing-support-lib"
 
-if ! ADDITIONAL_BASE=$(cd "${TEST_DIRECTORY}/../additional-base" &>/dev/null && pwd -P); then
+if ! ADDITIONAL_BASE=$(cd "${TESTS_DIRECTORY}/../additional-base" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching additional base directory."
     exit 1
 fi
@@ -33,7 +34,7 @@ function test_get_absolute_path() {
 
     # shellcheck disable=SC2154
     assertSame "${TEST_USER_LIB_DIRECTORY}" \
-        "$(mycmd._get_absolute_path "${TEST_DIRECTORY}/../user-base")"
+        "$(mycmd._get_absolute_path "${TESTS_DIRECTORY}/../user-base")"
 }
 
 # shellcheck disable=SC2016,SC2153,SC2154

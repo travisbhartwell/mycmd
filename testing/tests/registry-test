@@ -2,15 +2,15 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching test directory."
+if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching tests directory."
     exit 1
 fi
-readonly TEST_DIRECTORY
+readonly TESTS_DIRECTORY
 
-source "${TEST_DIRECTORY}/testing-support-lib"
+source "${TESTS_DIRECTORY}/testing-support-lib"
 
-if ! MYCMD_SUPPORT_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../support" &>/dev/null && pwd -P); then
+if ! MYCMD_SUPPORT_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../../support" &>/dev/null && pwd -P); then
     echo >&2 "Error fetching MyCmd support directory."
     exit 1
 fi
@@ -103,8 +103,8 @@ function test_get_invalid_command_groups() {
 
 # shellcheck disable=SC2016,SC2154
 function test_file_is_command() {
-    assertFalse "${TEST_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
-        'mycmd:registry._file_is_command "${TEST_DIRECTORY}/../../mycmd/project/run"'
+    assertFalse "${TESTS_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
+        'mycmd:registry._file_is_command "${TESTS_DIRECTORY}/../../mycmd/project/run"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is not executable and not a command" \
         'mycmd:registry._file_is_command "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'

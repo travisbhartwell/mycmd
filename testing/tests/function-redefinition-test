@@ -2,13 +2,13 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching test directory."
+if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching tests directory."
     exit 1
 fi
-readonly TEST_DIRECTORY
+readonly TESTS_DIRECTORY
 
-source "${TEST_DIRECTORY}/testing-support-lib"
+source "${TESTS_DIRECTORY}/testing-support-lib"
 
 function test_mycmd_base_loading_lib_is_loaded() {
     assertTrue 'MyCmd Loading Base Lib is loaded' '[ -v _MYCMD_LOADING_BASE_LIB ]'

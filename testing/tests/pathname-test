@@ -2,18 +2,13 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash disable=SC2317
 
-if ! TEST_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching test directory."
+if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching tests directory."
     exit 1
 fi
-readonly TEST_DIRECTORY
+readonly TESTS_DIRECTORY
 
-source "${TEST_DIRECTORY}/testing-support-lib"
-
-if ! MYCMD_BIN_DIRECTORY=$(cd "${TEST_DIRECTORY}/../../bin" &>/dev/null && pwd -P); then
-    echo >&2 "Error fetching MyCmd tmp directory."
-    exit 1
-fi
+source "${TESTS_DIRECTORY}/testing-support-lib"
 
 function test_pathname_lib_is_loaded() {
     assertTrue 'MyCmd Pathname Support Lib is loaded' '[ -v _MYCMD_PATHNAME_LIB ]'
@@ -34,7 +29,7 @@ function test_is_valid_absolute_path() {
         'mycmd.is_valid_absolute_path "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
 }
 
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016,SC2154
 function test_is_valid_absolute_path_of_executed_file() {
     assertFalse '../../bin/mycmd is not an absolute path to an executable file' \
         'mycmd.is_valid_absolute_path_of_executable_file ../../bin/mycmd'
@@ -82,13 +77,13 @@ function test_path_relative_to_directory() {
         'mycmd._path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/non-existing" "${MYCMD_LIB_DIRECTORY}"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/../mycmd is not an absolute path" \
-        'mycmd._path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/../mycmd"'
+        'mycmd._path_relative_to_directory "${TESTS_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/../mycmd"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
-        'mycmd._path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/non-existing"'
+        'mycmd._path_relative_to_directory "${TESTS_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
-    assertFalse "${TEST_DIRECTORY} is not relative to ${MYCMD_LIB_DIRECTORY}" \
-        'mycmd._path_relative_to_directory "${TEST_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
+    assertFalse "${TESTS_DIRECTORY} is not relative to ${MYCMD_LIB_DIRECTORY}" \
+        'mycmd._path_relative_to_directory "${TESTS_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
 
     assertEquals "project" \
         "$(mycmd._path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}")"
