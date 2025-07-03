@@ -10,6 +10,7 @@ project.load_task_library "git"
 # shellcheck disable=SC2154
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
 readonly SUPPORT_DIR="${MYPROJECT_BASE_DIR}/support"
+readonly TEMPLATE_DIR="${SUPPORT_DIR}/templates"
 readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
 readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
 readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
@@ -30,6 +31,7 @@ readonly WORKTREES_PARENT_DIR
 mycmd.trace "Set the following variables:"
 mycmd.trace "- BIN_DIR: ${BIN_DIR}"
 mycmd.trace "- SUPPORT_DIR: ${SUPPORT_DIR}"
+mycmd.trace "- TEMPLATE_DIR: ${TEMPLATE_DIR}"
 mycmd.trace "- TESTING_BASE: ${TESTING_BASE}"
 mycmd.trace "- TEST_FILES_BASE: ${TEST_FILES_BASE}"
 mycmd.trace "- TEST_USER_BASE: ${TEST_USER_BASE}"
@@ -771,7 +773,7 @@ function remove-test-output() {
 }
 project.register_task remove-test-output
 
-readonly TEST_TEMPLATE_FILE="${SUPPORT_DIR}/test-template-file"
+readonly TEST_TEMPLATE_FILE="${TEMPLATE_DIR}/test-template-file"
 
 function new-test-file() {
     local -r test_file_name="${1}"
