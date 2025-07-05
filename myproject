@@ -1365,6 +1365,25 @@ function git-quick-stats() {
 project.register_task git-quick-stats
 
 #----------------------------------------
+# Record Demos
+function record-demo() {
+    if ! mycmd.init_bin_no_exit vhs; then
+        mycmd.log "Required tool 'vhs' not found."
+        return 1
+    fi
+
+    local -r demo_source="${1}"
+    local -r output_file="${2}"
+
+    if [[ -e "${output_file}" ]]; then
+        rm "${output_file}" &>/dev/null || true
+    fi
+
+    mycmd.bin_execute vhs "${demo_source}"
+}
+project.register_task record-demo
+
+#----------------------------------------
 # Run everything
 mycmd.defer_at_startup mycmd.init_bin find
 function clean-up() {
