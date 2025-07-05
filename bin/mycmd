@@ -414,4 +414,6 @@ function mycmd_launcher.main() {
     mycmd_launcher.handle_command_group launcher_dispatch mycmd:command_group.print_help_by_name "${@}"
 }
 
-mycmd_launcher.main "${@}"
+if [[ "${0##*/}" == "mycmd" ]]; then
+    mycmd_launcher.main "${@}"
+fi

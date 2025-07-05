@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TESTING_BIN_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching testing/bin directory."
+    exit 1
+fi
+readonly TESTING_BIN_DIRECTORY
+
+if ! TESTS_DIRECTORY=$(cd "${TESTING_BIN_DIRECTORY}/../tests" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching testing/tests directory."
+    exit 1
+fi
+readonly TESTS_DIRECTORY
+
+# shellcheck source=../tests/testing-support-lib
+source "${TESTS_DIRECTORY}/testing-support-lib"
+
+if [[ -n "${_TEST_OUTPUT_FILE}" ]]; then
+    export MYCMD_OUTPUT_FILE="${_TEST_OUTPUT_FILE}"
+fi
+
+start_tracing
+
+# shellcheck disable=SC2154 source=../../bin/mycmd
+source "${MYCMD_BIN_DIRECTORY}/mycmd"
+
+mycmd_launcher.main "${@}"

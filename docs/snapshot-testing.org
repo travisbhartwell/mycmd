@@ -1,0 +1,44 @@
+#+title: Snapshot Testing
+
+* Quick Notes
+
+- Use shunit2 for assertions, so these can be part of my overall test suite
+
+- Test implementation files are named =*-snapshot-test=
+
+- Snapshots are stored in =testing/snapshots=
+
+- Need to have a means of updating the golden files / snapshots in an automated fashion
+
+- Just simply doing strict comparisons of output won't be sufficient in all cases, especially for comparing output that contains full pathnames or timestamps.
+
+- The tests will check output as well as exit codes
+
+* Idea
+** Test Structure
+For each test, I implement three functions:
+- =test_testName=: the function that will do the assertions, run by shunit2
+- =snapshot_testName=: the function that will execute the set of commands to be tested
+- =filter_testName=: a filter that will transform the output
+
+When snapshots are captured, =snapshot_testName= is called and then =filter_testName= is called on that output and the result is saved into the =testing/snapshots= directory.
+
+Snapshot files are named =testFileName-testName=.
+
+Test output is saved to the =snapshot= directory in the test output.
+
+** Support functions
+
+I should write my own functions that wrap multiple assert calls.
+
+It will assert that the exit code is the one specified.
+
+It will assert that the filtered output matches the snapshot data.
+
+** Generating Snapshots
+
+The test file should check if the =UPDATE_SNAPSHOT= environment variable is set.
+
+If so, it will call a function that will iterate through all of the =snapshot_*= / =filter_*= function pairs and call them.
+
+If =UPDATE_SNAPSHOT= is not set, the test file will source =shunit2=, as usual.

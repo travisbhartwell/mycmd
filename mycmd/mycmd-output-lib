@@ -30,7 +30,12 @@ readonly _MYCMD_OUTPUT_LIB=1
 shopt -s varredir_close
 
 # These file descriptors are set up to make output easier
-exec {_MYCMD_OUTPUT_FD}>&1
+if [[ -n "${MYCMD_OUTPUT_FILE-}" ]]; then
+    exec {_MYCMD_OUTPUT_FD}>>"${MYCMD_OUTPUT_FILE}"
+else
+    # coverage skip: 1
+    exec {_MYCMD_OUTPUT_FD}>&1
+fi
 readonly _MYCMD_OUTPUT_FD
 export _MYCMD_OUTPUT_FD
 

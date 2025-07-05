@@ -15,6 +15,15 @@ if [[ ! -v TESTS_DIRECTORY ]]; then
     readonly TESTS_DIRECTORY
 fi
 
+if [[ ! -v TESTING_BIN_DIRECTORY ]]; then
+    if ! TESTING_BIN_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching testing/bin directory."
+        exit 1
+    fi
+    export TESTING_BIN_DIRECTORY
+    readonly TESTING_BIN_DIRECTORY
+fi
+
 if [[ ! -v TEST_VENDOR_DIRECTORY ]]; then
     if ! TEST_VENDOR_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
         echo >&2 "Error fetching test vendor directory."
