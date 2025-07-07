@@ -1359,7 +1359,7 @@ function git-quick-stats() {
     fi
 
     # shellcheck disable=SC2154
-    /usr/bin/env PATH="${HOMEBREW_PREFIX}/opt/coreutils/libexec/gnubin:${PATH}" \
+    /usr/bin/env PATH="${HOMEBREW_PREFIX}/opt/coreutils/libexec/gnubin:${HOMEBREW_PREFIX}/opt/gawk/libexec/gnubin:${PATH}" \
         git quick-stats "${@}"
 }
 project.register_task git-quick-stats
