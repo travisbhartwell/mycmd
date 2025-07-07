@@ -81,6 +81,16 @@ function test_shell_extended_command_group() {
         '[[ -e "${expected_cache_file}" ]]'
 }
 
+function test_command_group_get_cache_file_fails() {
+    assertFalse 'Calling mycmd:command_group.get_cache_file fails from outside a command group implementation' \
+        'mycmd:command_group.get_cache_file my-cache-file'
+}
+
+function test_command_group_get_config_file_fails() {
+    assertFalse 'Calling mycmd:command_group.get_config_file fails from outside a command group implementation' \
+        'mycmd:command_group.get_config_file my-config-file'
+}
+
 function oneTimeSetUp() {
     setup_test_user_lib_directory
     setup_test_user_directory
