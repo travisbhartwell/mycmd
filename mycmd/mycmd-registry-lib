@@ -74,6 +74,7 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     local file_name
     for f in "${files_ref[@]}"; do
         if ! file_name="$(basename "${f}")"; then
+            # coverage skip: 2
             mycmd.log "Error getting basename of '${f}'."
             return 1
         fi
@@ -400,6 +401,7 @@ function mycmd:registry._register_item() {
 
     local parent_command_group
     if ! parent_command_group="$(dirname "${fully_qualified_name}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting parent command group for '${fully_qualified_name}'."
         return 1
     fi

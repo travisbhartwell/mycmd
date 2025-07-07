@@ -75,6 +75,7 @@ function mycmd._path_relative_to_directory() {
 
     local relative_path
     if ! relative_path="$(mycmd.bin_execute realpath --relative-to="${base_path}" "${full_path}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting relative path for '${full_path}' relative to '${base_path}'."
         return 1
     fi
@@ -130,6 +131,7 @@ function mycmd.is_child_of_mycmd_path_directory() {
 
 function mycmd.nullglob_set_wrapper() {
     local nullglob_set
+    # coverage skip: 7
     if shopt -q nullglob; then
         nullglob_set=0
     else
