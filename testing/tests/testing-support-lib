@@ -24,13 +24,14 @@ if [[ ! -v TESTING_BIN_DIRECTORY ]]; then
     readonly TESTING_BIN_DIRECTORY
 fi
 
-if [[ ! -v TEST_VENDOR_DIRECTORY ]]; then
-    if ! TEST_VENDOR_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
-        echo >&2 "Error fetching test vendor directory."
+if [[ ! -v TESTING_VENDOR_DIRECTORY ]]; then
+    if ! TESTING_VENDOR_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../vendor" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching testing vendor directory."
         exit 1
     fi
-    export TEST_VENDOR_DIRECTORY
-    readonly TEST_VENDOR_DIRECTORY
+    export TESTING_VENDOR_DIRECTORY
+    readonly TESTING_VENDOR_DIRECTORY
+fi
 fi
 
 if [[ ! -v MYCMD_LIB_DIRECTORY ]]; then
