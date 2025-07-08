@@ -70,6 +70,13 @@ project.register_task_with_fileset list-test-files \
     project.list-files \
     TEST_FILES
 
+# Snapshot Test Files Only
+project.register_fileset SNAPSHOT_TEST_FILES
+project.find_files_for_fileset SNAPSHOT_TEST_FILES "${TEST_FILES_BASE}" -type f -name '*-snapshot-test'
+project.register_task_with_fileset list-snapshot-test-files \
+    project.list-files \
+    SNAPSHOT_TEST_FILES
+
 # MyCmd Lib and Support Libraries Only
 project.register_fileset MYCMD_LIB_FILES
 project.find_files_for_fileset MYCMD_LIB_FILES "${SYSTEM_BASE}" -maxdepth 1 -name "*-lib"
