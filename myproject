@@ -49,9 +49,9 @@ mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 # Project File Sets
 # All Files
 project.register_fileset ALL_FILES
-project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" "${TESTING_BIN}" -type f
+project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" "${TESTING_BIN}" "${TEMPLATE_DIR}" -type f
 # shellcheck disable=SC2154
-project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}"
+project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}" "${SUPPORT_DIR}/setup-dev-environment.sh"
 project.register_task_with_fileset list-all-files \
     project.list-files \
     ALL_FILES
