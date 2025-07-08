@@ -6,6 +6,8 @@
 [[ -n "${_MYCMD_TEST_SUPPORT_LIB:-}" ]] && return
 readonly _MYCMD_TEST_SUPPORT_LIB=1
 
+# ------------------------------------------------------------------------------
+# Common Variables represented common filepaths
 if [[ ! -v TESTS_DIRECTORY ]]; then
     if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
         echo >&2 "Error fetching tests directory."
@@ -32,6 +34,14 @@ if [[ ! -v TESTING_VENDOR_DIRECTORY ]]; then
     export TESTING_VENDOR_DIRECTORY
     readonly TESTING_VENDOR_DIRECTORY
 fi
+
+if [[ ! -v TESTING_SNAPSHOTS_DIRECTORY ]]; then
+    if ! TESTING_SNAPSHOTS_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../snapshots" &>/dev/null && pwd -P); then
+        echo >&2 "Error fetching testing snapshots directory."
+        exit 1
+    fi
+    export TESTING_SNAPSHOTS_DIRECTORY
+    readonly TESTING_SNAPSHOTS_DIRECTORY
 fi
 
 if [[ ! -v MYCMD_LIB_DIRECTORY ]]; then
@@ -52,6 +62,14 @@ if [[ ! -v MYCMD_BIN_DIRECTORY ]]; then
     readonly MYCMD_BIN_DIRECTORY
 fi
 
+# ------------------------------------------------------------------------------
+# Snapshot Testing Support
+function update_snapshots() {
+    echo "Updating snapshots"
+}
+
+# ------------------------------------------------------------------------------
+# Common support functions for test suite setup and tear down
 function start_tracing() {
     if [[ -v _TEST_TRACE_FILE ]]; then
         PS4='+${BASH_SOURCE}:${LINENO}# '

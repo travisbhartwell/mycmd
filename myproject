@@ -776,13 +776,13 @@ function remove-test-output() {
 }
 project.register_task remove-test-output
 
-readonly TEST_TEMPLATE_FILE="${TEMPLATE_DIR}/test-template-file"
+function new-test-file-from-template() {
+    local -r template_file_name="${1}"
+    local -r required_suffix="${2}"
+    local -r test_file_name="${3}"
 
-function new-test-file() {
-    local -r test_file_name="${1}"
-
-    if [[ "${test_file_name}" != *-test ]]; then
-        mycmd.log "Test file '${test_file_name}' doesn't end with '-test'".
+    if [[ "${test_file_name}" != *${required_suffix} ]]; then
+        mycmd.log "Test file '${test_file_name}' doesn't end with '${required_suffix}'".
         return 1
     fi
 
@@ -793,9 +793,20 @@ function new-test-file() {
         return 1
     fi
 
-    cp "${TEST_TEMPLATE_FILE}" "${test_file}"
+    cp "${template_file_name}" "${test_file}"
 }
-project.register_task new-test-file
+
+readonly TEST_TEMPLATE_FILE="${TEMPLATE_DIR}/test-template-file"
+project.register_task new-test-file \
+    new-test-file-from-template \
+    "${TEST_TEMPLATE_FILE}" \
+    '-test'
+
+readonly SNAPSHOT_TEST_TEMPLATE_FILE="${TEMPLATE_DIR}/snapshot-test-template-file"
+project.register_task new-snapshot-test-file \
+    new-test-file-from-template \
+    "${SNAPSHOT_TEST_TEMPLATE_FILE}" \
+    '-snapshot-test'
 
 #----------------------------------------
 # Benchmarking
