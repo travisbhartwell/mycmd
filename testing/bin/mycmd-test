@@ -17,8 +17,8 @@ readonly TESTS_DIRECTORY
 # shellcheck source=../tests/testing-support-lib
 source "${TESTS_DIRECTORY}/testing-support-lib"
 
-if [[ -n "${_TEST_OUTPUT_FILE}" ]]; then
-    export MYCMD_OUTPUT_FILE="${_TEST_OUTPUT_FILE}"
+if [[ -n "${TEST_OUTPUT_FILE-}" ]]; then
+    export MYCMD_OUTPUT_FILE="${TEST_OUTPUT_FILE}"
 fi
 
 start_tracing

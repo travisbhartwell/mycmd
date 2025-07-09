@@ -18,7 +18,7 @@ if [[ ! -v TESTS_DIRECTORY ]]; then
 fi
 
 if [[ ! -v TESTING_BIN_DIRECTORY ]]; then
-    if ! TESTING_BIN_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    if ! TESTING_BIN_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../bin" &>/dev/null && pwd -P); then
         echo >&2 "Error fetching testing/bin directory."
         exit 1
     fi
@@ -62,28 +62,168 @@ if [[ ! -v MYCMD_BIN_DIRECTORY ]]; then
     readonly MYCMD_BIN_DIRECTORY
 fi
 
+if [[ -z "${TEST_OUTPUT_DIR-}" ]]; then
+    echo >&2 "Required environment variable TEST_OUTPUT_DIR not set."
+    exit 1
+fi
+
+if [[ -z "${TEST_EXECUTION_SNAPSHOTS_DIR-}" ]]; then
+    TEST_EXECUTION_SNAPSHOTS_DIR="${TEST_OUTPUT_DIR}/snapshots"
+
+    if [[ ! -d "${TEST_EXECUTION_SNAPSHOTS_DIR}" ]]; then
+        mkdir -p "${TEST_EXECUTION_SNAPSHOTS_DIR}" || true
+    fi
+
+    export TEST_EXECUTION_SNAPSHOTS_DIR
+    readonly TEST_EXECUTION_SNAPSHOTS_DIR
+fi
+
+if [[ ! -v "${TEST_FILE}" ]]; then
+    TEST_FILE="$(basename "${0}")"
+    export TEST_FILE
+    readonly TEST_FILE
+fi
+
 # ------------------------------------------------------------------------------
 # Snapshot Testing Support
-function update_snapshots() {
-    echo "Updating snapshots"
+function function_exists() {
+    declare -F "${1}" >/dev/null
+}
+
+function get_snapshot_file_for_test_case() {
+    local -r snapshot_directory="${1}"
+    local -r test_case_name="${2}"
+
+    echo "${snapshot_directory}/${TEST_FILE}_${test_case_name}.snapshot"
+}
+
+function get_output_file_name_for_test_case() {
+    local -r test_case_name="${1}"
+
+    get_snapshot_file_for_test_case "${TEST_EXECUTION_SNAPSHOTS_DIR}" "${test_case_name}"
+}
+
+function get_snapshot_file_name_for_test_case() {
+    local -r test_case_name="${1}"
+
+    get_snapshot_file_for_test_case "${TESTING_SNAPSHOTS_DIRECTORY}" "${test_case_name}"
+}
+
+function get_test_case_name_from_callstack() {
+    local test_caller="${FUNCNAME[2]}"
+
+    echo "${test_caller##test_}"
+}
+
+function update_snapshot_file() {
+    local -r test_case_name="${1}"
+    local -r test_output_file="${2}"
+
+    if [[ ! -e "${test_output_file}" ]]; then
+        echo >&2 "Expected test output file '${test_output_file}' for test case '${test_case_name}' missing."
+        return 1
+    fi
+
+    local -r filter_fn="filter_${test_case_name}"
+    if ! function_exists "${filter_fn}"; then
+        echo >&2 "Filter function for test case '${test_case_name}' doesn't exist."
+        return 0
+    fi
+
+    local -r tmp_output_file="${test_output_file}.tmp"
+
+    if ! mv "${test_output_file}" "${tmp_output_file}" &>/dev/null; then
+        echo >&2 "Error moving '${test_output_file}' to '${tmp_output_file}'"
+        return 1
+    fi
+
+    "${filter_fn}" <"${tmp_output_file}" >"${test_output_file}"
+
+    rm "${tmp_output_file}" || true
+}
+
+function execute_snapshot_test() {
+    local -r test_case_name="${1}"
+    local -r snapshot_fn="snapshot_${test_case_name}"
+    local -r snapshot_output_file_name="${2}"
+
+    if ! function_exists "${snapshot_fn}"; then
+        echo >&2 "Snapshot function for test case '${test_case_name}' doesn't exist."
+        return 1
+    fi
+
+    export TEST_OUTPUT_FILE="${snapshot_output_file_name}"
+
+    local result=0
+    "${snapshot_fn}" || result="${?}"
+
+    unset TEST_OUTPUT_FILE
+
+    update_snapshot_file "${test_case_name}" "${snapshot_output_file_name}" || result="${?}"
+
+    return "${result}"
+}
+
+function execute_and_assert_exit_code_and_snapshot() {
+    local -r expected_exit_code="${1}"
+
+    local test_case_name
+    test_case_name="$(get_test_case_name_from_callstack)"
+    readonly test_case_name
+
+    local snapshot_output_file_name
+    snapshot_output_file_name="$(get_output_file_name_for_test_case "${test_case_name}")"
+    readonly snapshot_output_file_name
+
+    local exit_code=0
+    execute_snapshot_test "${test_case_name}" "${snapshot_output_file_name}" || exit_code="${?}"
+
+    assertEquals "Snapshot test case '${test_case_name}' exits with exit code ${expected_exit_code}" \
+        "${expected_exit_code}" \
+        "${exit_code}"
+
+    local expected_snapshot_file_name
+    expected_snapshot_file_name="$(get_snapshot_file_name_for_test_case "${test_case_name}")"
+    readonly expected_snapshot_file_name
+
+    if [[ -v UPDATE_SNAPSHOTS ]]; then
+        if [[ "${exit_code}" != "${expected_exit_code}" ]]; then
+            fail "Unexpected result from executing snapshot test '${test_case_name}', not updating snapshot."
+        else
+            echo >&2 "Updating the snapshot for test case '${test_case_name}' to '${expected_snapshot_file_name}'."
+            cp "${snapshot_output_file_name}" "${expected_snapshot_file_name}" || true
+        fi
+    else
+        assertTrue "Expected snapshot file '${expected_snapshot_file_name}' exists" \
+            "[[ -e \"${expected_snapshot_file_name}\" ]]"
+
+        local diff_result=0
+        diff "${expected_snapshot_file_name}" "${snapshot_output_file_name}" || diff_result="${?}"
+        assertEquals "Test execution snapshot file '${snapshot_output_file_name}' matches '${expected_snapshot_file_name}'" \
+            0 "${diff_result}"
+    fi
+}
+
+function _mycmd() {
+    "${TESTING_BIN_DIRECTORY}/mycmd-test" "${@}"
 }
 
 # ------------------------------------------------------------------------------
 # Common support functions for test suite setup and tear down
 function start_tracing() {
-    if [[ -v _TEST_TRACE_FILE ]]; then
+    if [[ -v TEST_TRACE_FILE ]]; then
         PS4='+${BASH_SOURCE}:${LINENO}# '
         export PS4
 
         shopt -s varredir_close
-        exec {_trace_log_fd}>>"${_TEST_TRACE_FILE}"
+        exec {_trace_log_fd}>>"${TEST_TRACE_FILE}"
         export _trace_log_fd
         BASH_XTRACEFD="${_trace_log_fd}"
         export BASH_XTRACEFD
 
         set -o xtrace
     else
-        echo >&2 "Missing environment variable _TEST_TRACE_FILE, skipping tracing."
+        echo >&2 "Missing environment variable TEST_TRACE_FILE, skipping tracing."
     fi
 }
 
@@ -138,7 +278,7 @@ function cleanup_test_user_directory() {
 }
 
 function cleanup_tracing() {
-    if [[ -v _TEST_TRACE_FILE ]]; then
+    if [[ -v TEST_TRACE_FILE ]]; then
         set +o xtrace
         # Relying on varredir_close to automatically close the fd on exit
         unset PS4

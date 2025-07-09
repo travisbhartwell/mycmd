@@ -58,6 +58,8 @@ This will be the release with full CI working.
 ***** TODO Write outline for author documentation
 
 **** Release Announcement
+https://evilmartians.com/chronicles/we-studied-100-devtool-landing-pages-here-is-what-actually-works-in-2025
+
 ***** TODO Take notes on details to add to release announcement
 ***** TODO Make notes of demos to create
 ***** TODO Choose tool to generate demo GIFs or MP4s

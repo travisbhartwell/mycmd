@@ -700,8 +700,8 @@ function execute-test() {
         MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
         MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
         MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
-        _TEST_OUTPUT_DIR="${test_output_directory}" \
-        _TEST_TRACE_FILE="${test_trace_log_file}" \
+        TEST_OUTPUT_DIR="${test_output_directory}" \
+        TEST_TRACE_FILE="${test_trace_log_file}" \
         PATH="${BIN_DIR}:${PATH}" \
         "${test_file}" "${@}" || result=$?
 
@@ -987,15 +987,6 @@ function mycmd-devel() {
         "${BIN_DIR}"/mycmd "${@}"
 }
 project.register_task mycmd-devel
-
-function mycmd-test() {
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
-        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
-        PATH="${BIN_DIR}:${PATH}" \
-        _TEST_OUTPUT_FILE="${TMP_WORKING_DIR}/mycmd-test-output" \
-        "${TESTING_BIN}"/mycmd-test "${@}"
-}
-project.register_task mycmd-test
 
 function test-command-directly() {
     /usr/bin/env -u MYCMD_SEARCH_PATH \

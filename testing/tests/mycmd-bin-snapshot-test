@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P); then
+    echo >&2 "Error fetching tests directory."
+    exit 1
+fi
+readonly TESTS_DIRECTORY
+
+source "${TESTS_DIRECTORY}/testing-support-lib"
+
+# ------------------------------------------------------------------------------
+# MyCmd Launcher Help Snapshot Test
+function test_mycmd_launcher_help() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_mycmd_launcher_help() {
+    _mycmd --help
+}
+
+function filter_mycmd_launcher_help() {
+    sed -E \
+        -e "s/mycmd version 0.1-.*/mycmd version 0.1-GITHASH/" \
+        -e "s%${HOME}%HOME%"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Launcher Help Snapshot Test
+function test_mycmd_launcher_version() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_mycmd_launcher_version() {
+    _mycmd --version
+}
+
+function filter_mycmd_launcher_version() {
+    sed -E -e "s/mycmd version 0.1-.*/mycmd version 0.1-GITHASH/"
+}
+
+# shellcheck disable=SC2154 source=../vendor/shunit2
+. "${TESTING_VENDOR_DIRECTORY}/shunit2"
