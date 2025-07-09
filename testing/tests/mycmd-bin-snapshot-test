@@ -55,6 +55,34 @@ function filter_command_group_help() {
 }
 
 # ------------------------------------------------------------------------------
+# MyCmd Command Group Help Snapshot Tests
+function test_command_group_version() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_command_group_version() {
+    _mycmd test-command-group --version
+}
+
+function filter_command_group_version() {
+    sed -E "s/Unknown-.*/Unknown-GITHASH/"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Command Group No Args Snapshot Tests
+function test_command_group_no_args() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_command_group_no_args() {
+    _mycmd test-command-group
+}
+
+function filter_command_group_no_args() {
+    sed -E "s/Unknown-.*/Unknown-GITHASH/"
+}
+
+# ------------------------------------------------------------------------------
 # MyCmd Command Help Snapshot Tests
 function test_command_help() {
     execute_and_assert_exit_code_and_snapshot 0
@@ -66,6 +94,30 @@ function snapshot_command_help() {
 
 function filter_command_help() {
     sed -E "s/0.1-.*/0.1-GITHASH/"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Command Version Snapshot Tests
+function test_command_version() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_command_version() {
+    _mycmd test-command --version
+}
+
+function filter_command_version() {
+    sed -E "s/0.1-.*/0.1-GITHASH/"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Command Execution Snapshot Tests
+function test_command_execution() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_command_execution() {
+    _mycmd test-command
 }
 
 # shellcheck disable=SC2154 source=../vendor/shunit2
