@@ -1,0 +1,8 @@
+mycmd test-command version 0.1-GITHASH
+
+Test Command for MyCmd
+
+mycmd test-command
+
+Options:
+mycmd test-command -h

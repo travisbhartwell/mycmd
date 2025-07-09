@@ -37,7 +37,35 @@ function snapshot_mycmd_launcher_version() {
 }
 
 function filter_mycmd_launcher_version() {
-    sed -E -e "s/mycmd version 0.1-.*/mycmd version 0.1-GITHASH/"
+    sed -E "s/mycmd version 0.1-.*/mycmd version 0.1-GITHASH/"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Command Group Help Snapshot Tests
+function test_command_group_help() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_command_group_help() {
+    _mycmd test-command-group --help
+}
+
+function filter_command_group_help() {
+    sed -E "s/Unknown-.*/Unknown-GITHASH/"
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Command Help Snapshot Tests
+function test_command_help() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_command_help() {
+    _mycmd test-command --help
+}
+
+function filter_command_help() {
+    sed -E "s/0.1-.*/0.1-GITHASH/"
 }
 
 # shellcheck disable=SC2154 source=../vendor/shunit2

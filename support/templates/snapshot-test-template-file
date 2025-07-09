@@ -13,7 +13,7 @@ source "${TESTS_DIRECTORY}/testing-support-lib"
 # ------------------------------------------------------------------------------
 # A Snapshot Test Suite
 function test_feature_one() {
-    echo "Feature One"
+    execute_and_assert_exit_code_and_snapshot 0
 }
 
 function snapshot_feature_one() {
@@ -21,12 +21,8 @@ function snapshot_feature_one() {
 }
 
 function filter_feature_one() {
-    echo "Feature One"
+    cat
 }
 
-if [[ -v UPDATE_SNAPSHOTS ]]; then
-    update_snapshots
-else
-    # shellcheck disable=SC2154 source=../vendor/shunit2
-    . "${TESTING_VENDOR_DIRECTORY}/shunit2"
-fi
+# shellcheck disable=SC2154 source=../vendor/shunit2
+. "${TESTING_VENDOR_DIRECTORY}/shunit2"
