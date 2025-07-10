@@ -10,7 +10,7 @@ project.load_task_library "git"
 # shellcheck disable=SC2154
 readonly BIN_DIR="${MYPROJECT_BASE_DIR}/bin"
 readonly SUPPORT_DIR="${MYPROJECT_BASE_DIR}/support"
-readonly TEMPLATE_DIR="${SUPPORT_DIR}/templates"
+readonly TEMPLATES_DIR="${SUPPORT_DIR}/templates"
 readonly TESTING_BASE="${MYPROJECT_BASE_DIR}/testing"
 readonly TESTING_BIN="${TESTING_BASE}/bin"
 readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
@@ -33,7 +33,7 @@ readonly WORKTREES_PARENT_DIR
 mycmd.trace "Set the following variables:"
 mycmd.trace "- BIN_DIR:              ${BIN_DIR}"
 mycmd.trace "- SUPPORT_DIR:          ${SUPPORT_DIR}"
-mycmd.trace "- TEMPLATE_DIR:         ${TEMPLATE_DIR}"
+mycmd.trace "- TEMPLATES_DIR:        ${TEMPLATES_DIR}"
 mycmd.trace "- TESTING_BASE:         ${TESTING_BASE}"
 mycmd.trace "- TESTING_BIN:          ${TESTING_BIN}"
 mycmd.trace "- TEST_FILES_BASE:      ${TEST_FILES_BASE}"
@@ -51,7 +51,7 @@ mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 # Project File Sets
 # All Files
 project.register_fileset ALL_FILES
-project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" "${TESTING_BIN}" "${TEMPLATE_DIR}" -type f
+project.find_files_for_fileset ALL_FILES "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEST_USER_BASE}" "${TESTING_BIN}" "${TEMPLATES_DIR}" -type f
 # shellcheck disable=SC2154
 project.add_files_to_fileset ALL_FILES "${MYPROJECT_PROJECT_FILE}" "${SUPPORT_DIR}/setup-dev-environment.sh"
 project.register_task_with_fileset list-all-files \
@@ -838,13 +838,13 @@ function new-test-file-from-template() {
     cp "${template_file_name}" "${test_file}"
 }
 
-readonly TEST_TEMPLATE_FILE="${TEMPLATE_DIR}/test-template-file"
+readonly TEST_TEMPLATE_FILE="${TEMPLATES_DIR}/test-template-file"
 project.register_task new-test-file \
     new-test-file-from-template \
     "${TEST_TEMPLATE_FILE}" \
     '-test'
 
-readonly SNAPSHOT_TEST_TEMPLATE_FILE="${TEMPLATE_DIR}/snapshot-test-template-file"
+readonly SNAPSHOT_TEST_TEMPLATE_FILE="${TEMPLATES_DIR}/snapshot-test-template-file"
 project.register_task new-snapshot-test-file \
     new-test-file-from-template \
     "${SNAPSHOT_TEST_TEMPLATE_FILE}" \

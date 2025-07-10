@@ -8,6 +8,7 @@ if ! TESTS_DIRECTORY=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P
 fi
 readonly TESTS_DIRECTORY
 
+# shellcheck source=./testing-support-lib
 source "${TESTS_DIRECTORY}/testing-support-lib"
 
 # ------------------------------------------------------------------------------
