@@ -102,7 +102,7 @@ function _update_vendored_file_for_vendor_base_dir() {
     local -r dest_dir=$(dirname "${dest_path}")
 
     if [[ ! -e "${source_path}" ]]; then
-        mycmd.log "Source file '${source_path}' not found."
+        mycmd.error_output "Source file '${source_path}' not found."
         return 1
     fi
 
@@ -112,12 +112,12 @@ function _update_vendored_file_for_vendor_base_dir() {
 
     if [[ -e "${dest_path}" ]]; then
         if diff -q "${source_path}" "${dest_path}"; then
-            mycmd.log "Vendored file '${dest_path}' is up to date."
+            mycmd.error_output "Vendored file '${dest_path}' is up to date."
             return 0
         fi
     fi
 
-    mycmd.log "Updating vendor destination '${dest_path}'."
+    mycmd.error_output "Updating vendor destination '${dest_path}'."
     cp -a "${source_path}" "${dest_path}"
 }
 
@@ -208,7 +208,7 @@ project.register_task_with_fileset list-mycmd-lib-functions-with-source-file lis
 
 function generate-shell-function-index() {
     if ! mycmd.init_bin_no_exit index-shell-functions; then
-        mycmd.log "Neccessary tool 'index-shell-functions' not found."
+        mycmd.error_output "Neccessary tool 'index-shell-functions' not found."
         return 1
     fi
 
@@ -484,7 +484,7 @@ function update_multi_line_coverge_data() {
                 ;;
 
             *)
-                mycmd.log "Invalid action: '${coverage_action}'"
+                mycmd.error_output "Invalid action: '${coverage_action}'"
                 ;;
         esac
     done
@@ -593,7 +593,7 @@ function get-coverage-data-from-trace() {
     local -r test_trace_log_file="${test_output_directory}/test-trace.log"
 
     if [[ ! -e "${test_trace_log_file}" ]]; then
-        mycmd.log "Trace log file '${test_trace_log_file}' not found."
+        mycmd.error_output "Trace log file '${test_trace_log_file}' not found."
         return 1
     fi
 
@@ -624,7 +624,7 @@ function get-coverage-data-from-trace() {
     )
 
     if (("${#covered_files[@]}" == 0 || "${#covered_lines[@]}" == 0)); then
-        mycmd.log "Error getting coverage data"
+        mycmd.error_output "Error getting coverage data"
         return 1
     fi
 
@@ -685,12 +685,12 @@ function execute-test() {
     local -r test_trace_log_file="${test_output_directory}/test-trace.log"
 
     if [[ ! -e "${test_file}" ]]; then
-        mycmd.log "Test file not found: ${test_file}"
+        mycmd.error_output "Test file not found: ${test_file}"
         return 1
     fi
 
     local result=0
-    mycmd.log "Executing test file: ${test_file}"
+    mycmd.error_output "Executing test file: ${test_file}"
     echo "Executing test file: ${test_file}" >>"${test_log_file}"
 
     /usr/bin/env -u MYCMD_SEARCH_PATH \
@@ -705,7 +705,7 @@ function execute-test() {
         PATH="${BIN_DIR}:${PATH}" \
         "${test_file}" "${@}" || result=$?
 
-    mycmd.log "Result of ${test_file}: ${result}"
+    mycmd.error_output "Result of ${test_file}: ${result}"
     echo "Result of ${test_file}: ${result}" >>"${test_log_file}"
     return "${result}"
 }
@@ -732,7 +732,7 @@ project.register_task execute-single-file-tests
 
 function update-single-file-snapshots() {
     if [[ "${1}" != *-snapshot-test ]]; then
-        mycmd.log "Test file must be a snapshot test file."
+        mycmd.error_output "Test file must be a snapshot test file."
         return 1
     fi
 
@@ -824,14 +824,14 @@ function new-test-file-from-template() {
     local -r test_file_name="${3}"
 
     if [[ "${test_file_name}" != *${required_suffix} ]]; then
-        mycmd.log "Test file '${test_file_name}' doesn't end with '${required_suffix}'".
+        mycmd.error_output "Test file '${test_file_name}' doesn't end with '${required_suffix}'".
         return 1
     fi
 
     local -r test_file="${TEST_FILES_BASE}/${test_file_name}"
 
     if [[ -e "${test_file}" ]]; then
-        mycmd.log "Test file '${test_file}' already exists."
+        mycmd.error_output "Test file '${test_file}' already exists."
         return 1
     fi
 
@@ -854,7 +854,7 @@ project.register_task new-snapshot-test-file \
 # Benchmarking
 function execute-benchmark() {
     if ! mycmd.init_bin_no_exit hyperfine; then
-        mycmd.log "Required tool 'hyperfine' not found."
+        mycmd.error_output "Required tool 'hyperfine' not found."
         return 1
     fi
 
@@ -872,7 +872,7 @@ function execute-benchmark() {
 
     local run_output_csv
     if ! run_output_csv="$(mktemp -q -t "benchmark-${description}-XXXXXX.csv")"; then
-        mycmd.log "Error creating temporary file for benchmark output."
+        mycmd.error_output "Error creating temporary file for benchmark output."
         return 1
     fi
     readonly run_output_csv
@@ -935,7 +935,7 @@ function remove-temporary-file() {
 readonly GENERATE_PERF_FILE="${SUPPORT_DIR}/analysis/generate-perf-file.py"
 function create-flamegraph-from-shell-trace() {
     if ! mycmd.init_bin_no_exit flamegraph.pl; then
-        mycmd.log "Required tool 'flamegraph.pl' not found."
+        mycmd.error_output "Required tool 'flamegraph.pl' not found."
         return 1
     fi
 
@@ -944,19 +944,19 @@ function create-flamegraph-from-shell-trace() {
 
     local shell_perf_file
     if ! shell_perf_file="$(mktemp -q -t "shell-trace-XXXXXX.perf")"; then
-        mycmd.log "Error creating temporary file for shell trace perf."
+        mycmd.error_output "Error creating temporary file for shell trace perf."
         return 1
     fi
     readonly shell_perf_file
     mycmd.defer_at_exit remove-temporary-file "${shell_perf_file}"
 
     if ! python "${GENERATE_PERF_FILE}" "${shell_trace_log}" "${shell_perf_file}"; then
-        mycmd.log "Error converting trace log to a perf file."
+        mycmd.error_output "Error converting trace log to a perf file."
         return 1
     fi
 
     if ! mycmd.bin_execute flamegraph.pl "${shell_perf_file}" >"${flamegraph_svg_file}"; then
-        mycmd.log "Error generating flamegraph file"
+        mycmd.error_output "Error generating flamegraph file"
         return 1
     fi
 }
@@ -1007,7 +1007,7 @@ function _get_tag_name_from_parts() {
 
     local date_string
     if ! date_string="$(date '+%Y-%m-%d')"; then
-        mycmd.log "Unexpected error getting the date string"
+        mycmd.error_output "Unexpected error getting the date string"
         return 1
     fi
     readonly date_string
@@ -1091,19 +1091,19 @@ function create_local_snapshot() {
     readonly commit
 
     if project:git.commit_is_tagged_matching_pattern "${commit}" "${LOCAL_SNAPSHOT_TAG_PREFIX}-r.*"; then
-        mycmd.log "Commit '${commit}' already has a snapshot defined."
+        mycmd.error_output "Commit '${commit}' already has a snapshot defined."
         return 1
     fi
 
     local new_snapshot_tag_name
     if ! new_snapshot_tag_name="$(get_new_local_snapshot_tag_name)"; then
-        mycmd.log "Error getting new snapshot tag name."
+        mycmd.error_output "Error getting new snapshot tag name."
         return 1
     fi
     readonly new_snapshot_tag_name
 
     if ! project:git.create_lightweight_tag "${new_snapshot_tag_name}" "${commit}"; then
-        mycmd.log "Error creating tag '${new_snapshot_tag_name}' at '${commit}'."
+        mycmd.error_output "Error creating tag '${new_snapshot_tag_name}' at '${commit}'."
         return 1
     fi
 
@@ -1180,7 +1180,7 @@ function get_previous_snapshot_tag() {
     elif [[ "${current_tag}" = "${DEVELOPMENT_SNAPSHOT_TAG_PREFIX}"-* ]]; then
         get_development_snapshot_tags all_tags
     else
-        mycmd.log "Unexpected tag format of current tag: '${current_tag}'."
+        mycmd.error_output "Unexpected tag format of current tag: '${current_tag}'."
     fi
 
     local -i index
@@ -1192,7 +1192,7 @@ function get_previous_snapshot_tag() {
             previous_tag_index=$((index + 1))
 
             if ((previous_tag_index == tag_count)); then
-                mycmd.log "Current tag '${current_tag}' is the oldest tag"
+                mycmd.error_output "Current tag '${current_tag}' is the oldest tag"
                 return 1
             fi
 
@@ -1201,18 +1201,18 @@ function get_previous_snapshot_tag() {
         fi
     done
 
-    mycmd.log "Tag '${current_tag}' not found."
+    mycmd.error_output "Tag '${current_tag}' not found."
     return 1
 }
 
 function promote_local_snapshot_to_development() {
     if (($# == 0)); then
-        mycmd.log "Missing snapshot to promote."
+        mycmd.error_output "Missing snapshot to promote."
         return 1
     fi
 
     if ! mycmd.init_bin_no_exit gum; then
-        mycmd.log "Required tool 'gum' not found."
+        mycmd.error_output "Required tool 'gum' not found."
         return 1
     fi
 
@@ -1220,7 +1220,7 @@ function promote_local_snapshot_to_development() {
 
     local new_development_snapshot_tag
     if ! new_development_snapshot_tag="$(get_new_development_snapshot_tag_name)"; then
-        mycmd.log "Unexpected error getting new development snapshot tag name."
+        mycmd.error_output "Unexpected error getting new development snapshot tag name."
         return 1
     fi
     readonly new_development_snapshot_tag
@@ -1228,19 +1228,19 @@ function promote_local_snapshot_to_development() {
     local -a tag_messages=()
     local summary_line
     if ! summary_line="$(mycmd.bin_execute gum input --placeholder "Summary of Snapshot")"; then
-        mycmd.log "Error getting summary line."
+        mycmd.error_output "Error getting summary line."
         return 1
     fi
     tag_messages+=("${summary_line}")
     tag_messages+=("Created from local snapshot tag '${local_snapshot_tag}'.")
 
     if ! project:git.create_annotated_tag "${local_snapshot_tag}" "${new_development_snapshot_tag}" tag_messages; then
-        mycmd.log "Error creating annotated tag"
+        mycmd.error_output "Error creating annotated tag"
         return 1
     fi
 
     if ! project:git.push_changes_with_annotated_tags; then
-        mycmd.log "Error pushing changes"
+        mycmd.error_output "Error pushing changes"
         return 1
     fi
 
@@ -1252,7 +1252,7 @@ project.register_task promote-local-snapshot-to-development \
 function promote_latest_local_snapshot_tag_to_development() {
     local latest_local_snapshot
     if ! latest_local_snapshot="$(get_latest_local_snapshot_tag)"; then
-        mycmd.log "No local snapshot tags defined yet."
+        mycmd.error_output "No local snapshot tags defined yet."
         return 1
     fi
     readonly latest_local_snapshot
@@ -1309,7 +1309,7 @@ function update_snapshot_worktree_to_snapshot() {
     if [[ -d "${SNAPSHOT_WORKTREE}" ]]; then
         local current_worktree_tag
         if ! current_worktree_tag="$(get_snapshot_worktree_current_tag)"; then
-            mycmd.log "Unexpected error reading current snapshot worktree current tag file."
+            mycmd.error_output "Unexpected error reading current snapshot worktree current tag file."
             return 1
         fi
         readonly current_worktree_tag
@@ -1337,7 +1337,7 @@ project.register_task update-snapshot-worktree-to-snapshot \
 function rollback_snapshot_worktree_to_last_used_snapshot() {
     local last_used_tag
     if ! last_used_tag="$(get_snapshot_worktree_last_used_tag)"; then
-        mycmd.log "No last used tag file found at '${SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE}'."
+        mycmd.error_output "No last used tag file found at '${SNAPSHOT_WORKTREE_LAST_USED_TAG_FILE}'."
         return 1
     fi
     readonly last_used_tag
@@ -1350,7 +1350,7 @@ project.register_task rollback-snapshot-worktree-to-last-used-snapshot \
 function rollback_snapshot_worktree_to_previous_snapshot_in_sequence() {
     local current_worktree_tag
     if ! current_worktree_tag="$(get_snapshot_worktree_current_tag)"; then
-        mycmd.log "Error reading current snapshot worktree current tag file."
+        mycmd.error_output "Error reading current snapshot worktree current tag file."
         return 1
     fi
     readonly current_worktree_tag
@@ -1369,7 +1369,7 @@ project.register_task rollback-snapshot-worktree-to-previous-snapshot-in-sequenc
 function update_snapshot_worktree_to_latest_local_snapshot() {
     local latest_local_snapshot
     if ! latest_local_snapshot="$(get_latest_local_snapshot_tag)"; then
-        mycmd.log "No local snapshot tags defined yet."
+        mycmd.error_output "No local snapshot tags defined yet."
         return 1
     fi
     readonly latest_local_snapshot
@@ -1384,7 +1384,7 @@ function update_snapshot_worktree_to_latest_development_snapshot() {
 
     local latest_development_snapshot
     if ! latest_development_snapshot="$(get_latest_development_snapshot_tag)"; then
-        mycmd.log "No development snapshot tags defined yet."
+        mycmd.error_output "No development snapshot tags defined yet."
         return 1
     fi
     readonly latest_development_snapshot
@@ -1398,7 +1398,7 @@ project.register_task update-snapshot-worktree-to-latest-development-snapshot \
 # Repo Stats
 function git-quick-stats() {
     if ! mycmd.init_bin_no_exit git-quick-stats; then
-        mycmd.log "Required tool 'git-quick-stats' not found."
+        mycmd.error_output "Required tool 'git-quick-stats' not found."
         return 1
     fi
 
@@ -1412,7 +1412,7 @@ project.register_task git-quick-stats
 # Record Demos
 function record-demo() {
     if ! mycmd.init_bin_no_exit vhs; then
-        mycmd.log "Required tool 'vhs' not found."
+        mycmd.error_output "Required tool 'vhs' not found."
         return 1
     fi
 
