@@ -366,7 +366,7 @@ function coverage-output-and-percent() {
     local -r counted_lines="${2}"
 
     local coverage_pct
-    coverage_pct="$(echo "r((${covered_lines_count}/${counted_lines}) * 100, 2)" | bc -l)"
+    coverage_pct="$(echo "(${covered_lines_count}/${counted_lines}) * 100" | bc -l)"
     readonly coverage_pct
 
     printf "%5d / %5d = %.2f%%" "${covered_lines_count}" "${counted_lines}" "${coverage_pct}"
