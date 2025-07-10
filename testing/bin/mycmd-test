@@ -21,6 +21,10 @@ if [[ -n "${TEST_OUTPUT_FILE-}" ]]; then
     export MYCMD_OUTPUT_FILE="${TEST_OUTPUT_FILE}"
 fi
 
+if [[ -n "${TEST_ERROR_OUTPUT_FILE-}" ]]; then
+    export MYCMD_ERROR_OUTPUT_FILE="${TEST_ERROR_OUTPUT_FILE}"
+fi
+
 start_tracing
 
 # shellcheck disable=SC2154 source=../../bin/mycmd
