@@ -40,7 +40,7 @@ mycmd.load_mycmd_lib_support_lib "vendoring"
 # Wrap the ansi library
 if ! mycmd.load_vendor_library ansi; then
     # coverage skip: 1
-    mycmd.log "Cannot load vendored library, ansi, providing no op pass through."
+    mycmd.error_output "Cannot load vendored library, ansi, providing no op pass through."
 
     function mycmd.ansi() {
         # coverage skip: 1

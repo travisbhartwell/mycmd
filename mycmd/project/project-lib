@@ -135,13 +135,13 @@ function project.load_project_file() {
 
     declare -gx MYPROJECT_BASE_DIR
     if ! MYPROJECT_BASE_DIR="$(cd "$(dirname "${MYPROJECT_PROJECT_FILE}")" &>/dev/null && pwd -P)"; then
-        mycmd.log "Error fetching project directory."
+        mycmd.error_output "Error fetching project directory."
         return 1
     fi
     readonly MYPROJECT_BASE_DIR
 
     if ! mycmd.source_lib_by_path_if_found "${MYPROJECT_PROJECT_FILE}"; then
-        mycmd.log "Error loading project file '${MYPROJECT_PROJECT_FILE}'"
+        mycmd.error_output "Error loading project file '${MYPROJECT_PROJECT_FILE}'"
         return 1
     fi
 }
@@ -149,13 +149,13 @@ function project.load_project_file() {
 function project.load_closest_project_file() {
     local project_file_path
     if ! project_file_path="$(project.find_closest_project_file "${PWD}")"; then
-        mycmd.log "No project file (named 'myproject') found in this directory or any parent."
+        mycmd.error_output "No project file (named 'myproject') found in this directory or any parent."
         return 1
     fi
     readonly project_file_path
 
     if ! project.load_project_file "${project_file_path}"; then
-        mycmd.log "Error loading project file."
+        mycmd.error_output "Error loading project file."
         return 1
     fi
 
@@ -194,7 +194,7 @@ function project.register_default_task() {
         _MYCMD_PROJECT_DEFAULT_TASK="${task_name}"
         return 0
     else
-        mycmd.log "Unknown task '${task_name}' specified as default task."
+        mycmd.error_output "Unknown task '${task_name}' specified as default task."
         return 1
     fi
 }
@@ -218,7 +218,7 @@ function project.execute_task() {
     local -A task_definition=()
 
     if ! project:task.get_task "${task_name}" task_definition; then
-        mycmd.log "Unknown task: '${task_name}'."
+        mycmd.error_output "Unknown task: '${task_name}'."
         return_code=1
     elif ! project:task.function_exists_for_task task_definition; then
         return_code=1
@@ -238,7 +238,7 @@ function project.execute_task() {
         local fileset_name
         if fileset_name="$(project:task.get_fileset task_definition)"; then
             if [[ ! -v _MYCMD_PROJECT_FILESETS[${fileset_name}] ]]; then
-                mycmd.log "Specified file set '${fileset_name}' for task '${task_name}' not defined."
+                mycmd.error_output "Specified file set '${fileset_name}' for task '${task_name}' not defined."
                 return_code=1
             else
                 "${fn}" "${fileset_name}" "${@}" || return_code=$?

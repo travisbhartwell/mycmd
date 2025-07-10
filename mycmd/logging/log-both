@@ -33,7 +33,7 @@ function get_absolute_log_file_path() {
     if log_file_full_path="$(mycmd.canonicalize_path_missing_ok "${log_file_name}")"; then
         local log_directory
         if ! log_directory="$(dirname "${log_file_name}")"; then
-            mycmd.log "Errors getting directory for log file name."
+            mycmd.error_output "Errors getting directory for log file name."
             return 1
         fi
         readonly log_directory
@@ -42,7 +42,7 @@ function get_absolute_log_file_path() {
             mycmd.trace "Creating missing log directory '${log_directory}'."
 
             if ! mkdir -p "${log_directory}"; then
-                mycmd.log "Error creating log directory '${log_directory}'."
+                mycmd.error_output "Error creating log directory '${log_directory}'."
                 return 1
             fi
         fi
@@ -50,7 +50,7 @@ function get_absolute_log_file_path() {
         echo "${log_file_full_path}"
         return 0
     else
-        mycmd.log "Error getting absolute path for log file name: '${log_file_name}'."
+        mycmd.error_output "Error getting absolute path for log file name: '${log_file_name}'."
         return 1
     fi
 }
@@ -108,7 +108,7 @@ function parse_command_line() {
                     ((shift_amount += 2))
                     shift 2
                 else
-                    mycmd.log "Missing argument for '--${_LOG_FILE_PATH}'"
+                    mycmd.error_output "Missing argument for '--${_LOG_FILE_PATH}'"
                     errors["${_LOG_FILE_PATH}"]=1
                     ((shift_amount += 1))
                     shift
@@ -136,7 +136,7 @@ function parse_command_line() {
                     ((shift_amount += 2))
                     shift 2
                 else
-                    mycmd.log "Missing argument for '--${_FILES_TO_KEEP}'"
+                    mycmd.error_output "Missing argument for '--${_FILES_TO_KEEP}'"
                     errors[${_FILES_TO_KEEP}]=1
                     ((shift_amount += 1))
                     shift
@@ -146,7 +146,7 @@ function parse_command_line() {
                     if [[ ${files_to_keep} =~ ^[1-9][0-9]*$ ]]; then
                         arguments_ref["${_FILES_TO_KEEP}"]="${files_to_keep}"
                     else
-                        mycmd.log "Specified files to keep is not a number >= 1: '${files_to_keep}'."
+                        mycmd.error_output "Specified files to keep is not a number >= 1: '${files_to_keep}'."
                         errors[${_FILES_TO_KEEP}]=1
                     fi
                 fi
@@ -164,7 +164,7 @@ function parse_command_line() {
                     ((shift_amount += 2))
                     shift 2
                 else
-                    mycmd.log "Missing argument for '--${_FILES_TO_KEEP_UNCOMPRESSED}'"
+                    mycmd.error_output "Missing argument for '--${_FILES_TO_KEEP_UNCOMPRESSED}'"
                     errors[${_FILES_TO_KEEP_UNCOMPRESSED}]=1
                     ((shift_amount += 1))
                     shift
@@ -174,7 +174,7 @@ function parse_command_line() {
                     if [[ ${files_to_keep_uncompressed} =~ ^[1-9][0-9]*$ ]]; then
                         arguments_ref["${_FILES_TO_KEEP_UNCOMPRESSED}"]="${files_to_keep_uncompressed}"
                     else
-                        mycmd.log "Specified files to keep uncompressed is not a number >= 1: '${files_to_keep_uncompressed}'."
+                        mycmd.error_output "Specified files to keep uncompressed is not a number >= 1: '${files_to_keep_uncompressed}'."
                         errors[${_FILES_TO_KEEP_UNCOMPRESSED}]=1
                     fi
                 fi
@@ -187,7 +187,7 @@ function parse_command_line() {
                 ;;
 
             *)
-                mycmd.log "Unknown argument: '${1}'"
+                mycmd.error_output "Unknown argument: '${1}'"
                 errors['UNKNOWN']=1
                 shift
                 ;;
@@ -208,10 +208,10 @@ function parse_command_line() {
             if [[ "${help_or_version_found}" = true ]]; then
                 mycmd.trace "Help or version found, ignoring missing argument: ${argument}."
             elif ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_SHIFT_AMOUNT}$) ]]; then
-                mycmd.log "Required argument '--${argument}' is not set."
+                mycmd.error_output "Required argument '--${argument}' is not set."
                 errors["${argument}"]=1
             elif [[ "${argument}" = "${_SHIFT_AMOUNT}" ]]; then
-                mycmd.log "Missing command to run after --."
+                mycmd.error_output "Missing command to run after --."
                 errors["${argument}"]=1
             else
                 mycmd.trace "${argument} is not set."

@@ -39,6 +39,15 @@ fi
 readonly _MYCMD_OUTPUT_FD
 export _MYCMD_OUTPUT_FD
 
+if [[ -n "${MYCMD_ERROR_OUTPUT_FILE-}" ]]; then
+    exec {_MYCMD_ERROR_OUTPUT_FD}>>"${MYCMD_ERROR_OUTPUT_FILE}"
+else
+    # coverage skip: 1
+    exec {_MYCMD_ERROR_OUTPUT_FD}>&2
+fi
+readonly _MYCMD_ERROR_OUTPUT_FD
+export _MYCMD_ERROR_OUTPUT_FD
+
 # mycmd.output
 #   Convenience for runtime output to stdout. Provided for symmetry in output
 #   functions.
@@ -68,6 +77,10 @@ function mycmd._output_with_timestamp() {
 #   current timestamp.
 function mycmd.output_with_timestamp() {
     mycmd._output_with_timestamp "${_MYCMD_OUTPUT_FD}" "$*"
+}
+
+function mycmd.error_output() {
+    mycmd._output_with_timestamp "${_MYCMD_ERROR_OUTPUT_FD}" "$*"
 }
 
 if [[ -n "${MYCMD_LOG_FILE-}" ]]; then
@@ -110,7 +123,7 @@ function mycmd.err_exit() {
     local -r exit_code=$1
     shift
 
-    mycmd.log "${*}"
+    mycmd.error_output "${*}"
     exit "${exit_code}"
 }
 

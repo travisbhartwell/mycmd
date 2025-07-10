@@ -139,7 +139,7 @@ function logging.rotate_then_capture_and_display() {
     readonly log_file_name
 
     if ! logging.rotate_log_files_if_needed "${log_dir}" "${log_file_name}" "${files_to_keep}" "${files_to_keep_uncompressed}"; then
-        mycmd.log "Error rotating existing log files."
+        mycmd.error_output "Error rotating existing log files."
         return 1
     fi
 
@@ -166,7 +166,7 @@ function logging.rotate_with_defaults_then_capture_and_display() {
         "${log_file_name}" \
         "${_LOGGING_FILES_TO_KEEP_DEFAULT}" \
         "${_LOGGING_FILES_TO_KEEP_UNCOMPRESSED_DEFAULT}"; then
-        mycmd.log "Error rotating existing log files."
+        mycmd.error_output "Error rotating existing log files."
         return 1
     fi
 

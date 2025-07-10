@@ -126,7 +126,7 @@ function mycmd:command.execute_by_name() {
     # shellcheck disable=SC2034
     local -A command
     if ! mycmd:registry.get_command "${fully_qualified_name}" command; then
-        mycmd.log "Error getting command '${fully_qualified_name}'."
+        mycmd.error_output "Error getting command '${fully_qualified_name}'."
         return 1
     fi
 
@@ -146,13 +146,13 @@ function mycmd:command.execute() {
 
     # Load the command and its command groups
     if ! mycmd:command.load_command "${!command_struct_ref}"; then
-        mycmd.log "Error loading command '${fully_qualified_name}'."
+        mycmd.error_output "Error loading command '${fully_qualified_name}'."
         return 1
     fi
 
     # Validate that mycmd.main exists
     if ! mycmd.function_exists "mycmd.main"; then
-        mycmd.log "Error: 'mycmd.main' function does not exist."
+        mycmd.error_output "Error: 'mycmd.main' function does not exist."
         return 1
     fi
 

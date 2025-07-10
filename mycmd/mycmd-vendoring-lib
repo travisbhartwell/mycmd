@@ -44,7 +44,7 @@ function mycmd.load_vendor_library() {
     mycmd.trace "Attempting to load vendored library '${vendor_library}'."
 
     if ! mycmd._source_lib_by_path_if_found "${vendor_library_path}"; then
-        mycmd.log "Vendored library '${vendor_library}' not found."
+        mycmd.error_output "Vendored library '${vendor_library}' not found."
         return 1
     fi
 }

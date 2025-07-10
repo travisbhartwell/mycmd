@@ -65,7 +65,7 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     local -n files_ref="${4}"
 
     if ! mycmd:registry._register_command_group "${fully_qualified_name}" "${full_path}"; then
-        mycmd.log "Error loading command group '${fully_qualified_name}' from '${full_path}'."
+        mycmd.error_output "Error loading command group '${fully_qualified_name}' from '${full_path}'."
         return 1
     fi
 
@@ -75,14 +75,14 @@ function mycmd:registry._discover_command_groups_and_commands_callback() {
     for f in "${files_ref[@]}"; do
         if ! file_name="$(basename "${f}")"; then
             # coverage skip: 2
-            mycmd.log "Error getting basename of '${f}'."
+            mycmd.error_output "Error getting basename of '${f}'."
             return 1
         fi
 
         file_fully_qualified_name="${fully_qualified_name}/${file_name}"
 
         if ! mycmd:registry._register_command "${file_fully_qualified_name}" "${f}"; then
-            mycmd.log "Error loading command '${file_fully_qualified_name}' from '${f}'."
+            mycmd.error_output "Error loading command '${file_fully_qualified_name}' from '${f}'."
             return 1
         fi
     done

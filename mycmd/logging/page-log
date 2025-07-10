@@ -32,7 +32,7 @@ function get_absolute_log_file_path() {
         echo "${log_file_full_path}"
         return 0
     else
-        mycmd.log "Log file '${log_file_name}' not found."
+        mycmd.error_output "Log file '${log_file_name}' not found."
         return 1
     fi
 }
@@ -163,7 +163,7 @@ function parse_command_line() {
                     base_log_file_path="${2}"
                     shift 2
                 else
-                    mycmd.log "Missing argument for '--${_BASE_LOG_FILE_PATH}'"
+                    mycmd.error_output "Missing argument for '--${_BASE_LOG_FILE_PATH}'"
                     errors["${_BASE_LOG_FILE_PATH}"]=1
                     shift
                 fi
@@ -188,7 +188,7 @@ function parse_command_line() {
                     log_number="${2}"
                     shift 2
                 else
-                    mycmd.log "Missing argument for '--${_LOG_NUMBER}'"
+                    mycmd.error_output "Missing argument for '--${_LOG_NUMBER}'"
                     errors[${_LOG_NUMBER}]=1
                     shift
                 fi
@@ -197,14 +197,14 @@ function parse_command_line() {
                     if [[ ${log_number} =~ ^[0-9]+$ ]]; then
                         arguments_ref["${_LOG_NUMBER}"]="${log_number}"
                     else
-                        mycmd.log "Specified log number is not a number: '${log_number}'."
+                        mycmd.error_output "Specified log number is not a number: '${log_number}'."
                         errors[${_LOG_NUMBER}]=1
                     fi
                 fi
                 ;;
 
             *)
-                mycmd.log "Unknown argument: '${1}'"
+                mycmd.error_output "Unknown argument: '${1}'"
                 errors['UNKNOWN']=1
                 shift
                 ;;
@@ -223,7 +223,7 @@ function parse_command_line() {
             if [[ "${help_or_version_found}" = true ]]; then
                 mycmd.trace "Help or version found, ignoring missing argument: ${argument}."
             elif ! [[ "${argument}" =~ (^${_HELP}|${_VERSION}|${_LOG_NUMBER}$) ]]; then
-                mycmd.log "Required argument '--${argument}' is not set."
+                mycmd.error_output "Required argument '--${argument}' is not set."
                 errors["${argument}"]=1
             else
                 mycmd.trace "${argument} is not set."

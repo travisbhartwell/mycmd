@@ -64,7 +64,7 @@ function parse_command_line() {
                 ;;
 
             *)
-                mycmd.log "Unknown argument: '${1}'"
+                mycmd.error_output "Unknown argument: '${1}'"
                 errors['UNKNOWN']=1
                 shift
                 ;;
@@ -80,7 +80,7 @@ function parse_command_line() {
         if [[ -v arguments_ref["${argument}"] ]]; then
             mycmd.trace "${argument} = ${arguments_ref[${argument}]}"
         else
-            mycmd.log "Value not set for ${argument}."
+            mycmd.error_output "Value not set for ${argument}."
         fi
     done
 

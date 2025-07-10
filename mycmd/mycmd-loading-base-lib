@@ -122,7 +122,7 @@ function mycmd._source_lib_by_path_if_found() {
 
         # shellcheck source=/dev/null
         if ! source "${library_full_path}" "${@}"; then
-            mycmd.log "Error while sourcing '${library_full_path}'."
+            mycmd.error_output "Error while sourcing '${library_full_path}'."
             return 1
         fi
 

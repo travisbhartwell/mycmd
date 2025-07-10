@@ -36,7 +36,7 @@ function project:task._new_task() {
     shift 2
 
     if [[ -v tasks_array_ref[${task_name}] ]]; then
-        mycmd.log "Task '${task_name}' already registered."
+        mycmd.error_output "Task '${task_name}' already registered."
         return 1
     fi
 
@@ -103,7 +103,7 @@ function project:task._get_task() {
     local -n task_struct_ref="${2}"
 
     if [[ ! -v tasks_array_ref[${task_name}] ]]; then
-        mycmd.log "Unknown task: '${task_name}'."
+        mycmd.error_output "Unknown task: '${task_name}'."
         return 1
     fi
 
@@ -186,7 +186,7 @@ function project:task.function_exists_for_task() {
         local task_name
         task_name="$(project:task.get_name "${!task_struct_ref}")"
         readonly task_name
-        mycmd.log "Unknown task function: '${fn}' for task '${task_name}'."
+        mycmd.error_output "Unknown task function: '${fn}' for task '${task_name}'."
         return 1
     fi
 
@@ -237,14 +237,14 @@ function project:task.get_arguments() {
 
     local -i index
     if ! index="$(project:task.get_argument_index "${task_struct_ref_name}")"; then
-        mycmd.log "Unexpected error: index should be set for task '${task_name}'."
+        mycmd.error_output "Unexpected error: index should be set for task '${task_name}'."
         return 1
     fi
     readonly index
 
     local arguments_ref_name
     if ! arguments_ref_name="$(project:task.get_arguments_ref_name "${task_struct_ref_name}")"; then
-        mycmd.log "Unexpected error: arguments ref name should be set for task '${task_name}'."
+        mycmd.error_output "Unexpected error: arguments ref name should be set for task '${task_name}'."
         return 1
     fi
     readonly arguments_ref_name

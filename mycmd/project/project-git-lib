@@ -56,7 +56,7 @@ function project:git.list_tags() {
 
 function project:git.create_lightweight_tag() {
     if (($# < 1)); then
-        mycmd.log "Missing tag name to create."
+        mycmd.error_output "Missing tag name to create."
         return 1
     fi
 
@@ -115,7 +115,7 @@ function project:git.commit_is_tagged_matching_pattern() {
 
     local canonicalized_commit
     if ! canonicalized_commit="$(project:git._execute_git rev-parse "${commit}")"; then
-        mycmd.log "Cannot find commit '${commit}'."
+        mycmd.error_output "Cannot find commit '${commit}'."
         return 1
     fi
 
@@ -133,7 +133,7 @@ function project:git.current_tag_for_worktree() {
 
     local canonicalized_commit
     if ! canonicalized_commit="$(project:git._execute_git rev-parse "${commit}")"; then
-        mycmd.log "Cannot find commit '${commit}'."
+        mycmd.error_output "Cannot find commit '${commit}'."
         return 1
     fi
 

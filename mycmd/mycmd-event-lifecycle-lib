@@ -77,7 +77,7 @@ function mycmd._defer_at_startup() {
     local event_name
     if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
         # coverage skip: 2
-        mycmd.log "Error getting file startup event name."
+        mycmd.error_output "Error getting file startup event name."
         return 1
     fi
     readonly event_name
@@ -112,7 +112,7 @@ function mycmd.run_startup_deferreds() {
     local event_name
     if ! event_name="$(mycmd._get_file_startup_event_name "${calling_file}")"; then
         # coverage skip: 2
-        mycmd.log "Error getting file startup event name"
+        mycmd.error_output "Error getting file startup event name"
         return 1
     fi
     readonly event_name
@@ -143,14 +143,14 @@ function mycmd._print_stack_trace() {
 
     ((return_code == 0)) && return 0
 
-    mycmd.log "\nThe command ${BASH_COMMAND} triggered a stack trace."
+    mycmd.error_output "\nThe command ${BASH_COMMAND} triggered a stack trace."
 
     local -i i
     local -i j
 
     for i in $(seq 1 $((${#FUNCNAME[@]} - 2))); do
         j=$((i + 1))
-        mycmd.log "\t ${BASH_SOURCE[${i}]}: ${FUNCNAME[${i}]}() called in ${BASH_SOURCE[${j}]}:${BASH_LINENO[${i}]}"
+        mycmd.error_output "\t ${BASH_SOURCE[${i}]}: ${FUNCNAME[${i}]}() called in ${BASH_SOURCE[${j}]}:${BASH_LINENO[${i}]}"
     done
 }
 

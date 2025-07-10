@@ -296,7 +296,7 @@ function mycmd.bin_execute() {
 
     local command_path
     if ! command_path=$(mycmd._locate_bin "${command}"); then
-        mycmd.log "Could not find command '${command}'."
+        mycmd.error_output "Could not find command '${command}'."
         return 1
     fi
     readonly command_path
