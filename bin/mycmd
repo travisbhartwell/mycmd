@@ -14,6 +14,7 @@ shopt -s inherit_errexit
 # the output will have too much of the mechanics of MyCmd itself and not the user's command.
 
 if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
+    # coverage skip: 14
     if [[ -n "${_MYCMD_EARLY_TRACE_LOG_FILE-}" ]]; then
         PS4='+[${EPOCHREALTIME}][${BASH_SOURCE}:${LINENO}]:[${FUNCNAME[*]}]:'
         export PS4
@@ -31,6 +32,7 @@ if [[ -n "${_MYCMD_EARLY_SHELL_TRACE-}" ]]; then
 fi
 
 if [[ -n "${_MYCMD_EARLY_SHELL_VERBOSE-}" ]]; then
+    # coverage skip: 1
     set -o verbose
 fi
 
@@ -53,6 +55,7 @@ function mycmd_launcher.set_mycmd_system_environment() {
     export MYCMD_BIN_DIR
 
     if [[ -z "${MYCMD_SYSTEM_BASE_DIR-}" || ! -d "${MYCMD_SYSTEM_BASE_DIR}" ]]; then
+        # coverage skip: 14
         local -r system_base_dir_relative="${MYCMD_BIN_DIR}/../mycmd"
 
         if [[ ! -d "${system_base_dir_relative}" ]]; then
@@ -70,11 +73,13 @@ function mycmd_launcher.set_mycmd_system_environment() {
     fi
 
     if [[ ! -e "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" ]]; then
+        # coverage skip: 2
         echo >&2 "MYCMD_SYSTEM_BASE_DIR setting of ${MYCMD_SYSTEM_BASE_DIR} invalid, as required file mycmd-lib is missing."
         exit 1
     fi
 
     if [[ -z "${MYCMD_VENDOR_DIR-}" || ! -d "${MYCMD_VENDOR_DIR}" ]]; then
+        # coverage skip: 14
         local -r vendor_dir_relative="${MYCMD_BIN_DIR}/../vendor"
 
         if [[ ! -d "${vendor_dir_relative}" ]]; then
@@ -94,10 +99,12 @@ function mycmd_launcher.set_mycmd_system_environment() {
 
 function mycmd_launcher.set_mycmd_user_environment() {
     if [[ -z "${MYCMD_USER_BASE_DIR-}" ]]; then
+        # coverage skip: 1
         MYCMD_USER_BASE_DIR="${HOME}/mycmd"
     fi
 
     if [[ ! -d "${MYCMD_USER_BASE_DIR}" ]]; then
+        # coverage skip: 2
         echo >&2 "Required MyCmd user library directory, '${MYCMD_USER_BASE_DIR}' not found."
         exit 1
     fi
@@ -280,6 +287,7 @@ function mycmd_launcher.help_flag_present() {
     if ! help_flag_present="$(mycmd_launcher._get_arguments_field \
         "${_MYCMD_ARGS_FOUND_HELP}" \
         "${@}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting help flag field from arguments."
         return 1
     fi
@@ -293,6 +301,7 @@ function mycmd_launcher.version_flag_present() {
     if ! version_flag_present="$(mycmd_launcher._get_arguments_field \
         "${_MYCMD_ARGS_FOUND_VERSION}" \
         "${@}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting version flag field from arguments."
         return 1
     fi
@@ -306,6 +315,7 @@ function mycmd_launcher.non_flags_present() {
     if ! non_flags_present="$(mycmd_launcher._get_arguments_field \
         "${_MYCMD_ARGS_FOUND_NON_FLAGS}" \
         "${@}")"; then
+        # coverage skip: 2
         mycmd.debug "Error getting version flag field from arguments."
         return 1
     fi
@@ -372,6 +382,7 @@ function mycmd_launcher.handle_command_group() {
 
     local command_group_fully_qualified_name
     if ! command_group_fully_qualified_name=$(mycmd_launcher.get_command_group_fully_qualified_name "${!args_struct_ref}"); then
+        # coverage skip: 1
         mycmd.err_exit 1 "Missing expected command group fully qualified name."
     fi
     readonly command_group_fully_qualified_name
@@ -415,5 +426,6 @@ function mycmd_launcher.main() {
 }
 
 if [[ "${0##*/}" == "mycmd" ]]; then
+    # coverage skip: 1
     mycmd_launcher.main "${@}"
 fi

@@ -120,5 +120,36 @@ function snapshot_command_execution() {
     _mycmd test-command
 }
 
+# ------------------------------------------------------------------------------
+# MyCmd Invalid Command Execution Tests
+function test_invalid_command_execution() {
+    execute_and_assert_exit_code_and_snapshot 1
+}
+
+function snapshot_invalid_command_execution() {
+    _mycmd invalid-command
+}
+
+function filter_invalid_command_execution() {
+    sed 's/^\[[^]]*\]/[TIMESTAMP]/'
+}
+
+# ------------------------------------------------------------------------------
+# MyCmd Invalid Command Execution Tests
+function test_mycmd_shebang_command_execution() {
+    execute_and_assert_exit_code_and_snapshot 0
+}
+
+function snapshot_mycmd_shebang_command_execution() {
+    # shellcheck disable=SC2154
+    PATH=${TESTING_BIN_DIRECTORY}:${PATH} "${TEST_USER_LIB_DIRECTORY}"/test-command
+}
+
+# ------------------------------------------------------------------------------
+# Test Suite Setup
+function oneTimeSetUp() {
+    setup_test_user_lib_directory
+}
+
 # shellcheck disable=SC2154 source=../vendor/shunit2
 . "${TESTING_VENDOR_DIRECTORY}/shunit2"
