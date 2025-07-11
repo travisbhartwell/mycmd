@@ -47,7 +47,7 @@ function test_test-command() {
 }
 
 function oneTimeSetUp() {
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
     setup_test_user_lib_directory
     setup_test_user_directory
 

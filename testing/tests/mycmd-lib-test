@@ -79,7 +79,7 @@ function test_mycmd_function_calling_lib_is_loaded() {
 
 # shellcheck disable=SC2154
 function oneTimeSetUp() {
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
 
     # shellcheck source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"

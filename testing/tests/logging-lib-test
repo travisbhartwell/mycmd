@@ -63,7 +63,7 @@ function test_log_rotation() {
 }
 
 function oneTimeSetUp() {
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
 
     # shellcheck disable=SC2154 source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"

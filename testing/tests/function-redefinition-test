@@ -39,7 +39,7 @@ function test_log_unproected_functions() {
 }
 
 function oneTimeSetUp() {
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
 
     # shellcheck disable=SC2154 source=../../mycmd/mycmd-loading-base-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-loading-base-lib"

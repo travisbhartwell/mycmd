@@ -132,7 +132,7 @@ function test_get_invalid_commands() {
 
 function oneTimeSetUp() {
     setup_test_user_lib_directory
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
 
     # shellcheck disable=SC2154 source=../../mycmd/mycmd-registry-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-registry-lib"

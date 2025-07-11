@@ -197,7 +197,7 @@ declare -Agx TEST_WALK_PATH_FILE_COUNTS=()
 function oneTimeSetUp() {
     setup_test_user_lib_directory
     setup_mycmd_tmp_directory
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
 
     # shellcheck source=../../mycmd/mycmd-pathname-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"

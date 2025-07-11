@@ -13,7 +13,7 @@ source "${TESTS_DIRECTORY}/testing-support-lib"
 # ------------------------------------------------------------------------------
 # Test Suite setup and tear down function
 function oneTimeSetUp() {
-    start_tracing
+    start_tracing_and_capture_output_for_non_snapshot_tests
 }
 
 function oneTimeTearDown() {
