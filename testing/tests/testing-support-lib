@@ -55,7 +55,7 @@ fi
 
 if [[ ! -v MYCMD_BIN_DIRECTORY ]]; then
     if ! MYCMD_BIN_DIRECTORY=$(cd "${TESTS_DIRECTORY}/../../bin" &>/dev/null && pwd -P); then
-        echo >&2 "Error fetching MyCmd tmp directory."
+        echo >&2 "Error fetching MyCmd bin directory."
         exit 1
     fi
     export MYCMD_BIN_DIRECTORY

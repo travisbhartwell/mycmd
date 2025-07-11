@@ -361,7 +361,7 @@ function summarize_test_results() {
         "Test File" "Result"
 }
 
-function coverage-output-and-percent() {
+function coverage_output_and_percent() {
     local -r covered_lines_count="${1}"
     local -r counted_lines="${2}"
 
@@ -490,12 +490,10 @@ function update_multi_line_coverge_data() {
     done
 }
 
-function generate-coverage-reports() {
+function generate_coverage_reports() {
     local -r test_output_directory="${1}"
     # shellcheck disable=SC2178
-    local -n covered_files_ref="${2}"
-    # shellcheck disable=SC2178
-    local -n covered_lines_ref="${3}"
+    local -n covered_lines_ref="${2}"
 
     local -A coverage_summary=()
 
@@ -514,7 +512,9 @@ function generate-coverage-reports() {
     local covered_lines_count
     local skip_lines
     local -r coverage_re="^[[:space:]]*# coverage skip: *"
-    for file_name in "${!covered_files_ref[@]}"; do
+
+    # shellcheck disable=SC2154
+    for file_name in "${IMPLEMENTATION_FILES[@]}"; do
         base_directory=$(dirname "${file_name}")
         coverage_directory="${test_output_directory}/coverage/${base_directory}"
         mkdir -p "${coverage_directory}" &>/dev/null || true
@@ -571,7 +571,7 @@ function generate-coverage-reports() {
 
         covered_lines_count=$((counted_lines - missed_lines))
         # shellcheck disable=SC2034
-        coverage_summary["${file_name}"]="$(coverage-output-and-percent "${covered_lines_count}" "${counted_lines}")"
+        coverage_summary["${file_name}"]="$(coverage_output_and_percent "${covered_lines_count}" "${counted_lines}")"
         total_counted_lines=$((total_counted_lines + counted_lines))
         total_covered_lines=$((total_covered_lines + covered_lines_count))
     done
@@ -581,26 +581,34 @@ function generate-coverage-reports() {
         "Implementation File" "Covered Lines / Counted Lines = Coverage %"
 
     local coverage_output
-    coverage_output="$(coverage-output-and-percent "${total_covered_lines}" "${total_counted_lines}")"
+    coverage_output="$(coverage_output_and_percent "${total_covered_lines}" "${total_counted_lines}")"
     readonly coverage_output
 
     mycmd.output "\nTotal coverage: ${coverage_output}"
 }
 
+function generate_and_report_coverage() {
+    local -r test_output_directory="${1}"
+    # shellcheck disable=SC2034
+    local -A -i covered_lines=()
+
+    if ! get_coverage_data_from_trace "${test_output_directory}" covered_lines; then
+        return 1
+    fi
+
+    generate_coverage_reports "${test_output_directory}" covered_lines
+}
+
 mycmd.defer_at_startup mycmd.init_bin sed
-function get-coverage-data-from-trace() {
+function get_coverage_data_from_trace() {
     local -r test_output_directory="${1}"
     local -r test_trace_log_file="${test_output_directory}/test-trace.log"
+    local -n covered_lines_array="${2}"
 
     if [[ ! -e "${test_trace_log_file}" ]]; then
         mycmd.error_output "Trace log file '${test_trace_log_file}' not found."
         return 1
     fi
-
-    # Based on bashcov:
-    # https://github.com/zyga/bashcov/blob/7e4c7a23cdea6f80562ea4b206cb19d862bd7b38/bashcov#L18-L55
-    local -A -i covered_files=()
-    local -A -i covered_lines=()
 
     local filename
     local line_number
@@ -608,9 +616,7 @@ function get-coverage-data-from-trace() {
 
     while IFS=: read -r filename line_number count; do
         # shellcheck disable=SC2034
-        covered_files["${filename}"]=1
-        # shellcheck disable=SC2034
-        covered_lines["${filename}:${line_number}"]="${count}"
+        covered_lines_array["${filename}:${line_number}"]="${count}"
     done < <(
         grep -E "^[+]+(${SYSTEM_BASE}|${BIN_DIR})/.*:" "${test_trace_log_file}" \
             | mycmd.bin_execute sed -r \
@@ -623,12 +629,10 @@ function get-coverage-data-from-trace() {
                 's/^[[:space:]]*([0-9]+)[[:space:]]+([^:]+):([0-9]+)/\2:\3:\1/' || true
     )
 
-    if (("${#covered_files[@]}" == 0 || "${#covered_lines[@]}" == 0)); then
+    if (("${#covered_lines_array[@]}" == 0)); then
         mycmd.error_output "Error getting coverage data"
         return 1
     fi
-
-    generate-coverage-reports "${test_output_directory}" covered_files covered_lines
 }
 
 function get-last-test-coverage-dir() {
@@ -767,7 +771,7 @@ function execute-fileset-tests() {
     summarize_test_results results
 
     if [[ ! -v UPDATE_SNAPSHOTS ]]; then
-        get-coverage-data-from-trace "${test_output_directory}"
+        generate_and_report_coverage "${test_output_directory}"
     fi
 
     return "${final_result}"
