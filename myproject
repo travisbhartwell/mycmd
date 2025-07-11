@@ -101,14 +101,14 @@ mycmd.defer_at_startup mycmd.init_bin curl
 function update-pico-css-if-needed() {
     local latest
     if ! latest=$(get_latest_release); then
-        mycmd.log "Error getting latest release from GitHub"
+        mycmd.error_output "Error getting latest release from GitHub"
         return 1
     fi
     readonly latest
 
     local current
     if ! current=$(get_current_used_picocss_version); then
-        mycmd.log "Error getting currently used Pico CSS release"
+        mycmd.error_output "Error getting currently used Pico CSS release"
         return 1
     fi
     readonly current
@@ -124,19 +124,19 @@ function update-pico-css-if-needed() {
     project.verbose "Downloading PicoCSS from ${download_url}."
 
     if ! curl -O -sSL "${download_url}"; then
-        mycmd.log "Error downloading latest PicoCSS version ${latest} from ${download_url}."
+        mycmd.error_output "Error downloading latest PicoCSS version ${latest} from ${download_url}."
         return 1
     fi
 
     if ! tar xf "${tarball}"; then
-        mycmd.log "Error extracting tarball from ${WORKING_DIR}/${tarball}."
+        mycmd.error_output "Error extracting tarball from ${WORKING_DIR}/${tarball}."
         return 1
     fi
 
     local -r src_path="${WORKING_DIR}/pico-${latest}/css/pico.min.css"
 
     if ! cp "${src_path}" "${CSS_DIR}"; then
-        mycmd.log "Error copying updated CSS file"
+        mycmd.error_output "Error copying updated CSS file"
         return 1
     fi
 }
@@ -171,7 +171,7 @@ project.register_task preview
 mycmd.defer_at_startup mycmd.init_bin find
 function clean() {
     mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type f -name '*.html' -delete || true
-    mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type d -empty -delete || true
+    mycmd.bin_execute find "${MYPROJECT_BASE_DIR}" -type d -delete || true
 }
 project.register_task clean
 
@@ -212,7 +212,7 @@ function open-all-links() {
 
     local page_html_file
     if ! page_html_file="$(mktemp -q -t "page-XXXXXX.html")"; then
-        mycmd.log "Error creating temporary file for the HTML output."
+        mycmd.error_output "Error creating temporary file for the HTML output."
         return 1
     fi
     readonly page_html_file
@@ -223,7 +223,7 @@ function open-all-links() {
     readonly page_html_filename_only
 
     if ! mycmd.bin_execute wget --output-document "${page_html_file}" --convert-links --quiet "${url}"; then
-        mycmd.log "Error fetching content for '${url}'."
+        mycmd.error_output "Error fetching content for '${url}'."
         return 1
     fi
 
@@ -266,7 +266,7 @@ function new-december-adventure-post() {
     local -r post_file_name="${BLOG_DIR}/${post_date}-December-Adventure-${YEAR}:-Day-${DAY}.md"
 
     if [[ -e "${post_file_name}" ]]; then
-        mycmd.log "Post '${post_file_name}' already exists, not overwriting."
+        mycmd.error_output "Post '${post_file_name}' already exists, not overwriting."
         return 1
     fi
 
@@ -296,7 +296,7 @@ function new-weekly-progress-update-post() {
     local -r post_file_name="${BLOG_DIR}/${post_date}-MyCmd-and-MyProject-Weekly-Progress-Report:-${YEAR}-Week-${WEEK}.md"
 
     if [[ -e "${post_file_name}" ]]; then
-        mycmd.log "Post '${post_file_name}' already exists, not overwriting."
+        mycmd.error_output "Post '${post_file_name}' already exists, not overwriting."
         return 1
     fi
 
