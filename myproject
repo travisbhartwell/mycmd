@@ -610,13 +610,12 @@ function get_coverage_data_from_trace() {
         return 1
     fi
 
-    local filename
-    local line_number
+    local file_and_line_number
     local count
 
-    while IFS=: read -r filename line_number count; do
+    while IFS=\; read -r file_and_line_number count; do
         # shellcheck disable=SC2034
-        covered_lines_array["${filename}:${line_number}"]="${count}"
+        covered_lines_array["${file_and_line_number}"]="${count}"
     done < <(
         grep -E "^[+]+(${SYSTEM_BASE}|${BIN_DIR})/.*:" "${test_trace_log_file}" \
             | mycmd.bin_execute sed -r \
@@ -626,7 +625,7 @@ function get_coverage_data_from_trace() {
             | sort \
             | uniq -c \
             | mycmd.bin_execute sed -E \
-                's/^[[:space:]]*([0-9]+)[[:space:]]+([^:]+):([0-9]+)/\2:\3:\1/' || true
+                's/^[[:space:]]*([0-9]+)[[:space:]]+([^:]+):([0-9]+)/\2:\3;\1/' || true
     )
 
     if (("${#covered_lines_array[@]}" == 0)); then
