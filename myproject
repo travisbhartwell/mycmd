@@ -775,10 +775,12 @@ function execute-fileset-tests() {
 
     return "${final_result}"
 }
-
 project.register_task_with_fileset execute-all-tests \
     execute-fileset-tests \
     TEST_FILES
+project.register_task_with_fileset execute-snapshot-tests \
+    execute-fileset-tests \
+    SNAPSHOT_TEST_FILES
 
 function update-all-snapshots() {
     local final_result=0
