@@ -10,7 +10,7 @@ This shows executing the task `fileset-task`, which is executed on the fileset `
 
 ## MyProject Updates
 
-This week I pushed [10 commits](https://github.com/travisbhartwell/myproject/commits/main/?since=2025-07-13&until=2025-07-19) to MyProject this week.
+This week I pushed [10 commits](https://github.com/travisbhartwell/myproject/commits/main/?since=2025-07-13&until=2025-07-19) to MyProject, including the following.
 
 - Added a task for running just the snapshot tests.
 - Simplified the code for generating coverage data.
@@ -20,7 +20,7 @@ This week I pushed [10 commits](https://github.com/travisbhartwell/myproject/com
 
 ## MyCmd Updates
 
-This week I pushed [2 small commits](https://github.com/travisbhartwell/mycmd/commits/main/?since=2025-07-13&until=2025-07-19) to MyCmd this week, including:
+This week I pushed [2 small commits](https://github.com/travisbhartwell/mycmd/commits/main/?since=2025-07-13&until=2025-07-19) to MyCmd, including:
 
 - Added a task for running just the snapshot tests.
 - Simplified the code for generating coverage data.
