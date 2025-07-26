@@ -59,6 +59,7 @@ The following table lists the differences between the old and new tasks:
 | update-shunit2                                              | vendor        | update-shunit2                                              |
 
 A few notes:
+
 - I still have to figure out how I want to share code between projects. In the old version, this was done via project support libraries. I may still do this with this version.
 - To get around this, I copied the two functions from [project-shell-lib](https://github.com/travisbhartwell/mycmd/blob/63fb7ff89245779eb9d6e4f318ea8123f344f6dd/mycmd/project/project-shell-lib) in the implementation in MyCmd core right into `main` for now.
 - However, I haven't yet copied over [project-git-lib](https://github.com/travisbhartwell/mycmd/blob/63fb7ff89245779eb9d6e4f318ea8123f344f6dd/mycmd/project/project-git-lib), and so the tasks in [myproject/repo](https://github.com/travisbhartwell/myproject/blob/87c89980e242e31e8b140e23f474bc1cdee7a775/myproject/repo) currently will not work.
