@@ -1,0 +1,80 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# Tasks related to creating new entries from templates
+myproject.register_task_definition_file_description "Tasks related to generating new entries from templates for the project"
+
+mycmd.trace "The following variables set by the main task definition file are used here:"
+# shellcheck disable=SC2154
+mycmd.trace "- TEMPLATE_DIR: ${TEMPLATE_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# December Adventure
+
+readonly DECEMBER_ADVENTURE_TEMPLATE="${TEMPLATE_DIR}/december-adventure.md.template"
+
+mycmd.defer_at_startup mycmd.init_bin envsubst
+function new_december_adventure_post() {
+    local post_date
+    post_date="$(date '+%Y-%m-%d')"
+    readonly post_date
+
+    DAY="$(date '+%-d')"
+    export DAY
+    YEAR="$(date '+%Y')"
+    export YEAR
+
+    local -r post_file_name="${BLOG_DIR}/${post_date}-December-Adventure-${YEAR}:-Day-${DAY}.md"
+
+    if [[ -e "${post_file_name}" ]]; then
+        mycmd.error_output "Post '${post_file_name}' already exists, not overwriting."
+        return 1
+    fi
+
+    mycmd.bin_execute envsubst \
+        <"${DECEMBER_ADVENTURE_TEMPLATE}" \
+        >"${post_file_name}"
+
+    mycmd.output "Generated new December Adventure Post for ${post_date}: '${post_file_name}'."
+}
+
+myproject.register_task december-adventure-post new_december_adventure_post
+myproject.register_task_description december-adventure-post "Generate a new December Adventure post from the template."
+
+# --------------------------------------------------------------------------------------------------
+# Weekly Progress reports
+readonly WEEKLY_PROGRESS_TEMPLATE="${TEMPLATE_DIR}/weekly-progress.md.template"
+
+mycmd.init_bin envsubst
+function new_weekly_progress_update_post() {
+    local post_date
+    post_date="$(gdate --date='this Friday' '+%Y-%m-%d')"
+    readonly post_date
+
+    WEEK="$(date '+%V')"
+    export WEEK
+    YEAR="$(date '+%Y')"
+    export YEAR
+
+    local -r post_file_name="${BLOG_DIR}/${post_date}-MyCmd-and-MyProject-Weekly-Progress-Report:-${YEAR}-Week-${WEEK}.md"
+
+    if [[ -e "${post_file_name}" ]]; then
+        mycmd.error_output "Post '${post_file_name}' already exists, not overwriting."
+        return 1
+    fi
+
+    mycmd.bin_execute envsubst \
+        <"${WEEKLY_PROGRESS_TEMPLATE}" \
+        >"${post_file_name}"
+
+    mycmd.output "Generated new Weekly Progress Update Post for ${post_date}: '${post_file_name}'."
+}
+
+myproject.register_task weekly-progress-update-post new_weekly_progress_update_post
+myproject.register_task_description weekly-progress-update-post "Generate a new Weekly Progress Update post from the template."
+
+mycmd.trace "Finished loading the new task definition file."

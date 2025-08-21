@@ -1,0 +1,200 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+myproject.register_task_definition_file_description "This is the static site generator and content for the MyCmd and MyProject development log"
+
+# --------------------------------------------------------------------------------------------------
+# Project-Wide Variables
+
+mycmd.trace "The following variables set by MyProject are used in the main task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- MYPROJECT_ROOT_DIRECTORY:            ${MYPROJECT_ROOT_DIRECTORY}"
+# shellcheck disable=SC2154
+mycmd.trace "- MYPROJECT_TASK_DEFINITION_DIRECTORY: ${MYPROJECT_TASK_DEFINITION_DIRECTORY}"
+
+readonly BLOG_DIR="${MYPROJECT_ROOT_DIRECTORY}/blog"
+readonly CSS_DIR="${MYPROJECT_ROOT_DIRECTORY}/css"
+readonly TEMPLATE_DIR="${MYPROJECT_ROOT_DIRECTORY}/templates"
+readonly WORKING_DIR="${MYPROJECT_ROOT_DIRECTORY}/.working"
+
+mycmd.trace "Set the following variables:"
+mycmd.trace "- BLOG_DIR:     ${BLOG_DIR}"
+mycmd.trace "- CSS_DIR:      ${CSS_DIR}"
+mycmd.trace "- TEMPLATE_DIR: ${TEMPLATE_DIR}"
+mycmd.trace "- WORKING_DIR:  ${WORKING_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# Project File Sets
+
+# All Files
+myproject.register_fileset ALL_FILES
+myproject.find_and_add_files_to_fileset ALL_FILES "${MYPROJECT_ROOT_DIRECTORY}" -path "${MYPROJECT_ROOT_DIRECTORY}/.git" -prune -o -type f
+
+# Task Definition Files
+myproject.register_fileset TASK_DEFINITION_FILES
+myproject.add_files_to_fileset TASK_DEFINITION_FILES "${MYPROJECT_TASK_DEFINITION_DIRECTORY}"/*
+
+# All Shell Files
+myproject.register_fileset SHELL_FILES
+myproject.add_files_to_fileset SHELL_FILES "${MYPROJECT_ROOT_DIRECTORY}"/gen.sh "${MYPROJECT_TASK_DEFINITION_DIRECTORY}"/*
+
+# Blog Entry Files
+myproject.register_fileset BLOG_ENTRIES
+myproject.find_and_add_files_to_fileset BLOG_ENTRIES "${BLOG_DIR}" -type f -name '*.md'
+
+# HTML Template Files
+myproject.register_fileset HTML_TEMPLATE_FILES
+myproject.add_files_to_fileset HTML_TEMPLATE_FILES "${MYPROJECT_ROOT_DIRECTORY}"/site.html.template
+
+# CSS Files
+myproject.register_fileset CSS_FILES
+myproject.find_and_add_files_to_fileset CSS_FILES "${MYPROJECT_ROOT_DIRECTORY}" -type f -name '*.css'
+
+# --------------------------------------------------------------------------------------------------
+# Site Generation Tasks
+function generate() {
+    project.output_only_if_not_quiet "Running site generation..."
+
+    "${MYPROJECT_ROOT_DIRECTORY}"/gen.sh
+}
+
+myproject.register_task generate
+myproject.register_task_description generate "Generate the site with the static site generator."
+
+# --------------------------------------------------------------------------------------------------
+# Preview Tasks
+mycmd.defer_at_startup mycmd.init_bin tmux
+mycmd.defer_at_startup mycmd.init_bin curl
+
+function preview() {
+    myproject.execute_tasks generate
+
+    if [[ -v TMUX ]]; then
+        myproject.output_only_if_not_quiet "Starting a Web Server In Tmux"
+        mycmd.bin_execute tmux new-window -n preview-http -d -c "${MYPROJECT_ROOT_DIRECTORY}" 'python3 -m http.server 8080'
+
+        project.output_only_if_not_quiet "Waiting for server to start..."
+        mymycmd.bin_execute curl --silent --head -X GET --retry 20 --retry-connrefused --retry-delay 1 http://localhost:8080
+
+        open http://localhost:8080
+    fi
+}
+
+myproject.register_task preview
+myproject.register_task_description preview "Start a web server in tmux and open the site in the broswer."
+
+# --------------------------------------------------------------------------------------------------
+# Main Tasks
+
+mycmd.defer_at_startup mycmd.init_bin find
+
+function clean() {
+    mycmd.bin_execute find "${MYPROJECT_ROOT_DIR}" -type f -name '*.html' -delete || true
+    mycmd.bin_execute find "${BLOG_DIR}" -type d -delete || true
+}
+
+myproject.register_task clean
+myproject.register_task_description clean "Clean the generated files in the project."
+
+function archive_output() {
+    local -r parent_dir="${1}"
+    local -r archive_name="${2}"
+    local -r dest_dir="${parent_dir}/${archive_name}"
+
+    myproject.execute_tasks clean \; generate
+
+    if [[ ! -d "${dest_dir}" ]]; then
+        mkdir -p "${dest_dir}"
+    fi
+
+    cp index.html style.css "${dest_dir}"
+
+    if [[ ! -d "${dest_dir}/blog" ]]; then
+        mkdir -p "${dest_dir}/blog"
+    fi
+
+    cp ./blog/*.html "${dest_dir}/blog"
+}
+
+myproject.register_task archive-output archive_output
+myproject.register_task_description archive-output "Archive the generated output to the specified directory."
+
+mycmd.defer_at_startup mycmd.init_bin wget
+mycmd.defer_at_startup mycmd.init_bin htmlq
+
+function remove_temporary_file() {
+    local -r f="${1}"
+
+    if [[ -e "${f}" ]]; then
+        rm -f "${f}" || true
+    fi
+}
+
+function open_all_links() {
+    local -r url="${1}"
+
+    local page_html_file
+    if ! page_html_file="$(mktemp -q -t "page-XXXXXX.html")"; then
+        mycmd.error_output "Error creating temporary file for the HTML output."
+        return 1
+    fi
+    readonly page_html_file
+    mycmd.defer_at_exit remove_temporary_file "${page_html_file}"
+
+    local page_html_filename_only
+    page_html_filename_only="$(basename "${page_html_file}")"
+    readonly page_html_filename_only
+
+    if ! mycmd.bin_execute wget --output-document "${page_html_file}" --convert-links --quiet "${url}"; then
+        mycmd.error_output "Error fetching content for '${url}'."
+        return 1
+    fi
+
+    # Automatically close assigned using the `{varname}` redirection syntax
+    shopt -s varredir_close
+    exec {inputfd}>&0
+    readonly inputfd
+
+    local array
+    local i
+
+    while mapfile -t -n 5 array && ((${#array[@]})); do
+        for i in "${array[@]}"; do
+            if [[ "${i}" != "${page_html_filename_only}" ]]; then
+                mycmd.output "Opening '${i}'."
+                open "${i}"
+            fi
+        done
+
+        read -r -u "${inputfd}" -p "Press enter to open the next batch."
+    done < <(mycmd.bin_execute htmlq --filename "${page_html_file}" --attribute href a)
+}
+
+myproject.register_task open-all-links open_all_links
+myproject.register_task_description open-all-links "Open all links from the specified URL."
+
+function format_all() {
+    myproject.execute_tasks shell-files format
+}
+
+myproject.register_task format-all format_all
+myproject.register_task_description format-all "Format all files in the project."
+
+function lint_all() {
+    myproject.execute_tasks shell-files lint
+}
+
+myproject.register_task lint-all lint_all
+myproject.register_task_description lint-all "Lint all files in the project."
+
+function all() {
+    myproject.execute_tasks format-all \; lint-all \; generate
+}
+
+myproject.register_task all
+myproject.register_task_description all "Execute all build tasks: format and lint."
+
+mycmd.trace "Finished loading the main task definition file."

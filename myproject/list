@@ -1,0 +1,41 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# List Fileset Tasks
+myproject.register_task_definition_file_description "Tasks for listing files in the development log's filesets"
+
+myproject.register_task_with_fileset all-files \
+    myproject.list_files \
+    ALL_FILES
+myproject.register_task_description all-files "List all files in the project."
+
+myproject.register_task_with_fileset task-definition-files \
+    myproject.list_files \
+    TASK_DEFINITION_FILES
+myproject.register_task_description task-definition-files "List all of the task definition files in the project."
+
+myproject.register_task_with_fileset all-shell-files \
+    myproject.list_files \
+    TASK_DEFINITION_FILES
+myproject.register_task_description all-shell-files "List all of the shell script files in the project."
+
+myproject.register_task_with_fileset blog-entries \
+    myproject.list_files \
+    BLOG_ENTRIES
+myproject.register_task_description blog-entries "List all of the Blog entry files in the project."
+
+myproject.register_task_with_fileset html-template-files \
+    myproject.list_files \
+    HTML_TEMPLATE_FILES
+myproject.register_task_description html-template-files "List all of the HTML template files in the project."
+
+myproject.register_task_with_fileset css-files \
+    myproject.list_files \
+    CSS_FILES
+myproject.register_task_description css-files "List all of the CSS files in the project."
+
+mycmd.trace "Finished loading the list task definition file."
