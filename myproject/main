@@ -1,0 +1,208 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+myproject.register_task_definition_file_description "MyCmd is a tool for writing and executing commands from a command directory"
+
+# --------------------------------------------------------------------------------------------------
+# Project-Wide Variables
+
+mycmd.trace "The following variables set by MyProject are used in the main task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- MYPROJECT_ROOT_DIRECTORY:            ${MYPROJECT_ROOT_DIRECTORY}"
+# shellcheck disable=SC2154
+mycmd.trace "- MYPROJECT_TASK_DEFINITION_DIRECTORY: ${MYPROJECT_TASK_DEFINITION_DIRECTORY}"
+
+readonly BIN_DIR="${MYPROJECT_ROOT_DIRECTORY}/bin"
+readonly SUPPORT_DIR="${MYPROJECT_ROOT_DIRECTORY}/support"
+readonly TEMPLATES_DIR="${SUPPORT_DIR}/templates"
+readonly TESTING_BASE="${MYPROJECT_ROOT_DIRECTORY}/testing"
+readonly TESTING_BIN="${TESTING_BASE}/bin"
+readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
+readonly TEST_SNAPSHOTS_DIR="${TESTING_BASE}/snapshots"
+readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
+readonly SYSTEM_BASE="${MYPROJECT_ROOT_DIRECTORY}/mycmd"
+readonly VENDOR_DIR="${MYPROJECT_ROOT_DIRECTORY}/vendor"
+readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
+readonly VENDOR_WORKING_DIR="${MYPROJECT_ROOT_DIRECTORY}/vendor/.working"
+readonly TMP_WORKING_DIR="${MYPROJECT_ROOT_DIRECTORY}/tmp"
+readonly DOCS_DIR="${MYPROJECT_ROOT_DIRECTORY}/docs"
+
+if [[ ! -d "${TMP_WORKING_DIR}" ]]; then
+    mkdir -p "${TMP_WORKING_DIR}" || true
+fi
+
+WORKTREES_PARENT_DIR="$(cd "$(dirname "${MYPROJECT_ROOT_DIRECTORY}")" &>/dev/null && pwd -P)"
+readonly WORKTREES_PARENT_DIR
+
+mycmd.trace "Set the following variables:"
+mycmd.trace "- BIN_DIR:              ${BIN_DIR}"
+mycmd.trace "- SUPPORT_DIR:          ${SUPPORT_DIR}"
+mycmd.trace "- TEMPLATES_DIR:        ${TEMPLATES_DIR}"
+mycmd.trace "- TESTING_BASE:         ${TESTING_BASE}"
+mycmd.trace "- TESTING_BIN:          ${TESTING_BIN}"
+mycmd.trace "- TEST_FILES_BASE:      ${TEST_FILES_BASE}"
+mycmd.trace "- TEST_SNAPSHOS_DIR:    ${TEST_SNAPSHOTS_DIR}"
+mycmd.trace "- TEST_USER_BASE:       ${TEST_USER_BASE}"
+mycmd.trace "- SYSTEM_BASE:          ${SYSTEM_BASE}"
+mycmd.trace "- VENDOR_DIR:           ${VENDOR_DIR}"
+mycmd.trace "- TEST_VENDOR_DIR:      ${TEST_VENDOR_DIR}"
+mycmd.trace "- VENDOR_WORKING_DIR:   ${VENDOR_WORKING_DIR}"
+mycmd.trace "- TMP_WORKING_DIR:      ${TMP_WORKING_DIR}"
+mycmd.trace "- DOCS_DIR:             ${DOCS_DIR}"
+mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# Project File Sets
+
+# All Files
+myproject.register_fileset ALL_FILES
+myproject.find_and_add_files_to_fileset ALL_FILES "${MYPROJECT_TASK_DEFINITION_DIRECTORY}" "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEMPLATES_DIR}" -type f
+myproject.find_and_add_files_to_fileset ALL_FILES "${SUPPORT_DIR}" -name '*.py'
+myproject.find_and_add_files_to_fileset ALL_FILES "${SUPPORT_DIR}" -name '*.sh'
+
+# Task Definition Files
+myproject.register_fileset TASK_DEFINITION_FILES
+myproject.add_files_to_fileset TASK_DEFINITION_FILES "${MYPROJECT_TASK_DEFINITION_DIRECTORY}"/*
+
+# All Shell Files
+myproject.register_fileset ALL_SHELL_FILES
+myproject.find_and_add_files_to_fileset ALL_SHELL_FILES "${MYPROJECT_TASK_DEFINITION_DIRECTORY}" "${BIN_DIR}" "${SYSTEM_BASE}" "${TEST_FILES_BASE}" "${TEMPLATES_DIR}" -type f
+myproject.find_and_add_files_to_fileset ALL_SHELL_FILES "${SUPPORT_DIR}" -name '*.sh'
+
+# Implementation Files Only
+myproject.register_fileset IMPLEMENTATION_FILES
+myproject.find_and_add_files_to_fileset IMPLEMENTATION_FILES \
+    "${BIN_DIR}" "${SYSTEM_BASE}" \
+    -type f
+
+# Test Files Only
+myproject.register_fileset TEST_FILES
+myproject.find_and_add_files_to_fileset TEST_FILES \
+    "${TEST_FILES_BASE}" \
+    -type f -name '*-test'
+
+# Snapshot Test Files Only
+myproject.register_fileset SNAPSHOT_TEST_FILES
+myproject.find_and_add_files_to_fileset SNAPSHOT_TEST_FILES \
+    "${TEST_FILES_BASE}" \
+    -type f -name '*-snapshot-test'
+
+# Snapshot Files Only
+myproject.register_fileset SNAPSHOT_FILES
+myproject.find_and_add_files_to_fileset SNAPSHOT_FILES \
+    "${TEST_SNAPSHOTS_DIR}" \
+    -type f
+
+# MyCmd Lib and Support Libraries Only
+myproject.register_fileset MYCMD_LIB_FILES
+myproject.find_and_add_files_to_fileset MYCMD_LIB_FILES "${SYSTEM_BASE}" -maxdepth 1 -name '*-lib'
+
+# Python Files Only
+myproject.register_fileset PYTHON_FILES
+myproject.find_and_add_files_to_fileset PYTHON_FILES "${SUPPORT_DIR}" -name '*.py'
+
+# --------------------------------------------------------------------------------------------------
+# Main Tasks
+
+mycmd.defer_at_startup mycmd.init_bin shfmt
+function format_shell_files() {
+    local -n format_fileset="${1}"
+
+    if myproject.is_verbose_enabled; then
+        mycmd.output "Formatting the following files:"
+        myproject.list_files "${!format_fileset}"
+    fi
+
+    mycmd.bin_execute shfmt --language-dialect bash --indent=4 --binary-next-line --case-indent --write "${format_fileset[@]}"
+}
+
+myproject.register_task_with_fileset format format_shell_files ALL_SHELL_FILES
+myproject.register_task_description format "Format all shell script source files with shfmt."
+
+mycmd.defer_at_startup mycmd.init_bin shellcheck
+function lint_shell_files() {
+    local -n lint_fileset="${1}"
+
+    if myproject.is_verbose_enabled; then
+        mycmd.output "Linting the following files:"
+        myproject.list_files "${!lint_fileset}"
+    fi
+
+    myproject.output_only_if_not_quiet "Running ShellCheck:"
+
+    mycmd.bin_execute shellcheck --check-sourced "${lint_fileset[@]}"
+}
+
+myproject.register_task_with_fileset lint lint_shell_files ALL_SHELL_FILES
+myproject.register_task_description lint "Lint all shell script source files with shellcheck."
+
+function record_demo() {
+    if ! mycmd.init_bin_no_exit vhs; then
+        mycmd.error_output "Required tool 'vhs' not found."
+        return 1
+    fi
+
+    local -r demo_source="${1}"
+    local -r output_file="${2}"
+
+    if [[ -e "${output_file}" ]]; then
+        rm "${output_file}" &>/dev/null || true
+    fi
+
+    mycmd.bin_execute vhs "${demo_source}"
+}
+
+myproject.register_task record-demo record_demo
+myproject.register_task_description record-demo "Record a screencast demo using vhs."
+
+function mycmd_devel() {
+    local -r trace_log_file="${TMP_WORKING_DIR}/shell-log-trace"
+
+    if [[ -e "${trace_log_file}" ]]; then
+        rm -rf "${trace_log_file}" || true
+    fi
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        _MYCMD_EARLY_SHELL_TRACE=1 \
+        _MYCMD_EARLY_TRACE_LOG_FILE="${trace_log_file}" \
+        "${BIN_DIR}"/mycmd "${@}"
+}
+
+myproject.register_task mycmd-devel mycmd_devel
+myproject.register_task_description mycmd-devel "Run the in-development MyCmd from this git worktree."
+
+mycmd.defer_at_startup mycmd.init_bin find
+function clean_up() {
+    mycmd.bin_execute find "${MYPROJECT_ROOT_DIRECTORY}" -type f -name '.DS_Store' -delete
+}
+
+myproject.register_task clean-up clean_up
+myproject.register_task_description clean-up "Clean up miscellaneous files."
+
+function format_all() {
+    myproject.execute_tasks format \; python format
+}
+
+myproject.register_task format-all format_all
+myproject.register_task_description format-all "Format all files in the project."
+
+function lint_all() {
+    myproject.execute_tasks lint \; python lint
+}
+
+myproject.register_task lint-all lint_all
+myproject.register_task_description lint-all "Lint all files in the project."
+
+function all() {
+    myproject.execute_tasks clean-up \; format-all \; lint-all \; test execute-all
+}
+
+myproject.register_task all
+myproject.register_task_description all "Execute all build tasks: format, lint, and tests."
+
+mycmd.trace "Finished loading the main task definition file."

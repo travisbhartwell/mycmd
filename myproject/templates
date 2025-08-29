@@ -1,0 +1,56 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# Templates Tasks
+myproject.register_task_definition_file_description "Tasks for generating files from templates for the MyCmd project"
+
+# --------------------------------------------------------------------------------------------------
+# Global Dependencies
+mycmd.trace "The following variables set in main are used in the templates task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- TEMPLATES_DIR:          ${TEMPLATES_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- TEST_FILES_BASE:        ${TEST_FILES_BASE}"
+
+# --------------------------------------------------------------------------------------------------
+# Task Definitions
+
+function new_test_file_from_template() {
+    local -r template_file_name="${1}"
+    local -r required_suffix="${2}"
+    local -r test_file_name="${3}"
+
+    if [[ "${test_file_name}" != *${required_suffix} ]]; then
+        mycmd.error_output "Test file '${test_file_name}' doesn't end with '${required_suffix}'".
+        return 1
+    fi
+
+    local -r test_file="${TEST_FILES_BASE}/${test_file_name}"
+
+    if [[ -e "${test_file}" ]]; then
+        mycmd.error_output "Test file '${test_file}' already exists."
+        return 1
+    fi
+
+    cp "${template_file_name}" "${test_file}"
+}
+
+readonly TEST_TEMPLATE_FILE="${TEMPLATES_DIR}/test-template-file"
+myproject.register_task new-test-file \
+    new_test_file_from_template \
+    "${TEST_TEMPLATE_FILE}" \
+    '-test'
+myproject.register_task_description new-test-file "Create a new test file from the template."
+
+readonly SNAPSHOT_TEST_TEMPLATE_FILE="${TEMPLATES_DIR}/snapshot-test-template-file"
+myproject.register_task new-snapshot-test-file \
+    new_test_file_from_template \
+    "${SNAPSHOT_TEST_TEMPLATE_FILE}" \
+    '-snapshot-test'
+myproject.register_task_description new-snapshot-test-file "Create a new snapshot test file from the template."
+
+mycmd.trace "Finished loading the templates task definition file."

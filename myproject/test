@@ -1,0 +1,541 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# Test Tasks
+myproject.register_task_definition_file_description "Tasks for testing MyCmd"
+
+# --------------------------------------------------------------------------------------------------
+# Global Dependencies
+mycmd.trace "The following variables set by MyProject are used in the test task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- MYPROJECT_ROOT_DIRECTORY: ${MYPROJECT_ROOT_DIRECTORY}"
+
+mycmd.trace "The following variables set in main are used in the test task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- BIN_DIR:                ${BIN_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- SYSTEM_BASE:            ${SYSTEM_BASE}"
+# shellcheck disable=SC2154
+mycmd.trace "- TEST_USER_BASE:         ${TEST_USER_BASE}"
+# shellcheck disable=SC2154
+mycmd.trace "- TMP_WORKING_DIR:        ${TMP_WORKING_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- VENDOR_DIR:             ${VENDOR_DIR}"
+
+mycmd.trace "Additionally, the following fileset variable from main is used in the test task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- IMPLEMENTATION_FILES:   ${IMPLEMENTATION_FILES[*]}"
+
+# --------------------------------------------------------------------------------------------------
+# Task Definitions
+function execute_fileset_tests() {
+    local -n test_fileset="${1}"
+    local test_file
+    local -A results=()
+    local result
+
+    local test_output_directory
+    test_output_directory="$(get_test_output_directory)"
+    readonly test_output_directory
+
+    local final_result=0
+
+    for test_file in "${test_fileset[@]}"; do
+        result=0
+
+        execute_test "${test_output_directory}" "${test_file}" || result=$?
+        # shellcheck disable=SC2034
+        results["${test_file}"]="${result}"
+
+        if ((result != 0)); then
+            final_result="${result}"
+        fi
+    done
+
+    summarize_test_results results
+
+    if [[ ! -v UPDATE_SNAPSHOTS ]]; then
+        generate_and_report_coverage "${test_output_directory}"
+    fi
+
+    return "${final_result}"
+}
+
+myproject.register_task_with_fileset execute-all \
+    execute_fileset_tests \
+    TEST_FILES
+myproject.register_task_description execute-all "Execute all test suites."
+
+myproject.register_task_with_fileset execute-snapshots \
+    execute_fileset_tests \
+    SNAPSHOT_TEST_FILES
+myproject.register_task_description execute-snapshots "Execute all snapshot test suites."
+
+function execute_single_file() {
+    local -r test_file="${1}"
+    shift
+
+    local test_output_directory
+    test_output_directory="$(get_test_output_directory)"
+    readonly test_output_directory
+
+    if (($# > 0)); then
+        set -- "${test_output_directory}" "${test_file}" -- "${@}"
+    else
+        set -- "${test_output_directory}" "${test_file}"
+    fi
+
+    execute_test "${@}"
+}
+
+myproject.register_task execute-single-file execute_single_file
+myproject.register_task_description execute-single-file "Execute the tests in a single test file."
+
+function page_last_coverage_reports() {
+    local pager="bat"
+
+    if ! mycmd.init_bin_no_exit "${pager}"; then
+        mycmd.trace "Tool 'bat' not found, falling back to 'less'."
+        pager="less"
+    fi
+    readonly pager
+
+    local last_test_coverage_dir
+    if ! last_test_coverage_dir="$(mycmd.nullglob_set_wrapper get_last_coverage_dir)"; then
+        mycmd.error_output "No test coverage files found."
+        return 1
+    fi
+    readonly last_test_coverage_dir
+
+    shopt -s globstar
+
+    "${pager}" "${last_test_coverage_dir}"/**/*.coverage
+}
+
+myproject.register_task page-last-coverage-reports page_last_coverage_reports
+myproject.register_task_description page-last-coverage-reports "View the latest test coverage reports in a pager."
+
+function page_last_log() {
+    local last_test_log
+    if ! last_test_log="$(mycmd.nullglob_set_wrapper get_last_log)"; then
+        mycmd.error_output "No test log files found."
+        return 1
+    fi
+    readonly last_test_log
+
+    less "${last_test_log}"
+}
+
+myproject.register_task page-last-log page_last_log
+myproject.register_task_description page-last-log "View the latest test output log in a pager."
+
+function remove_output() {
+    rm -rf "${TMP_WORKING_DIR}"/test-output-* 2>/dev/null || true
+}
+
+myproject.register_task remove-output remove_output
+myproject.register_task_description remove-output "Remove all of the test run output files in '${TMP_WORKING_DIR}'."
+
+function update_all_snapshots() {
+    local final_result=0
+
+    UPDATE_SNAPSHOTS=1 execute_fileset_tests "${@}" || final_result="${?}"
+
+    return "${final_result}"
+}
+
+myproject.register_task_with_fileset update-all-snapshots \
+    update_all_snapshots \
+    SNAPSHOT_TEST_FILES
+myproject.register_task_description update-all-snapshots "Update all snapshot files for snapshot tests."
+
+function update_single_file_snapshots() {
+    if [[ "${1}" != *-snapshot-test ]]; then
+        mycmd.error_output "Test file must be a snapshot test file."
+        return 1
+    fi
+
+    UPDATE_SNAPSHOTS=1 execute_single_file_tests "${@}"
+}
+
+myproject.register_task update-single-file-snapshots update_single_file_snapshots
+myproject.register_task_description update-single-file-snapshots "Update the snapshot files for a single snapshot test file."
+
+# --------------------------------------------------------------------------------------------------
+# Test Task Support Functions
+function get_test_output_directory() {
+    local description
+    description="$(date '+%Y-%m-%d-%H%M%S')"
+    readonly description
+
+    local -r test_output_directory="${TMP_WORKING_DIR}/test-output-${description}"
+    mkdir -p "${test_output_directory}" &>/dev/null || true
+    echo "${test_output_directory}"
+}
+
+function execute_test() {
+    local -r test_output_directory="${1}"
+    shift
+    local -r test_file="${1}"
+    shift
+
+    local -r test_log_file="${test_output_directory}/test-output.log"
+    local -r test_trace_log_file="${test_output_directory}/test-trace.log"
+
+    if [[ ! -e "${test_file}" ]]; then
+        mycmd.error_output "Test file not found: ${test_file}"
+        return 1
+    fi
+
+    local result=0
+    mycmd.error_output "Executing test file: ${test_file}"
+    echo "Executing test file: ${test_file}" >>"${test_log_file}"
+
+    /usr/bin/env -u MYCMD_SEARCH_PATH \
+        MYCMD_TRACE=1 \
+        MYCMD_DEBUG=1 \
+        MYCMD_LOG_FILE="${test_log_file}" \
+        MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
+        TEST_OUTPUT_DIR="${test_output_directory}" \
+        TEST_TRACE_FILE="${test_trace_log_file}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        "${test_file}" "${@}" || result=$?
+
+    mycmd.error_output "Result of ${test_file}: ${result}"
+    echo "Result of ${test_file}: ${result}" >>"${test_log_file}"
+    return "${result}"
+}
+
+function summarize_test_results() {
+    local -n results_ref="${1}"
+
+    local -A result_table=()
+    local test_file
+    local result
+
+    for test_file in "${!results_ref[@]}"; do
+        result="${results_ref["${test_file}"]}"
+
+        if ((result == 0)); then
+            # Green Check: https://www.compart.com/en/unicode/U+2705
+            result_table["${test_file}"]="\u2705"
+        else
+            # Red X: https://www.compart.com/en/unicode/U+274C
+            # shellcheck disable=SC2034
+            result_table["${test_file}"]="\u274c"
+        fi
+    done
+
+    mycmd.print_table result_table \
+        "Testing Summary:" \
+        "Test File" "Result"
+}
+
+function generate_and_report_coverage() {
+    local -r test_output_directory="${1}"
+    # shellcheck disable=SC2034
+    local -A -i covered_lines=()
+
+    if ! get_coverage_data_from_trace "${test_output_directory}" covered_lines; then
+        return 1
+    fi
+
+    generate_coverage_reports "${test_output_directory}" covered_lines
+}
+
+mycmd.defer_at_startup mycmd.init_bin sed
+function get_coverage_data_from_trace() {
+    local -r test_output_directory="${1}"
+    local -r test_trace_log_file="${test_output_directory}/test-trace.log"
+    local -n covered_lines_array="${2}"
+
+    if [[ ! -e "${test_trace_log_file}" ]]; then
+        mycmd.error_output "Trace log file '${test_trace_log_file}' not found."
+        return 1
+    fi
+
+    local file_and_line_number
+    local count
+
+    while IFS=\; read -r file_and_line_number count; do
+        # shellcheck disable=SC2034
+        covered_lines_array["${file_and_line_number}"]="${count}"
+    done < <(
+        grep -E "^[+]+(${SYSTEM_BASE}|${BIN_DIR})/.*:" "${test_trace_log_file}" \
+            | mycmd.bin_execute sed -r \
+                -e "s%${MYPROJECT_ROOT_DIRECTORY}/%%" \
+                -e 's/^[+]*//' \
+                -e 's/\#.*//' \
+            | sort \
+            | uniq -c \
+            | mycmd.bin_execute sed -E \
+                's/^[[:space:]]*([0-9]+)[[:space:]]+([^:]+):([0-9]+)/\2:\3;\1/' || true
+    )
+
+    if (("${#covered_lines_array[@]}" == 0)); then
+        mycmd.error_output "Error getting coverage data"
+        return 1
+    fi
+}
+
+function generate_coverage_reports() {
+    local -r test_output_directory="${1}"
+    # shellcheck disable=SC2178
+    local -n covered_lines_ref="${2}"
+
+    local -A coverage_summary=()
+
+    local -i total_counted_lines=0
+    local -i total_covered_lines=0
+    local file_name
+    local base_file_name
+    local base_directory
+    local coverage_file_name
+    local coverage_directory
+    local line
+    local line_number
+    local status
+    local counted_lines
+    local missed_lines
+    local covered_lines_count
+    local skip_lines
+    local -r coverage_re="^[[:space:]]*# coverage skip: *"
+
+    # shellcheck disable=SC2154
+    for file_name in "${IMPLEMENTATION_FILES[@]}"; do
+        base_directory=$(dirname "${file_name}")
+        coverage_directory="${test_output_directory}/coverage/${base_directory}"
+        mkdir -p "${coverage_directory}" &>/dev/null || true
+
+        base_file_name="$(basename "${file_name}")"
+        coverage_file_name="${coverage_directory}/${base_file_name}.coverage"
+
+        counted_lines=0
+        missed_lines=0
+        skip_lines=0
+
+        local -a lines=()
+        # Read the lines into a 1-based array
+        readarray -t -O 1 lines <"${MYPROJECT_ROOT_DIRECTORY}/${file_name}"
+
+        update_multi_line_coverge_data "${!covered_lines_ref}" "${file_name}" lines
+
+        for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
+            line="${lines[${line_number}]}"
+
+            status="-"
+
+            if [[ -v covered_lines_ref["${file_name}:${line_number}"] ]]; then
+                status="${covered_lines_ref["${file_name}:${line_number}"]}"
+                counted_lines=$((counted_lines + 1))
+                skip_lines=0
+            elif ((skip_lines > 0)); then
+                skip_lines=$((skip_lines - 1))
+                status="S"
+            elif [[ "${line}" =~ ^$ ]]; then
+                status=" "
+            elif [[ "${line}" =~ ${coverage_re} ]]; then
+                status="#"
+                skip_lines="${line##*: }"
+            elif [[ "${line}" =~ ^[[:space:]]*# ]]; then
+                status="#"
+            elif [[ "${line}" =~ ^[[:space:]]*(fi|else|done|esac|\}|\;\;) ]]; then
+                status=" "
+            elif [[ "${line}" =~ ^[[:space:]]*function ]]; then
+                status="F"
+            fi
+
+            if [[ "${status}" == "-" ]]; then
+                missed_lines=$((missed_lines + 1))
+                counted_lines=$((counted_lines + 1))
+                if [[ ! -v _COVERAGE_NO_ANSI ]]; then
+                    # shellcheck disable=SC2312
+                    line="$(mycmd.ansi red)${line}$(mycmd.ansi resetForeground)"
+                fi
+            fi
+
+            printf "%5s: %s\\n" "${status}" "${line}"
+        done >"${coverage_file_name}"
+
+        covered_lines_count=$((counted_lines - missed_lines))
+        # shellcheck disable=SC2034
+        coverage_summary["${file_name}"]="$(coverage_output_and_percent "${covered_lines_count}" "${counted_lines}")"
+        total_counted_lines=$((total_counted_lines + counted_lines))
+        total_covered_lines=$((total_covered_lines + covered_lines_count))
+    done
+
+    mycmd.print_table coverage_summary \
+        "Code Coverage Summary:" \
+        "Implementation File" "Covered Lines / Counted Lines = Coverage %"
+
+    local coverage_output
+    coverage_output="$(coverage_output_and_percent "${total_covered_lines}" "${total_counted_lines}")"
+    readonly coverage_output
+
+    mycmd.output "\nTotal coverage: ${coverage_output}"
+}
+
+# Line analysis state machine
+readonly LINE_STATE_NORMAL='normal'
+readonly LINE_STATE_MULTI_LINE='multi-line-statement'
+readonly LINE_STATE_UNCLOSED_PARENTHESIS='unclosed-parenthesis'
+readonly LINE_STATE_CLOSED_PARENTHESIS='closed-parenthesis'
+readonly LINE_STATE_UNCLOSED_STRING='unclosed-string'
+readonly LINE_STATE_CLOSED_STRING='closed-string'
+
+# Coverage update actions
+readonly ACTION_RESET_COVERAGE="reset-coverage"
+readonly ACTION_ADD_TO_GROUP="add-to-group"
+readonly ACTION_FINISH_GROUP="finish-group"
+
+function update_multi_line_coverge_data() {
+    local -n covered_lines_data="${1}"
+    local -r file_name="${2}"
+    local -n file_lines="${3}"
+
+    local line_number
+    local line
+    local cover_count=0
+    local previous_line_state="${LINE_STATE_NORMAL}"
+    local line_state
+    local coverage_action
+    local -a group=()
+    local group_line_number
+
+    for ((line_number = 1; line_number <= "${#lines[@]}"; line_number++)); do
+        line="${file_lines[${line_number}]}"
+
+        if [[ -v covered_lines_data["${file_name}:${line_number}"] ]]; then
+            cover_count="${covered_lines_data["${file_name}:${line_number}"]}"
+        fi
+
+        line_state="$(classify_line "${line}" "${previous_line_state}")"
+        coverage_action="$(choose_coverage_update_action "${previous_line_state}" "${line_state}")"
+
+        case "${coverage_action}" in
+            "${ACTION_ADD_TO_GROUP}")
+                group+=("${line_number}")
+                previous_line_state="${line_state}"
+                ;;
+
+            "${ACTION_FINISH_GROUP}")
+                group+=("${line_number}")
+
+                if ((cover_count > 0)); then
+                    for group_line_number in "${group[@]}"; do
+                        covered_lines_data["${file_name}:${group_line_number}"]="${cover_count}"
+                    done
+
+                    cover_count=0
+                fi
+
+                group=()
+                previous_line_state="${LINE_STATE_NORMAL}"
+                ;;
+
+            "${ACTION_RESET_COVERAGE}")
+                cover_count=0
+                previous_line_state="${line_state}"
+                ;;
+
+            *)
+                mycmd.error_output "Invalid action: '${coverage_action}'"
+                ;;
+        esac
+    done
+}
+
+function coverage_output_and_percent() {
+    local -r covered_lines_count="${1}"
+    local -r counted_lines="${2}"
+
+    local coverage_pct
+    coverage_pct="$(echo "(${covered_lines_count}/${counted_lines}) * 100" | bc -l)"
+    readonly coverage_pct
+
+    printf "%5d / %5d = %.2f%%" "${covered_lines_count}" "${counted_lines}" "${coverage_pct}"
+}
+
+readonly UNCLOSED_STRING_RE='^[^"]+"[^"]+$'
+readonly CLOSED_STRING_RE='^[^"]+"$'
+readonly CLOSED_PARENTHESIS_RE='^[^)]+)$'
+
+function classify_line() {
+    local -r line="${1}"
+    local -r previous_state="${2}"
+
+    if [[ "${line}" == *\\ ]]; then
+        echo "${LINE_STATE_MULTI_LINE}"
+    elif [[ "${line}" == *\( ]]; then
+        echo "${LINE_STATE_UNCLOSED_PARENTHESIS}"
+    elif [[ "${line}" =~ ${UNCLOSED_STRING_RE} ]]; then
+        echo "${LINE_STATE_UNCLOSED_STRING}"
+    elif [[ "${previous_state}" == "${LINE_STATE_UNCLOSED_PARENTHESIS}" ]]; then
+        if [[ "${line}" =~ ${CLOSED_PARENTHESIS_RE} ]]; then
+            echo "${LINE_STATE_CLOSED_PARENTHESIS}"
+        else
+            echo "${LINE_STATE_UNCLOSED_PARENTHESIS}"
+        fi
+    elif [[ "${previous_state}" == "${LINE_STATE_UNCLOSED_STRING}" ]]; then
+        if [[ "${line}" =~ ${CLOSED_STRING_RE} ]]; then
+            echo "${LINE_STATE_CLOSED_STRING}"
+        else
+            echo "${LINE_STATE_UNCLOSED_STRING}"
+        fi
+    else
+        echo "${LINE_STATE_NORMAL}"
+    fi
+}
+
+function choose_coverage_update_action() {
+    local -r previous_state="${1}"
+    local -r current_state="${2}"
+
+    if [[ ("${previous_state}" == "${LINE_STATE_MULTI_LINE}") && ("${current_state}" == "${LINE_STATE_NORMAL}") ]]; then
+        echo "${ACTION_FINISH_GROUP}"
+    elif [[ ("${previous_state}" == "${LINE_STATE_UNCLOSED_PARENTHESIS}") && ("${current_state}" == "${LINE_STATE_CLOSED_PARENTHESIS}") ]]; then
+        echo "${ACTION_FINISH_GROUP}"
+    elif [[ ("${previous_state}" == "${LINE_STATE_UNCLOSED_STRING}") && ("${current_state}" == "${LINE_STATE_CLOSED_STRING}") ]]; then
+        echo "${ACTION_FINISH_GROUP}"
+    elif [[ "${current_state}" == "${LINE_STATE_MULTI_LINE}" ||
+        "${current_state}" == "${LINE_STATE_UNCLOSED_PARENTHESIS}" ||
+        "${current_state}" == "${LINE_STATE_UNCLOSED_STRING}" ]]; then
+        echo "${ACTION_ADD_TO_GROUP}"
+    else
+        echo "${ACTION_RESET_COVERAGE}"
+    fi
+}
+
+function get_last_coverage_dir() {
+    local -a test_coverage_dirs=("${TMP_WORKING_DIR}"/test-output-*/coverage)
+
+    if ((${#test_coverage_dirs[@]} == 0)); then
+        return 1
+    fi
+
+    local -a sorted_dirs
+    readarray -t sorted_dirs < <(printf '%s\n' "${test_coverage_dirs[@]}" | sort -r || true)
+    local -r last_test_coverage_dir="${sorted_dirs[0]}"
+    echo "${last_test_coverage_dir}"
+}
+
+function get_last_log() {
+    local -a test_log_files=("${TMP_WORKING_DIR}"/test-output-*/test-output.log)
+
+    if ((${#test_log_files[@]} == 0)); then
+        return 1
+    fi
+
+    local -a sorted_logs
+    readarray -t sorted_logs < <(printf '%s\n' "${test_log_files[@]}" | sort -r || true)
+    local -r last_test_log="${sorted_logs[0]}"
+    echo "${last_test_log}"
+}
+
+mycmd.trace "Finished loading the test task definition file."

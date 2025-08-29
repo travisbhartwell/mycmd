@@ -1,0 +1,117 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# Vendored Code Related Tasks
+myproject.register_task_definition_file_description "Tasks for handling vendored code for MyCmd"
+
+# --------------------------------------------------------------------------------------------------
+# Global Dependencies
+mycmd.trace "The following variables set in main are used in the vendor task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- TEST_VENDOR_DIR:    ${TEST_VENDOR_DIR}"
+# shellcheck disable=SC2153,SC2154
+mycmd.trace "- VENDOR_DIR:         ${VENDOR_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- VENDOR_WORKING_DIR: ${VENDOR_WORKING_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# Task Definitions
+function update_ansi() {
+    # https://github.com/fidian/ansi
+    if [[ ! -e "${VENDOR_WORKING_DIR}/ansi" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        myproject.output_only_if_not_quiet "Cloning ansi git repository."
+        git clone --quiet git@github.com:fidian/ansi.git
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/ansi"
+    myproject.output_only_if_not_quiet "Pulling latest ansi changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_file "ansi/ansi" "ansi"
+}
+
+myproject.register_task update-ansi update_ansi
+myproject.register_task_description update-ansi "Update the vendored source files for ansi from the upstream repository."
+
+function update_bashup_events() {
+    # https://github.com/bashup/events/tree/bash44
+    if [[ ! -e "${VENDOR_WORKING_DIR}/bashup.events" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        myproject.output_only_if_not_quiet "Cloning bashup.events git repository."
+        git clone --quiet -b bash44 git@github.com:bashup/events.git bashup.events
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/bashup.events"
+    myproject.output_only_if_not_quiet "Pulling latest bashup.events changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_file "bashup.events/bashup.events" "bashup.events"
+}
+
+myproject.register_task update-bashup-events update_bashup_events
+myproject.register_task_description update-bashup-events "Update the vendored source files for bashup from the upstream repository."
+
+function update_shunit2() {
+    # https://github.com/kward/shunit2/tree/master
+    if [[ ! -e "${VENDOR_WORKING_DIR}/shunit2" ]]; then
+        mkdir -p "${VENDOR_WORKING_DIR}" 2>/dev/null || true
+        cd "${VENDOR_WORKING_DIR}"
+        myproject.output_only_if_not_quiet "Cloning shunit2 git repository."
+        git clone --quiet git@github.com:kward/shunit2.git shunit2
+    fi
+
+    cd "${VENDOR_WORKING_DIR}/shunit2"
+    myproject.output_only_if_not_quiet "Pulling latest shunit2 changes from git."
+    git pull --rebase --quiet
+
+    _update_vendored_test_file "shunit2/shunit2" "shunit2"
+    _update_vendored_test_file "shunit2/shunit2_test_helpers" "shunit2_test_helpers"
+}
+
+myproject.register_task update-shunit2 update_shunit2
+myproject.register_task_description update-shunit2 "Update the vendored source files for shunit2 from the upstream repository."
+
+# --------------------------------------------------------------------------------------------------
+# Vendored Code Tasks Support Functions
+function _update_vendored_file() {
+    _update_vendored_file_for_vendor_base_dir "${1}" "${VENDOR_DIR}" "${2}"
+}
+
+function _update_vendored_test_file() {
+    _update_vendored_file_for_vendor_base_dir "${1}" "${TEST_VENDOR_DIR}" "${2}"
+}
+
+function _update_vendored_file_for_vendor_base_dir() {
+    local -r source_path="${VENDOR_WORKING_DIR}/${1}"
+    local -r vendor_dir="${2}"
+    local -r dest_path="${vendor_dir}/${3}"
+    local -r dest_dir=$(dirname "${dest_path}")
+
+    if [[ ! -e "${source_path}" ]]; then
+        mycmd.error_output "Source file '${source_path}' not found."
+        return 1
+    fi
+
+    if [[ ! -e "${dest_dir}" ]]; then
+        mkdir -p "${dest_dir}"
+    fi
+
+    if [[ -e "${dest_path}" ]]; then
+        if diff -q "${source_path}" "${dest_path}" &>/dev/null; then
+            myproject.output_only_if_not_quiet "Vendored file '${dest_path}' is up to date."
+            return 0
+        fi
+    fi
+
+    myproject.output_only_if_not_quiet "Updating vendor destination '${dest_path}'."
+    cp -a "${source_path}" "${dest_path}"
+}
+
+mycmd.trace "Finished loading the vendor task definition file."

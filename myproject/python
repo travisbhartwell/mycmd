@@ -1,0 +1,46 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+myproject.register_task_definition_file_description "Tasks for dealing with Python source files for MyCmd"
+
+# --------------------------------------------------------------------------------------------------
+# Python Tasks
+function ruff_check_fix() {
+    local -n fileset="${1}"
+
+    uvx_run ruff check --fix "${fileset[@]}"
+}
+
+myproject.register_task_with_fileset lint-and-fix ruff_check_fix PYTHON_FILES
+myproject.register_task_description lint-and-fix "Lint and fix any issues in Python files with ruff."
+
+function ruff_check() {
+    local -n fileset="${1}"
+
+    uvx_run ruff check "${fileset[@]}"
+}
+
+myproject.register_task_with_fileset lint ruff_check PYTHON_FILES
+myproject.register_task_description lint "Lint Python files with ruff."
+
+function black_format() {
+    local -n fileset="${1}"
+
+    uvx_run black "${fileset[@]}"
+}
+
+myproject.register_task_with_fileset format black_format PYTHON_FILES
+myproject.register_task_description format "Format Python files with Black."
+
+# --------------------------------------------------------------------------------------------------
+# Python Task Support Functions
+mycmd.defer_at_startup mycmd.init_bin uvx
+function uvx_run() {
+    mycmd.bin_execute uvx "${@}"
+}
+
+mycmd.trace "Finished loading the Python task definition file."

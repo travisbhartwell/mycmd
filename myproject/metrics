@@ -1,0 +1,62 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+myproject.register_task_definition_file_description "Tasks for metrics about the MyCmd project"
+
+# --------------------------------------------------------------------------------------------------
+# Metrics Tasks
+
+function count_source_lines() {
+    local -n fileset="${1}"
+
+    myproject.output_only_if_not_quiet "Counting source lines in fileset '${!fileset}'."
+    wc -l "${fileset[@]}" | sort -nr
+}
+
+myproject.register_task_with_fileset count-all-source-lines \
+    count_source_lines \
+    ALL_FILES
+myproject.register_task_description count-all-source-lines "Count the lines in all of the source code files."
+
+myproject.register_task_with_fileset count-task-definition-source-lines \
+    count_source_lines \
+    TASK_DEFINITION_FILES
+myproject.register_task_description count-task-definition-source-lines "Count the lines in all of the MyProject task definition files for the project."
+
+myproject.register_task_with_fileset count-implementation-source-lines \
+    count_source_lines \
+    IMPLEMENTATION_FILES
+myproject.register_task_description count-implementation-source-lines "Count the lines in all of the implementation source files."
+
+myproject.register_task_with_fileset count-test-source-lines \
+    count_source_lines \
+    TEST_FILES
+myproject.register_task_description count-test-source-lines "Count the lines in all of the test source files."
+
+myproject.register_task_with_fileset count-mycmd-lib-source-lines \
+    count_source_lines \
+    MYCMD_LIB_FILES
+myproject.register_task_description count-mycmd-lib-source-lines "Count the lines in all of the mycmd-lib and support library source files."
+
+function git_quick_stats() {
+    if ! mycmd.init_bin_no_exit git-quick-stats; then
+        mycmd.error_output "Required tool 'git-quick-stats' not found."
+        return 1
+    fi
+
+    if mycmd.is_mac_os; then
+        # shellcheck disable=SC2154
+        /usr/bin/env PATH="${HOMEBREW_PREFIX}/opt/coreutils/libexec/gnubin:${HOMEBREW_PREFIX}/opt/gawk/libexec/gnubin:${PATH}" \
+            git quick-stats "${@}"
+    else
+        git quick-stats "${@}"
+    fi
+}
+
+myproject.register_task git-quick-stats git_quick_stats
+myproject.register_task_description git-quick-stats "Execute the 'git-quick-stats' utility for the myproject checkout."
+
+mycmd.trace "Finished loading the metrics task definition file."

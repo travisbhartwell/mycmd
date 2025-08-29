@@ -1,0 +1,145 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# Performance Tasks
+myproject.register_task_definition_file_description "Tasks for performance testing of MyCmd."
+
+# --------------------------------------------------------------------------------------------------
+# Global Dependencies
+mycmd.trace "The following variables set by MyProject are used in the test task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- MYPROJECT_ROOT_DIRECTORY: ${MYPROJECT_ROOT_DIRECTORY}"
+
+mycmd.trace "The following variables set in main are used in the test task definition file:"
+# shellcheck disable=SC2154
+mycmd.trace "- BIN_DIR:                ${BIN_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- SUPPORT_DIR:            ${SUPPORT_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- SYSTEM_BASE:            ${SYSTEM_BASE}"
+# shellcheck disable=SC2154
+mycmd.trace "- TEST_USER_BASE:         ${TEST_USER_BASE}"
+# shellcheck disable=SC2154
+mycmd.trace "- TMP_WORKING_DIR:        ${TMP_WORKING_DIR}"
+# shellcheck disable=SC2154
+mycmd.trace "- VENDOR_DIR:             ${VENDOR_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# Task Definitions
+function execute_benchmark() {
+    if ! mycmd.init_bin_no_exit hyperfine; then
+        mycmd.error_output "Required tool 'hyperfine' not found."
+        return 1
+    fi
+
+    local -r output_csv="${1}"
+    local -r benchmark_command="${2}"
+
+    local description
+    if (($# > 2)); then
+        description="${3}"
+    else
+        description="$(date '+%Y-%m-%d-%H%M%S')"
+        project.verbose_output "Description not provided, using timestamp: '${description}'."
+    fi
+    readonly description
+
+    local run_output_csv
+    if ! run_output_csv="$(mktemp -q -t "benchmark-${description}-XXXXXX.csv")"; then
+        mycmd.error_output "Error creating temporary file for benchmark output."
+        return 1
+    fi
+    readonly run_output_csv
+
+    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${SYSTEM_BASE}" \
+        MYCMD_USER_BASE_DIR="${TEST_USER_BASE}" \
+        MYCMD_VENDOR_DIR="${VENDOR_DIR}" \
+        PATH="${BIN_DIR}:${PATH}" \
+        hyperfine \
+        --warmup 5 \
+        --export-csv "${run_output_csv}" \
+        -- "${benchmark_command}"
+
+    if [[ ! -e "${output_csv}" ]]; then
+        echo -n "description," >"${output_csv}"
+        head -n 1 "${run_output_csv}" >>"${output_csv}"
+    fi
+
+    echo -n "${description}," >>"${output_csv}"
+    tail -n 1 "${run_output_csv}" >>"${output_csv}"
+
+    rm -f "${run_output_csv}"
+}
+
+myproject.register_task benchmark-help \
+    execute_benchmark \
+    "${TMP_WORKING_DIR}/logging-help-benchmark.csv" \
+    'mycmd logging --help'
+myproject.register_task_description benchmark-help "Run benchmarks with hyperfine for 'mycmd logging --help'."
+
+myproject.register_task benchmark-mycmd \
+    execute_benchmark \
+    "${TMP_WORKING_DIR}/mycmd-benchmark.csv" \
+    "${BIN_DIR}/mycmd"
+myproject.register_task_description benchmark-mycmd "Run benchmarks with hyperfine for 'mycmd'."
+
+readonly GENERATE_PERF_FILE="${SUPPORT_DIR}/analysis/generate-perf-file.py"
+
+function create_flamegraph_from_shell_trace() {
+    if ! mycmd.init_bin_no_exit flamegraph.pl; then
+        mycmd.error_output "Required tool 'flamegraph.pl' not found."
+        return 1
+    fi
+
+    local -r shell_trace_log="${1}"
+    local -r flamegraph_svg_file="${2}"
+
+    local shell_perf_file
+    if ! shell_perf_file="$(mktemp -q -t "shell-trace-XXXXXX.perf")"; then
+        mycmd.error_output "Error creating temporary file for shell trace perf."
+        return 1
+    fi
+    readonly shell_perf_file
+    mycmd.defer_at_exit remove_temporary_file "${shell_perf_file}"
+
+    if ! python "${GENERATE_PERF_FILE}" "${shell_trace_log}" "${shell_perf_file}"; then
+        mycmd.error_output "Error converting trace log to a perf file."
+        return 1
+    fi
+
+    if ! mycmd.bin_execute flamegraph.pl "${shell_perf_file}" >"${flamegraph_svg_file}"; then
+        mycmd.error_output "Error generating flamegraph file"
+        return 1
+    fi
+}
+
+myproject.register_task create-flamegraph-from-shell-trace create_flamegraph_from_shell_trace
+myproject.register_task_description create-flamegraph-from-shell-trace "Create a flamegraph from a recent shell trace."
+
+readonly QUERY_CALL_HIERARCHY="${SUPPORT_DIR}/analysis/query-call-hierarchy.py"
+
+function query_call_hierarchy() {
+    local -r shell_trace_log="${1}"
+    local -r target_function="${2}"
+
+    python "${QUERY_CALL_HIERARCHY}" "${shell_trace_log}" "${target_function}"
+}
+
+myproject.register_task query-call-hierarchy query_call_hierarchy
+myproject.register_task_description query-call-hierarchy "Query a function call hierarchy from a recent shell trace."
+
+# --------------------------------------------------------------------------------------------------
+# Performance Task Support Functions
+function remove_temporary_file() {
+    local -r f="${1}"
+
+    if [[ -e "${f}" ]]; then
+        rm -f "${f}" || true
+    fi
+}
+
+mycmd.trace "Finished loading the performance task definition file."

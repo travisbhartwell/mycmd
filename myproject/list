@@ -1,0 +1,56 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+# --------------------------------------------------------------------------------------------------
+# List Fileset Tasks
+myproject.register_task_definition_file_description "Tasks for listing files in MyCmd's filesets"
+
+myproject.register_task_with_fileset all-files \
+    myproject.list_files \
+    ALL_FILES
+myproject.register_task_description all-files "List all files in the project."
+
+myproject.register_task_with_fileset task-definition-files \
+    myproject.list_files \
+    TASK_DEFINITION_FILES
+myproject.register_task_description task-definition-files "List all of the task definition files in the project."
+
+myproject.register_task_with_fileset all-shell-files \
+    myproject.list_files \
+    ALL_SHELL_FILES
+myproject.register_task_description all-shell-files "List all of the shell files in the project."
+
+myproject.register_task_with_fileset implementation-files \
+    myproject.list_files \
+    IMPLEMENTATION_FILES
+myproject.register_task_description implementation-files "List all of the implementation files in the project."
+
+myproject.register_task_with_fileset test-files \
+    myproject.list_files \
+    TEST_FILES
+myproject.register_task_description test-files "List all of the test source files in the project."
+
+myproject.register_task_with_fileset snapshot-test-files \
+    myproject.list_files \
+    SNAPSHOT_TEST_FILES
+myproject.register_task_description snapshot-test-files "List all of the snapshot test source files in the project."
+
+myproject.register_task_with_fileset snapshot-files \
+    myproject.list_files \
+    SNAPSHOT_FILES
+myproject.register_task_description snapshot-files "List all of the snapshot files in the project."
+
+myproject.register_task_with_fileset mycmd-lib-files \
+    myproject.list_files \
+    MYCMD_LIB_FILES
+myproject.register_task_description mycmd-lib-files "List all of the MyCmd library and support library files in the project."
+
+myproject.register_task_with_fileset python-files \
+    myproject.list_files \
+    PYTHON_FILES
+myproject.register_task_description python-files "List all of the Python files in the project."
+
+mycmd.trace "Finished loading the list task definition file."

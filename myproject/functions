@@ -1,0 +1,156 @@
+#!/usr/bin/env -S mycmd myproject run
+# -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
+# shellcheck shell=bash
+
+set -o nounset -o errexit -o errtrace -o pipefail
+
+myproject.register_task_definition_file_description "Tasks for handling MyCmd Library functions in the MyCmd project"
+
+# --------------------------------------------------------------------------------------------------
+# Global Dependencies
+mycmd.trace "The following variables set in main are used in the vendor task definition file:"
+#shellcheck disable=SC2154
+mycmd.trace "- TMP_WORKING_DIR: ${TMP_WORKING_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# Functions Tasks
+
+mycmd.defer_at_startup mycmd.init_bin sed
+
+function list_mycmd_lib_functions() {
+    local -n fileset="${1}"
+
+    grep -E '^[[:space:]]*function' "${fileset[@]}" \
+        | mycmd.bin_execute sed -n 's/.*function \(.*\)() {/\1/p' \
+        | sort -u
+}
+
+myproject.register_task_with_fileset list-mycmd-lib-functions list_mycmd_lib_functions MYCMD_LIB_FILES
+myproject.register_task_description list-mycmd-lib-functions "List all functions defined in mycmd-lib and support libraries."
+
+mycmd.defer_at_startup mycmd.init_bin sed
+mycmd.defer_at_startup mycmd.init_bin grep
+
+function list_mycmd_lib_functions_with_source_file() {
+    local -n fileset="${1}"
+
+    mycmd.bin_execute grep -H -E '^[[:space:]]*function' "${fileset[@]}" \
+        | mycmd.bin_execute sed -r -n 's/^([^:]+):.*function (.*)\(\) \{/\1,\2/p' \
+        | sort -u
+}
+
+myproject.register_task_with_fileset list-mycmd-lib-functions-with-source-file list_mycmd_lib_functions_with_source_file MYCMD_LIB_FILES
+myproject.register_task_description list-mycmd-lib-functions-with-source-file "List all all functions defined in mycmd-lib and support libraries and their associated source files."
+
+function generate_shell_function_index() {
+    if ! mycmd.init_bin_no_exit index-shell-functions; then
+        mycmd.error_output "Neccessary tool 'index-shell-functions' not found."
+        return 1
+    fi
+
+    local -n fileset="${1}"
+
+    # TODO: Handle subdirectories
+    local src_file
+    for src_file in "${fileset[@]}"; do
+        # shellcheck disable=SC2155
+        local dest_file="${TMP_WORKING_DIR}/$(basename "${src_file}").csv"
+        myproject.verbose "Generating index for ${src_file} to ${dest_file}"
+        mycmd.bin_execute index-shell-functions "${src_file}" "${dest_file}"
+    done
+}
+
+myproject.register_task_with_fileset index-mycmd-lib generate_shell_function_index MYCMD_LIB_FILES
+myproject.register_task_description index-mycmd-lib "Generate the index CSV for MyCmd lib files using index-shell-functions from BashDoc."
+
+mycmd.defer_at_startup mycmd.init_bin grep
+
+function catalog_mycmd_lib_function_call_tree() {
+    local -n fileset="${1}"
+    local -a functions
+
+    readarray -t functions < <(myproject.execute_tasks list-mycmd-lib-functions || true)
+
+    local fn
+    local fn_pattern
+    local match_line
+    local file
+    local line_number
+    local -a data=()
+
+    myproject.output_only_if_not_quiet "Cataloging function from mycmd-lib across all implementation files."
+
+    for fn in "${functions[@]}"; do
+        myproject.verbose_output "Searching for function '${fn}'."
+        fn_pattern="${fn/./\\.}"
+
+        while read -r match_line; do
+            file="$(echo "${match_line}" | cut -d: -f1)"
+            line_number="$(echo "${match_line}" | cut -d: -f2)"
+            data+=("${fn},${file},${line_number}")
+        done < <(mycmd.bin_execute grep -P -n "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${fileset[@]}" \
+            | mycmd.bin_execute grep -P -v "^[^:]+:[[:digit:]]+:.*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)
+    done
+
+    local -r output_file="${TMP_WORKING_DIR}/fn-callers.csv"
+
+    echo "function,file,line" >"${output_file}"
+
+    (
+        local line
+        for line in "${data[@]}"; do
+            echo "${line}"
+        done
+    ) | sort -t, -k1,2 >>"${output_file}"
+
+    myproject.output_only_if_not_quiet "Wrote results to ${output_file}."
+}
+
+myproject.register_task_with_fileset catalog-mycmd-lib-function-call-tree catalog_mycmd_lib_function_call_tree MYCMD_LIB_FILES
+myproject.register_task_description catalog-mycmd-lib-function-call-tree "Catalog the function call tree for functions in mycmd-lib."
+
+mycmd.defer_at_startup mycmd.init_bin grep
+
+function catalog_mycmd_lib_function_callers() {
+    local -n implementation_fileset="${1}"
+    local -a functions
+
+    readarray -t functions < <(myproject.execute_tasks list-mycmd-lib-functions || true)
+
+    local fn
+    local fn_pattern
+    local count
+    local -a data=()
+
+    myproject.output_only_if_not_quiet "Cataloging function from mycmd-lib across all implementation files."
+
+    for fn in "${functions[@]}"; do
+        local impl_file
+        for impl_file in "${implementation_fileset[@]}"; do
+            myproject.verbose_output "Searching for function '${fn}' in file '${impl_file}'."
+
+            fn_pattern="${fn/./\\.}"
+            count="$(mycmd.bin_execute grep -P "(?<!function )[[:<:]]${fn_pattern}[[:>:]]" "${impl_file}" \
+                | mycmd.bin_execute grep -P -c -v ".*#.*[[:<:]]${fn_pattern}[[:>:]].*" || true)"
+            data+=("${fn},${impl_file},${count}")
+        done
+    done
+
+    local -r output_file="${TMP_WORKING_DIR}/fn-call-counts.csv"
+
+    echo "function,file,count" >"${output_file}"
+
+    (
+        local line
+        for line in "${data[@]}"; do
+            echo "${line}"
+        done
+    ) | sort -t, -k3 -nr >>"${output_file}"
+
+    myproject.output_only_if_not_quiet "Wrote results to ${output_file}."
+}
+
+myproject.register_task_with_fileset catalog-mycmd-lib-function-callers catalog_mycmd_lib_function_callers IMPLEMENTATION_FILES
+myproject.register_task_description catalog-mycmd-lib-function-callers "Catalog callers of functions from mycmd-lib across all implementation files in the project."
+
+mycmd.trace "Finished loading the functions task definition file."
