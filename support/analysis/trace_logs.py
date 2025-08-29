@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 import re
-import sys
 from typing import Any, Optional
 
 log_line_re = re.compile(
@@ -27,13 +26,13 @@ def trace_line(
 ) -> TraceLine:
     subshell = match.get("subshell", "").count("+")
     epochrealtime = match.get("epochrealtime")
-    if epochrealtime == None:
+    if epochrealtime is None:
         raise RuntimeError("Missing epochrealtime")
 
     timestamp = datetime.fromtimestamp(float(epochrealtime))
     if next_match is not None:
         next_epochrealtime = next_match.get("epochrealtime")
-        if next_epochrealtime == None:
+        if next_epochrealtime is None:
             raise RuntimeError("Missing epochrealtime in next_match")
         next_timestamp = datetime.fromtimestamp(float(next_epochrealtime))
         duration = next_timestamp - timestamp

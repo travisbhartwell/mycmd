@@ -25,7 +25,9 @@ def load_function_index(fn_index_csv: Path) -> dict[str, str]:
     return function_index
 
 
-def unused_functions(function_call_counts: dict[str, dict[str, int]], function_index: dict[str, str]) -> list[str]:
+def unused_functions(
+    function_call_counts: dict[str, dict[str, int]], function_index: dict[str, str]
+) -> list[str]:
     unused_functions = []
     for function, file in function_index.items():
         if function not in function_call_counts:
@@ -33,7 +35,9 @@ def unused_functions(function_call_counts: dict[str, dict[str, int]], function_i
     return unused_functions
 
 
-def file_dependencies(function_call_counts: dict[str, dict[str, int]], function_index: dict[str, str]) -> dict[str, list[str]]:
+def file_dependencies(
+    function_call_counts: dict[str, dict[str, int]], function_index: dict[str, str]
+) -> dict[str, list[str]]:
     file_dependencies = defaultdict(set)
 
     for function, call_counts in function_call_counts.items():
