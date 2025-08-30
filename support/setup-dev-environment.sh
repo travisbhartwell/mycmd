@@ -25,7 +25,7 @@ function setup_base_git_repo() {
     git clone -b "${branch_to_start}" "${GIT_REPO_URL}" "${branch_to_start}"
 }
 
-function install_snapshot() {
+function set_environment_for_mycmd() {
     local -r base_git_dir="${1}"
     local -r bin_dir="${base_git_dir}/bin"
     local -r system_dir="${base_git_dir}/mycmd"
@@ -37,10 +37,53 @@ function install_snapshot() {
         mkdir -p "${user_dir}"
     fi
 
-    /usr/bin/env MYCMD_SYSTEM_BASE_DIR="${system_dir}" \
-        PATH="${bin_dir}:${PATH}" \
-        "${bin_dir}"/mycmd project run \
-        update-snapshot-worktree-to-latest-development-snapshot
+    export MYCMD_SYSTEM_BASE_DIR="${system_dir}"
+
+    echo >&2 "Set MYCMD_SYSTEM_BASE_DIR to '${MYCMD_SYSTEM_BASE_DIR}'"
+
+    export PATH="${bin_dir}":${PATH}
+
+    echo >&2 "Set PATH to: '${PATH}'"
+}
+
+readonly MYPROJECT_SETUP_DEV_ENVIRONMENT_URL="https://raw.githubusercontent.com/travisbhartwell/myproject/main/support/setup-dev-environment.sh"
+readonly MYPROJECT_SETUP_DEV_ENVIRONMENT="setup-myproject-dev-environment.sh"
+
+function install_myproject() {
+    local -r parent_dir="${1}"
+    local -r branch_to_start="${2}"
+
+    cd "${parent_dir}" || return 1
+
+    echo >&2 "In ${parent_dir}, and downloading script from '${MYPROJECT_SETUP_DEV_ENVIRONMENT_URL}'"
+
+    curl -sSL -o "${MYPROJECT_SETUP_DEV_ENVIRONMENT}" "${MYPROJECT_SETUP_DEV_ENVIRONMENT_URL}" && chmod +x "${MYPROJECT_SETUP_DEV_ENVIRONMENT}"
+
+    if [[ -n "${MYCMD_USE_GIT_HTTPS-}" ]]; then
+        MYPROJECT_USE_GIT_HTTPS=1 ./"${MYPROJECT_SETUP_DEV_ENVIRONMENT}" "${parent_dir}" "${branch_to_start}"
+    else
+        ./"${MYPROJECT_SETUP_DEV_ENVIRONMENT}" "${parent_dir}" "${branch_to_start}"
+    fi
+
+    rm "${MYPROJECT_SETUP_DEV_ENVIRONMENT}"
+}
+
+function set_environment_for_myproject() {
+    local -r parent_dir="${1}"
+    local -r myproject_snapshot_mycmd_lib_dir="${parent_dir}/myproject/snapshot/mycmd"
+
+    export MYCMD_SEARCH_PATH="${myproject_snapshot_mycmd_lib_dir}"
+    echo >&2 "Set MYCMD_SEARCH_PATH to '${MYCMD_SEARCH_PATH}'"
+}
+
+function install_snapshot() {
+    local -r base_git_dir="${1}"
+
+    cd "${base_git_dir}" || return 1
+
+    echo >&2 "Installing the MyCmd snapshot."
+
+    mycmd myproject run repo update-snapshot-worktree-to-latest-development-snapshot
 }
 
 function main() {
@@ -72,6 +115,12 @@ function main() {
     setup_base_git_repo "${base_dir}" "${branch_to_start}"
 
     local -r base_repo_dir="${base_dir}/${branch_to_start}"
+
+    set_environment_for_mycmd "${base_repo_dir}"
+
+    install_myproject "${parent_dir}" "${branch_to_start}"
+
+    set_environment_for_myproject "${parent_dir}"
 
     install_snapshot "${base_repo_dir}"
 }

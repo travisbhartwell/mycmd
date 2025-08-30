@@ -85,8 +85,8 @@ function test_path_relative_to_directory() {
     assertFalse "${TESTS_DIRECTORY} is not relative to ${MYCMD_LIB_DIRECTORY}" \
         'mycmd._path_relative_to_directory "${TESTS_DIRECTORY}" "${MYCMD_LIB_DIRECTORY}"'
 
-    assertEquals "project" \
-        "$(mycmd._path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/project" "${MYCMD_LIB_DIRECTORY}")"
+    assertEquals "logging" \
+        "$(mycmd._path_relative_to_directory "${MYCMD_LIB_DIRECTORY}/logging" "${MYCMD_LIB_DIRECTORY}")"
 }
 
 # shellcheck disable=SC2016,SC2154
@@ -100,15 +100,15 @@ function test_is_child_of_mycmd_path_directory() {
     assertFalse "/tmp is not a child of a MyCmd path directory" \
         'mycmd.is_child_of_mycmd_path_directory /tmp'
 
-    assertTrue "${MYCMD_LIB_DIRECTORY}/project is a child of a MyCmd path directory" \
-        'mycmd.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/project"'
+    assertTrue "${MYCMD_LIB_DIRECTORY}/logging is a child of a MyCmd path directory" \
+        'mycmd.is_child_of_mycmd_path_directory "${MYCMD_LIB_DIRECTORY}/logging"'
 
     assertTrue "${TEST_USER_LIB_DIRECTORY}/test-command-group is a child of a MyCmd path directory" \
         'mycmd.is_child_of_mycmd_path_directory "${TEST_USER_LIB_DIRECTORY}/test-command-group"'
 }
 
 # shellcheck disable=SC2016,SC2312
-function testfully_qualified_name_for_path() {
+function test_fully_qualified_name_for_path() {
     assertFalse "${MYCMD_LIB_DIRECTORY}/non-existing does not exist" \
         'mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/non-existing"'
 
@@ -118,8 +118,8 @@ function testfully_qualified_name_for_path() {
     assertFalse "/tmp is not a child of a MyCmd path directory" \
         'mycmd.fully_qualified_name_for_path /tmp'
 
-    assertEquals "mycmd/project" \
-        "$(mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/project")"
+    assertEquals "mycmd/logging" \
+        "$(mycmd.fully_qualified_name_for_path "${MYCMD_LIB_DIRECTORY}/logging")"
 
     assertEquals "mycmd/test-command-group" \
         "$(mycmd.fully_qualified_name_for_path "${TEST_USER_LIB_DIRECTORY}/test-command-group")"
@@ -203,7 +203,7 @@ function oneTimeSetUp() {
     . "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"
 
     # Hard-code values for tests
-    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=4
+    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=3
     TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=15
 
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/create:mycmd/create"]=0
@@ -211,9 +211,6 @@ function oneTimeSetUp() {
 
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=0
     TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/logging:mycmd/logging"]=4
-
-    TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=0
-    TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/project:mycmd/project"]=6
 
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}/shell:mycmd/shell"]=0
     TEST_WALK_PATH_FILE_COUNTS["${MYCMD_LIB_DIRECTORY}/shell:mycmd/shell"]=1

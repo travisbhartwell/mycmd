@@ -41,7 +41,7 @@ function test_base_mycmd_command_group() {
     local -a child_command_groups
     mycmd:registry.get_child_command_groups "mycmd" child_command_groups
 
-    local -r child_command_group_count=5
+    local -r child_command_group_count=4
     assertEquals "There are ${child_command_group_count} registered child command groups" \
         "${child_command_group_count}" "${#child_command_groups[@]}"
 }

@@ -31,7 +31,6 @@ Group Name              Description
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 create                  MyCmd Command Group create                 
 logging                 MyCmd Logging Command Group Library        
-project                 MyCmd Project Command Group Library        
 shell                   MyCmd Command Group shell                  
 test-command-group      MyCmd Command Group test-command-group     
 

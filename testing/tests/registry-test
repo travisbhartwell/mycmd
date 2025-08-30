@@ -21,7 +21,7 @@ function test_mycmd_registry_lib_is_loaded() {
 
 # shellcheck disable=SC2154
 function test_all_items_are_registered() {
-    local -r item_count=13
+    local -r item_count=10
 
     assertEquals "There are ${item_count} registered items types." \
         "${item_count}" "${#_MYCMD_ITEM_TYPES[@]}"
@@ -31,7 +31,7 @@ function test_all_items_are_registered() {
         "${item_count}" "${#_MYCMD_ITEM_SOURCE_FILE_PATHS[@]}"
 
     # The top-level 'mycmd' command group doesn't have a parent command group
-    local -r parent_command_group_count=12
+    local -r parent_command_group_count=9
     assertEquals "There are ${parent_command_group_count} registered items with parent command groups." \
         "${parent_command_group_count}" "${#_MYCMD_ITEM_PARENT_COMMAND_GROUPS[@]}"
 
@@ -49,7 +49,7 @@ function test_all_items_are_registered() {
 
 # shellcheck disable=SC2154
 function test_all_command_groups_are_registered() {
-    local -r command_group_count=7
+    local -r command_group_count=6
 
     assertEquals "There are ${command_group_count} command groups registered." \
         "${command_group_count}" "${#_MYCMD_COMMAND_GROUPS[@]}"
@@ -57,7 +57,7 @@ function test_all_command_groups_are_registered() {
 
 # shellcheck disable=SC2154
 function test_all_commands_are_registered() {
-    local -r command_count=6
+    local -r command_count=4
 
     assertEquals "There are ${command_count} commands registered." \
         "${command_count}" "${#_MYCMD_COMMANDS[@]}"
@@ -80,14 +80,11 @@ function test_directory_is_command_group() {
 
 # shellcheck disable=SC2312
 function test_get_command_group_from_file() {
-    assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/project/run' is not a command group library or command group support library file" \
-        "mycmd:registry.get_command_group_from_file ${MYCMD_LIB_DIRECTORY}/project/run"
+    assertFalse "Directory '${MYCMD_LIB_DIRECTORY}/logging/log-both' is not a command group library or command group support library file" \
+        "mycmd:registry.get_command_group_from_file ${MYCMD_LIB_DIRECTORY}/logging/log-both"
 
-    assertEquals "'${MYCMD_LIB_DIRECTORY}/project/project-lib' returns 'mycmd/project'" \
-        "mycmd/project" "$(mycmd:registry.get_command_group_from_file "${MYCMD_LIB_DIRECTORY}/project/project-lib")"
-
-    assertEquals "'${MYCMD_LIB_DIRECTORY}/project/project-git-lib' returns 'mycmd/project'" \
-        "mycmd/project" "$(mycmd:registry.get_command_group_from_file "${MYCMD_LIB_DIRECTORY}/project/project-git-lib")"
+    assertEquals "'${MYCMD_LIB_DIRECTORY}/logging/logging-lib' returns 'mycmd/logging'" \
+        "mycmd/logging" "$(mycmd:registry.get_command_group_from_file "${MYCMD_LIB_DIRECTORY}/logging/logging-lib")"
 }
 
 function test_get_invalid_command_groups() {
@@ -103,8 +100,8 @@ function test_get_invalid_command_groups() {
 
 # shellcheck disable=SC2016,SC2154
 function test_file_is_command() {
-    assertFalse "${TESTS_DIRECTORY}/../../mycmd/project/run is not absolute and not a command" \
-        'mycmd:registry._file_is_command "${TESTS_DIRECTORY}/../../mycmd/project/run"'
+    assertFalse "${TESTS_DIRECTORY}/../../mycmd/logging/log-both is not absolute and not a command" \
+        'mycmd:registry._file_is_command "${TESTS_DIRECTORY}/../../mycmd/logging/log-both"'
 
     assertFalse "${MYCMD_LIB_DIRECTORY}/mycmd-lib is not executable and not a command" \
         'mycmd:registry._file_is_command "${MYCMD_LIB_DIRECTORY}/mycmd-lib"'
@@ -112,8 +109,8 @@ function test_file_is_command() {
     assertFalse "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh is not on the search path and not a command" \
         'mycmd:registry._file_is_command "${MYCMD_SUPPORT_DIRECTORY}/setup-dev-environment.sh"'
 
-    assertTrue "${MYCMD_LIB_DIRECTORY}/project/run is a command" \
-        'mycmd:registry._file_is_command "${MYCMD_LIB_DIRECTORY}/project/run"'
+    assertTrue "${MYCMD_LIB_DIRECTORY}/logging/log-both is a command" \
+        'mycmd:registry._file_is_command "${MYCMD_LIB_DIRECTORY}/logging/log-both"'
 
     assertTrue "${MYCMD_USER_BASE_DIR}/test-command is a command" \
         'mycmd:registry._file_is_command "${MYCMD_USER_BASE_DIR}/test-command"'
