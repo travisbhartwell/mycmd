@@ -2,13 +2,13 @@
 
 ## Four Years of MyCmd
 
-Yesterday, August 28th, marked four years since I made the [original commit](https://github.com/travisbhartwell/mycmd/commit/f55f126857ece8e29dc0a1cc67fbaf917a8ab651) to [MyCmd](https://github.com/travisbhartwell/mycmd/). Inspired by the desire for code reuse on what were ad hoc scripts in my day to day work, I don't think I had any idea of what it would become. I use MyCmd and the tools I've written with it, such as [MyProject](https://github.com/travisbhartwell/myproject/), in my every day development tasks. The code for MyCmd and MyProject is unit tested and the CLI portions are tested with snapshot tests. I even had code coverage instrumentation and the ability to generate flamegraphs from the trace logs of a MyCmd execution. And soon, I will have release automation via GitHub Actions. All of this from something that was originally just some ad hoc scripts I wrote to gather data during everyday operational work.
+Yesterday, August 28th, marked four years since I made the [original commit](https://github.com/travisbhartwell/mycmd/commit/f55f126857ece8e29dc0a1cc67fbaf917a8ab651) to [MyCmd](https://github.com/travisbhartwell/mycmd/). Inspired by the desire for code reuse on what were ad hoc scripts in my day to day work, I don't think I had any idea of what it would become. I use MyCmd and the tools I've written with it, such as [MyProject](https://github.com/travisbhartwell/myproject/), in my every day development tasks. I have implemented an ECS and pseudo-OO structures for the core data structures of the projects. The code for MyCmd and MyProject is unit tested and the CLI portions are tested with snapshot tests. I even had code coverage instrumentation and the ability to generate flamegraphs from the trace logs of a MyCmd execution. And soon, I will have release automation via GitHub Actions. All of this from something that was originally just some ad hoc scripts I wrote to gather data during everyday operational work.
 
 ## Demos
 
-This week's demoable goal was to execute MyCmd's tasks with MyProject:
+This week's demoable goal was to execute MyCmd's tasks with MyProject, with the tasks defined in the [task definition directory](https://github.com/travisbhartwell/mycmd/tree/e2942c8d73212c581364256dac85320d518177fa/myproject).
 
-<video controls="controls" width="1200">
+<video controls="" width="1200">
     <source src="../../images/mycmd-myproject-run-all-week35.mp4">
 </video>
 
