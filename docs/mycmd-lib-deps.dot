@@ -1,0 +1,88 @@
+digraph "mycmd-lib-deps" {
+    // mycmd-lib
+    "loading" -> "mycmd-lib"
+    "output" -> "mycmd-lib"
+    "formatted-output" -> "mycmd-lib"
+    "environment" -> "mycmd-lib"
+    "event-lifecycle" -> "mycmd-lib"
+    "platform-support" -> "mycmd-lib"
+    "pathname" -> "mycmd-lib"
+    "registry" -> "mycmd-lib"
+    "command" -> "mycmd-lib"
+    "command-group" -> "mycmd-lib"
+
+    // mycmd-command-group-lib
+    "loading" -> "command-group"
+    "command" -> "command-group"
+    "event-lifecycle" -> "command-group"
+    "formatted-output" -> "command-group"
+    "output" -> "command-group"
+    "pathname" -> "command-group"
+    "registry" -> "command-group"
+
+    // mycmd-command-lib
+    "loading" -> "command"
+    "function-calling" -> "command"
+    "output" -> "command"
+    "platform-support" -> "command"
+    "registry" -> "command"
+
+    // mycmd-environment-lib
+    "output" -> "environment"
+
+    // mycmd-event-base-lib
+    "loading-base" -> "event-base"
+    "output" -> "event-base"
+    "vendoring" -> "event-base"
+
+    // mycmd-event-lifecycle-lib
+    "loading-base" -> "event-lifecycle"
+    "output" -> "event-lifecycle"
+    "event-base" -> "event-lifecycle"
+
+    // mycmd-formatted-output-lib
+    "loading"  -> "formatted-output"
+    "event-lifecycle" -> "formatted-output"
+    "function-calling" -> "formatted-output"
+    "output" -> "formatted-output"
+    "platform-support" -> "formatted-output"
+    "vendoring" -> "formatted-output"
+
+    // mycmd-function-calling-lib
+    "output" -> "function-calling"
+
+    // mycmd-loading-base-lib
+    "output" -> "loading-base"
+
+    // mycmd-loading-lib
+    "loading-base" -> "loading"
+    "output" -> "loading"
+    "environment" -> "loading"
+    "event-lifecycle" -> "loading"
+
+    // mycmd-output-lib
+    // No dependencies
+
+    // mycmd-pathname-lib
+    "loading" -> "pathname"
+    "output" -> "pathname"
+    "environment" -> "pathname"
+    "event-lifecycle" -> "pathname"
+    "platform-support" -> "pathname"
+
+    // mycmd-platform-support-lib
+    "loading-base" -> "platform-support"
+    "output" -> "platform-support"
+    "function-calling" -> "platform-support"
+
+    // mycmd-registry-lib
+    "loading" -> "registry"
+    "function-calling" -> "registry"
+    "output" -> "registry"
+    "pathname" -> "registry"
+
+    // mycmd-vendoring-lib
+    "loading-base" -> "vendoring"
+    "output" -> "vendoring"
+    "environment" -> "vendoring"
+}
