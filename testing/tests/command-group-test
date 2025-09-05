@@ -98,6 +98,7 @@ function oneTimeSetUp() {
 
     # shellcheck source=../../mycmd/mycmd-command-group-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-command-group-lib"
+    mycmd.batch_init_bin
 
     # These will be called in mycmd-lib normally
     mycmd:registry.discover_command_groups_and_commands

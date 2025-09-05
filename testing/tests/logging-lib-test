@@ -68,6 +68,7 @@ function oneTimeSetUp() {
     # shellcheck disable=SC2154 source=../../mycmd/mycmd-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-lib"
     mycmd.source_mycmd_lib "logging"
+    mycmd.batch_init_bin
 }
 
 function oneTimeTearDown() {

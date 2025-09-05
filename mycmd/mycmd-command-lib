@@ -150,6 +150,10 @@ function mycmd:command.execute() {
         return 1
     fi
 
+    if ! mycmd.batch_init_bin; then
+        exit 1
+    fi
+
     # Validate that mycmd.main exists
     if ! mycmd.function_exists "mycmd.main"; then
         mycmd.error_output "Error: 'mycmd.main' function does not exist."

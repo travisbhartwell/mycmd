@@ -18,7 +18,7 @@ mycmd:command.register_help_text "\t-v | --version - Show this command's version
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
-mycmd.init_bin sed
+mycmd.add_to_init_bin_batch sed
 function summarize_log() {
     local -r log_file="${1}"
 

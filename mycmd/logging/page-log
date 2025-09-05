@@ -23,7 +23,7 @@ mycmd:command.register_help_text "\t-v | --version - Show this command's version
 
 set -o nounset -o errexit -o errtrace -o pipefail
 
-mycmd.defer_at_startup mycmd.init_bin realpath
+mycmd.add_to_init_bin_batch realpath
 function get_absolute_log_file_path() {
     local -r log_file_name="${1}"
     local log_file_full_path
@@ -99,7 +99,7 @@ function list_log_files() {
     done | LC_ALL=en_US.UTF-8 sort -g -k1
 }
 
-mycmd.init_bin fzf
+mycmd.add_to_init_bin_batch fzf
 function select_log_file() {
     local -r base_log_file_path="${1}"
 

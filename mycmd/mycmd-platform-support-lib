@@ -177,6 +177,7 @@ function mycmd.init_bin_homebrew() {
     elif [[ "${exit_on_failure}" = "true" ]]; then
         mycmd.err_exit 1 "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
     else
+        mycmd.error_output "Unable to locate ${long_name}, please install from Homebrew with 'brew install ${homebrew_package}'"
         return 1
     fi
 }
@@ -286,8 +287,49 @@ function mycmd._init_bin() {
     if [[ "${exit_on_failure}" = "true" ]]; then
         mycmd.err_exit 1 "Unable to locate ${command}."
     else
+        mycmd.error_output "Unable to locate ${command}."
         return 1
     fi
+}
+
+declare -Agx _MYCMD_INIT_BIN_BATCH=()
+
+function mycmd.add_to_init_bin_batch() {
+    _MYCMD_INIT_BIN_BATCH["${1}"]=1
+}
+
+function mycmd.batch_init_bin() {
+    if (("${#_MYCMD_INIT_BIN_BATCH[@]}" == 0)); then
+        mycmd.trace "No batched commands for init bin"
+        return 0
+    fi
+
+    local -a errors=()
+
+    local command
+    for command in "${!_MYCMD_INIT_BIN_BATCH[@]}"; do
+        if ! mycmd.init_bin_no_exit "${command}"; then
+            mycmd.trace "Could not locate dependency '${command}'."
+            errors+=("${command}")
+        else
+            mycmd.trace "Successfully located dependency '${command}'."
+        fi
+    done
+
+    _MYCMD_INIT_BIN_BATCH=()
+
+    if (("${#errors[@]}" == 0)); then
+        mycmd.trace "Successfully located all dependencies."
+        return 0
+    fi
+
+    mycmd.error_output "Missing the following required system dependencies:"
+
+    for command in "${errors[@]}"; do
+        mycmd.error_output "- ${command}"
+    done
+
+    return 1
 }
 
 function mycmd.bin_execute() {

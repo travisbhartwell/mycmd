@@ -22,7 +22,7 @@ mycmd:command_group.register_help_text "Library for common routines for logging 
 readonly _MYCMD_LOGGING_LIB=1
 
 # This is needed to preserve the colors in any output
-mycmd.defer_at_startup mycmd.init_bin script
+mycmd.add_to_init_bin_batch script
 function logging._faketty() {
     local -r command="${1}"
 
@@ -34,7 +34,7 @@ function logging._faketty() {
     fi
 }
 
-mycmd.defer_at_startup mycmd.init_bin zcat
+mycmd.add_to_init_bin_batch zcat
 function logging.cat_log() {
     local -r log_file="${1}"
 

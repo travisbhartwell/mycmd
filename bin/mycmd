@@ -134,7 +134,10 @@ unset -f mycmd_launcher.set_mycmd_system_environment
 unset -f mycmd_launcher.set_mycmd_user_environment
 
 # shellcheck source=./mycmd/mycmd-lib
-source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"
+if ! source "${MYCMD_SYSTEM_BASE_DIR}/mycmd-lib" "${@}"; then
+    echo >&2 "Error loading MyCmd."
+    exit 1
+fi
 
 function mycmd_launcher.clean_environment() {
     # First, unset any launcher local functions

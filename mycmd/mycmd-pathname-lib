@@ -45,7 +45,8 @@ function mycmd.is_valid_absolute_path_of_directory() {
     [[ "${1}" = /* ]] && [[ "${1}" != *..* ]] && [[ -d "${1}" ]]
 }
 
-mycmd.init_bin realpath
+mycmd.add_to_init_bin_batch realpath
+
 function mycmd.canonicalize_path() {
     local -r path_to_resolve="${1}"
 
@@ -58,7 +59,6 @@ function mycmd.canonicalize_path_missing_ok() {
     mycmd.bin_execute realpath --canonicalize-missing --quiet --logical "${path_to_resolve}"
 }
 
-mycmd.init_bin realpath
 function mycmd._path_relative_to_directory() {
     local -r full_path="${1}"
     local -r base_path="${2}"

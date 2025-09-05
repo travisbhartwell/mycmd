@@ -201,6 +201,7 @@ function oneTimeSetUp() {
 
     # shellcheck source=../../mycmd/mycmd-pathname-lib
     . "${MYCMD_LIB_DIRECTORY}/mycmd-pathname-lib"
+    mycmd.batch_init_bin
 
     # Hard-code values for tests
     TEST_WALK_PATH_DIR_COUNTS["${MYCMD_LIB_DIRECTORY}:mycmd"]=3

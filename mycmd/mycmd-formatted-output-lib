@@ -115,7 +115,8 @@ function mycmd.print_table() {
     fi
 }
 
-mycmd.defer_at_startup mycmd.init_bin wc
+mycmd.add_to_init_bin_batch wc
+
 function mycmd._get_column_widths() {
     local -n assoc_array="${1}"
     local -ri padding="${2}"
