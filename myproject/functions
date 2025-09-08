@@ -15,7 +15,7 @@ mycmd.trace "- TMP_WORKING_DIR: ${TMP_WORKING_DIR}"
 # --------------------------------------------------------------------------------------------------
 # Functions Tasks
 
-mycmd.defer_at_startup mycmd.init_bin sed
+mycmd.add_to_init_bin_batch sed
 
 function list_mycmd_lib_functions() {
     local -n fileset="${1}"
@@ -28,8 +28,8 @@ function list_mycmd_lib_functions() {
 myproject.register_task_with_fileset list-mycmd-lib-functions list_mycmd_lib_functions MYCMD_LIB_FILES
 myproject.register_task_description list-mycmd-lib-functions "List all functions defined in mycmd-lib and support libraries."
 
-mycmd.defer_at_startup mycmd.init_bin sed
-mycmd.defer_at_startup mycmd.init_bin grep
+mycmd.add_to_init_bin_batch sed
+mycmd.add_to_init_bin_batch grep
 
 function list_mycmd_lib_functions_with_source_file() {
     local -n fileset="${1}"
@@ -63,7 +63,7 @@ function generate_shell_function_index() {
 myproject.register_task_with_fileset index-mycmd-lib generate_shell_function_index MYCMD_LIB_FILES
 myproject.register_task_description index-mycmd-lib "Generate the index CSV for MyCmd lib files using index-shell-functions from BashDoc."
 
-mycmd.defer_at_startup mycmd.init_bin grep
+mycmd.add_to_init_bin_batch grep
 
 function catalog_mycmd_lib_function_call_tree() {
     local -n fileset="${1}"
@@ -109,7 +109,7 @@ function catalog_mycmd_lib_function_call_tree() {
 myproject.register_task_with_fileset catalog-mycmd-lib-function-call-tree catalog_mycmd_lib_function_call_tree MYCMD_LIB_FILES
 myproject.register_task_description catalog-mycmd-lib-function-call-tree "Catalog the function call tree for functions in mycmd-lib."
 
-mycmd.defer_at_startup mycmd.init_bin grep
+mycmd.add_to_init_bin_batch grep
 
 function catalog_mycmd_lib_function_callers() {
     local -n implementation_fileset="${1}"

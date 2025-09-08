@@ -249,7 +249,7 @@ function generate_and_report_coverage() {
     generate_coverage_reports "${test_output_directory}" covered_lines
 }
 
-mycmd.defer_at_startup mycmd.init_bin sed
+mycmd.add_to_init_bin_batch sed
 function get_coverage_data_from_trace() {
     local -r test_output_directory="${1}"
     local -r test_trace_log_file="${test_output_directory}/test-trace.log"

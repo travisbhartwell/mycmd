@@ -38,7 +38,7 @@ myproject.register_task_description format "Format Python files with Black."
 
 # --------------------------------------------------------------------------------------------------
 # Python Task Support Functions
-mycmd.defer_at_startup mycmd.init_bin uvx
+mycmd.add_to_init_bin_batch uvx
 function uvx_run() {
     mycmd.bin_execute uvx "${@}"
 }

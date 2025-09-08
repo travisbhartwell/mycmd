@@ -107,7 +107,7 @@ myproject.find_and_add_files_to_fileset PYTHON_FILES "${SUPPORT_DIR}" -name '*.p
 # --------------------------------------------------------------------------------------------------
 # Main Tasks
 
-mycmd.defer_at_startup mycmd.init_bin shfmt
+mycmd.add_to_init_bin_batch shfmt
 function format_shell_files() {
     local -n format_fileset="${1}"
 
@@ -122,7 +122,7 @@ function format_shell_files() {
 myproject.register_task_with_fileset format format_shell_files ALL_SHELL_FILES
 myproject.register_task_description format "Format all shell script source files with shfmt."
 
-mycmd.defer_at_startup mycmd.init_bin shellcheck
+mycmd.add_to_init_bin_batch shellcheck
 function lint_shell_files() {
     local -n lint_fileset="${1}"
 
@@ -176,7 +176,7 @@ function mycmd_devel() {
 myproject.register_task mycmd-devel mycmd_devel
 myproject.register_task_description mycmd-devel "Run the in-development MyCmd from this git worktree."
 
-mycmd.defer_at_startup mycmd.init_bin find
+mycmd.add_to_init_bin_batch find
 function clean_up() {
     mycmd.bin_execute find "${MYPROJECT_ROOT_DIRECTORY}" -type f -name '.DS_Store' -delete
 }
