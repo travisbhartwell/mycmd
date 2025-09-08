@@ -17,7 +17,7 @@ mycmd.trace "- TEMPLATE_DIR: ${TEMPLATE_DIR}"
 
 readonly DECEMBER_ADVENTURE_TEMPLATE="${TEMPLATE_DIR}/december-adventure.md.template"
 
-mycmd.defer_at_startup mycmd.init_bin envsubst
+mycmd.add_to_init_bin_batch envsubst
 function new_december_adventure_post() {
     local post_date
     post_date="$(date '+%Y-%m-%d')"

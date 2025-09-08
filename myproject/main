@@ -66,8 +66,8 @@ myproject.register_task_description generate "Generate the site with the static 
 
 # --------------------------------------------------------------------------------------------------
 # Preview Tasks
-mycmd.defer_at_startup mycmd.init_bin tmux
-mycmd.defer_at_startup mycmd.init_bin curl
+mycmd.add_to_init_bin_batch tmux
+mycmd.add_to_init_bin_batch curl
 
 function preview() {
     myproject.execute_tasks generate
@@ -89,7 +89,7 @@ myproject.register_task_description preview "Start a web server in tmux and open
 # --------------------------------------------------------------------------------------------------
 # Main Tasks
 
-mycmd.defer_at_startup mycmd.init_bin find
+mycmd.add_to_init_bin_batch find
 
 function clean() {
     mycmd.bin_execute find "${MYPROJECT_ROOT_DIR}" -type f -name '*.html' -delete || true
@@ -122,8 +122,8 @@ function archive_output() {
 myproject.register_task archive-output archive_output
 myproject.register_task_description archive-output "Archive the generated output to the specified directory."
 
-mycmd.defer_at_startup mycmd.init_bin wget
-mycmd.defer_at_startup mycmd.init_bin htmlq
+mycmd.add_to_init_bin_batch wget
+mycmd.add_to_init_bin_batch htmlq
 
 function remove_temporary_file() {
     local -r f="${1}"

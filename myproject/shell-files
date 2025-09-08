@@ -8,7 +8,7 @@ set -o nounset -o errexit -o errtrace -o pipefail
 # Tasks related to Shell Files
 myproject.register_task_definition_file_description "Tasks related to the shell script files for the project"
 
-mycmd.defer_at_startup mycmd.init_bin shfmt
+mycmd.add_to_init_bin_batch shfmt
 function format_shell_files() {
     local -n format_fileset="${1}"
 
@@ -23,7 +23,7 @@ function format_shell_files() {
 myproject.register_task_with_fileset format format_shell_files SHELL_FILES
 myproject.register_task_description format "Format all task definition files with shfmt."
 
-mycmd.defer_at_startup mycmd.init_bin shellcheck
+mycmd.add_to_init_bin_batch shellcheck
 function lint_shell_files() {
     local -n lint_fileset="${1}"
 

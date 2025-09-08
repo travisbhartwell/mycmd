@@ -24,15 +24,15 @@ mycmd.trace "- PICO_CSS_GITHUB_URL:    ${PICO_CSS_GITHUB_URL}"
 mycmd.trace "- PICO_CSS_FULL_PATH:     ${PICO_CSS_FULL_PATH}"
 mycmd.trace "- PICO_CSS_DOWNLOAD_BASE: ${PICO_CSS_DOWNLOAD_BASE}"
 
-mycmd.defer_at_startup mycmd.init_bin git
-mycmd.defer_at_startup mycmd.init_bin sed
+mycmd.add_to_init_bin_batch git
+mycmd.add_to_init_bin_batch sed
 function get_latest_release() {
     mycmd.bin_execute git ls-remote --tags --sort="-version:refname" "${PICO_CSS_GITHUB_URL}" \
         | head -n1 \
         | mycmd.bin_execute sed -r -n 's/.*refs\/tags\/v(.*)/\1/p'
 }
 
-mycmd.defer_at_startup mycmd.init_bin sed
+mycmd.add_to_init_bin_batch sed
 function get_current_used_picocss_version() {
     if [[ ! -e "${PICO_CSS_FULL_PATH}" ]]; then
         echo "missing"
@@ -42,7 +42,7 @@ function get_current_used_picocss_version() {
     mycmd.bin_execute sed -r -n 's/.*Pico CSS .* v([^ ]+).*/\1/p' "${PICO_CSS_FULL_PATH}"
 }
 
-mycmd.defer_at_startup mycmd.init_bin curl
+mycmd.add_to_init_bin_batch curl
 function update_pico_css_if_needed() {
     local latest
     if ! latest=$(get_latest_release); then
