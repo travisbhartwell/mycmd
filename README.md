@@ -44,18 +44,18 @@ I make git tags with known good snapshots of my in-progress development. I have 
 
 Additionally, this script was initially meant as a setup for myself to set up my development environment, so the default git URL for the repo is the `git` protocol which uses my ssh id with GitHub to check it out. If you do not want to use a git account, you can just use the http url, by setting the `MYCMD_USE_GIT_HTTPS` environment variable when running `setup-dev-environment.sh`.
 
-Therefore, if we want to check out things in `~/Projects/mycmd`, do the following:
+Therefore, if we want to check out things in `~/.local/share/mycmd`, do the following:
 
 ``` shell
-curl -sSL -O "https://raw.githubusercontent.com/travisbhartwell/mycmd/main/support/setup-dev-environment.sh" &&
-chmod +x setup-dev-environment.sh
-# If using the git protocol for the checkout
-./setup-dev-environment.sh $HOME/Projects
-# Or, if using the HTTPS protocol for the checkout
-MYCMD_USE_GIT_HTTPS=1 ./setup-dev-environment.sh $HOME/Projects
+# Uncomment below to use HTTPS protocol for the git checkout
+#MYCMD_USE_GIT_HTTPS=1
+
+curl -sSL -O "https://raw.githubusercontent.com/travisbhartwell/mycmd/main/support/setup-dev-environment.sh" \
+  && chmod +x setup-dev-environment.sh \
+  && ./setup-dev-environment.sh $HOME/.local/share
 ```
 
-Once this is done, be sure to add the `mycmd/snapshot/bin` directory to your `PATH` in your shell configuration. So, in the case above, that would be the directory `~/Projects/mycmd/snapshot/bin`. Once that is done, you should be able to run the `mycmd` command.
+Once this is done, be sure to add the `mycmd/snapshot/bin` directory to your `PATH` in your shell configuration. So, in the case above, that would be the directory `~/.local/share/mycmd/snapshot/bin`. Once that is done, you should be able to run the `mycmd` command.
 
 ## Inspiration and Similar Projects
 
