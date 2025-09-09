@@ -149,8 +149,9 @@ fi
 function mycmd_launcher.clean_environment() {
     # First, unset any launcher local functions
     local -a launcher_functions
+
     # shellcheck disable=SC2312
-    readarray -t launcher_functions < <(compgen -A function | grep "^mycmd_launcher\.")
+    readarray -t launcher_functions < <(declare -F | grep "^declare -f mycmd_launcher\." | cut -d' ' -f3)
 
     local f
     for f in "${launcher_functions[@]}"; do
