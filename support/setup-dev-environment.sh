@@ -114,6 +114,13 @@ function main() {
 
     setup_base_git_repo "${base_dir}" "${branch_to_start}"
 
+    local -r mycmd_user_dir="${HOME}/mycmd"
+
+    if [[ ! -d "${mycmd_user_dir}" ]]; then
+        echo >&2 "Creating the MyCmd user dir at '${mycmd_user_dir}'."
+        mkidr -p "${mycmd_user_dir}"
+    fi
+
     local -r base_repo_dir="${base_dir}/${branch_to_start}"
 
     set_environment_for_mycmd "${base_repo_dir}"
