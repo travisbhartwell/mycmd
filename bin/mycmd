@@ -50,6 +50,13 @@ declare -a _MYCMD_LAUNCHER_VARS_TO_CLEANUP=(
 
 function mycmd_launcher.set_mycmd_system_environment() {
     _MYCMD_LAUNCHER_SELF_FILE="${BASH_SOURCE[0]}"
+
+    local resolved_symlink
+    resolved_symlink="$(readlink "${_MYCMD_LAUNCHER_SELF_FILE}" || true)"
+    if [[ -n "${resolved_symlink-}" ]]; then
+        _MYCMD_LAUNCHER_SELF_FILE="${resolved_symlink}"
+    fi
+
     MYCMD_BIN_DIR=$(cd "$(dirname "${_MYCMD_LAUNCHER_SELF_FILE}")" &>/dev/null && pwd -P)
     readonly MYCMD_BIN_DIR
     export MYCMD_BIN_DIR
