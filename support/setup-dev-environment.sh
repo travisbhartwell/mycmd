@@ -118,7 +118,7 @@ function main() {
 
     if [[ ! -d "${mycmd_user_dir}" ]]; then
         echo >&2 "Creating the MyCmd user dir at '${mycmd_user_dir}'."
-        mkidr -p "${mycmd_user_dir}"
+        mkdir -p "${mycmd_user_dir}"
     fi
 
     local -r base_repo_dir="${base_dir}/${branch_to_start}"
