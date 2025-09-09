@@ -123,6 +123,8 @@ function main() {
     set_environment_for_myproject "${parent_dir}"
 
     install_snapshot "${base_repo_dir}"
+
+    echo "Please add '${base_dir}/snapshot/bin' to your PATH to make 'mycmd' available."
 }
 
 main "${@}"
