@@ -19,7 +19,7 @@ This week I pushed [7 commits](https://github.com/travisbhartwell/mycmd/commits/
 - Handling `bin/mycmd` as a symlink
 - Switch to using `declare -F` instead of `compgen`, which is not always available in non-interactive Bash instances
 
-These changes also include my first contributions via two pull requests:
+These changes also include the first contributions from someone other than myself via two pull requests:
 
 - [Fix tiny typo in setup-dev-environment.sh](https://github.com/travisbhartwell/mycmd/pull/4)
 - [Suggest ~/.local/share installation](https://github.com/travisbhartwell/mycmd/pull/5)
@@ -39,16 +39,28 @@ This week I pushed [4 commits](https://github.com/travisbhartwell/myproject/comm
 
 With these changes, I created a new [development snapshot tag](https://github.com/travisbhartwell/myproject/releases/tag/snapshot-r1-2025-09-08) and have updated my local snapshot worktree to this.
 
+## Task Definition File Changes
+
+After finalizing support for `mycmd.batch_init_bin` in MyProject, I updated all of my task definition files across my projects to use this new `mycmd.add_to_init_bin` pattern instead of `mycmd.defer_at_startup mycmd.init_bin`. The following commits were made:
+
+| Project                                                                                                   | Port Commit                                                                                                                                              |
+|-----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Aspirations](https://github.com/travisbhartwell/aspirations)                                             | [eafec46babeadbfe71dc75f08bc2044d69fbc34c](https://github.com/travisbhartwell/aspirations/commit/eafec46babeadbfe71dc75f08bc2044d69fbc34c)               |
+| [BashDoc](https://github.com/travisbhartwell/bashdoc/)                                                    | [ecafac44ad1c332771987c99e81d7b76bb3d66c2](https://github.com/travisbhartwell/bashdoc/commit/ecafac44ad1c332771987c99e81d7b76bb3d66c2)                   |
+| [Data Cleanup](https://github.com/travisbhartwell/financial-tools/tree/mainline/datacleanup)              | [5150a23615f9f38b6cb69e6168478a9f4536c3ce](https://github.com/travisbhartwell/financial-tools/commit/5150a23615f9f38b6cb69e6168478a9f4536c3ce)           |
+| [Dialysis Tracker](https://github.com/travisbhartwell/dialysistracker/)                                   | [b763fe7a2d9b8581ac90abc41e73bb5232a7fb7e](https://github.com/travisbhartwell/dialysistracker/commit/b763fe7a2d9b8581ac90abc41e73bb5232a7fb7e)           |
+| [Dot Files](https://github.com/travisbhartwell/dotfiles)                                                  | [ffd5f8401c2a1c274d589b19d6ff10b0dfc51e1b](https://github.com/travisbhartwell/dotfiles/commit/ffd5f8401c2a1c274d589b19d6ff10b0dfc51e1b)                  |
+| [Financial Importer](https://github.com/travisbhartwell/financial-tools/tree/mainline/financial-importer) | [51bd51a5a0277b2b93335e2c6599d6e0a4f80e3b](https://github.com/travisbhartwell/financial-tools/commit/51bd51a5a0277b2b93335e2c6599d6e0a4f80e3b)           |
+| [travisbhartwell.github.io](https://github.com/travisbhartwell/travisbhartwell.github.io/)                | [df6c456d07cef2a05c58016f338a63779c398b75](https://github.com/travisbhartwell/travisbhartwell.github.io/commit/df6c456d07cef2a05c58016f338a63779c398b75) |
+| [Work Log](https://github.com/travisbhartwell/mycmd/tree/work-log)                                        | [df0ae0ed757f195570e6d74de476956f4be3a699](https://github.com/travisbhartwell/mycmd/commit/df0ae0ed757f195570e6d74de476956f4be3a699)                     |
+
 ## Other Changes
 
-This week I pushed [2 commits](https://github.com/travisbhartwell/dotfiles/commits/main/?since=2025-08-31&until=2025-09-06) to my dotfiles, including the following changes:
-
-- Cleaned up my Zsh configuration files to unset the temporary functions used during the startup configuration
-- Updated my personal MyCmd command groups and commands to use the new `mycmd.add_to_init_bin_batch` function
+I haven't yet committed or pushed these changes, but I have some in-progress work of automating the release process of MyCmd and MyProject. This includes tasks for creating release tarballs, tasks for updating the version metadata in the source files that are used when calling `mycmd --version`, and other related changes.
 
 ## Next Week
 
-I need to finish adding support in MyProject to execute the batched bin initialization after loading the MyProject task definition files, and then update all of my task definition files to use the new pattern.
+I will continue to work on release automation this next week as well as dive into what my official supported installation mechanism might be.
 
 ---
 
