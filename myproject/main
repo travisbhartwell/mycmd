@@ -240,7 +240,7 @@ function release() {
     if (($# > 0)); then
         release_name="${1}"
     else
-        release_name="$(mycmd.bin_execute sed -r -n "s/declare -rgx _MYCMD_VERSION=\"(.*)\"/\1/p" "${MYCMD_LIB}")"
+        release_name="$(mycmd.bin_execute sed -r -n "s/^declare -rgx _MYCMD_VERSION=\"(.*)\"/\1/p" "${MYCMD_LIB}")"
     fi
     readonly release_name
 
