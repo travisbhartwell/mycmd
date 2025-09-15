@@ -24,6 +24,7 @@ readonly TEST_FILES_BASE="${TESTING_BASE}/tests"
 readonly TEST_SNAPSHOTS_DIR="${TESTING_BASE}/snapshots"
 readonly TEST_USER_BASE="${TESTING_BASE}/user-base"
 readonly SYSTEM_BASE="${MYPROJECT_ROOT_DIRECTORY}/mycmd"
+readonly MYCMD_LIB="${SYSTEM_BASE}/mycmd-lib"
 readonly VENDOR_DIR="${MYPROJECT_ROOT_DIRECTORY}/vendor"
 readonly TEST_VENDOR_DIR="${TESTING_BASE}/vendor"
 readonly VENDOR_WORKING_DIR="${MYPROJECT_ROOT_DIRECTORY}/vendor/.working"
@@ -39,19 +40,20 @@ readonly WORKTREES_PARENT_DIR
 
 mycmd.trace "Set the following variables:"
 mycmd.trace "- BIN_DIR:              ${BIN_DIR}"
+mycmd.trace "- DOCS_DIR:             ${DOCS_DIR}"
+mycmd.trace "- MYCMD_LIB:            ${MYCMD_LIB}"
 mycmd.trace "- SUPPORT_DIR:          ${SUPPORT_DIR}"
+mycmd.trace "- SYSTEM_BASE:          ${SYSTEM_BASE}"
 mycmd.trace "- TEMPLATES_DIR:        ${TEMPLATES_DIR}"
 mycmd.trace "- TESTING_BASE:         ${TESTING_BASE}"
 mycmd.trace "- TESTING_BIN:          ${TESTING_BIN}"
 mycmd.trace "- TEST_FILES_BASE:      ${TEST_FILES_BASE}"
 mycmd.trace "- TEST_SNAPSHOS_DIR:    ${TEST_SNAPSHOTS_DIR}"
 mycmd.trace "- TEST_USER_BASE:       ${TEST_USER_BASE}"
-mycmd.trace "- SYSTEM_BASE:          ${SYSTEM_BASE}"
-mycmd.trace "- VENDOR_DIR:           ${VENDOR_DIR}"
 mycmd.trace "- TEST_VENDOR_DIR:      ${TEST_VENDOR_DIR}"
-mycmd.trace "- VENDOR_WORKING_DIR:   ${VENDOR_WORKING_DIR}"
 mycmd.trace "- TMP_WORKING_DIR:      ${TMP_WORKING_DIR}"
-mycmd.trace "- DOCS_DIR:             ${DOCS_DIR}"
+mycmd.trace "- VENDOR_DIR:           ${VENDOR_DIR}"
+mycmd.trace "- VENDOR_WORKING_DIR:   ${VENDOR_WORKING_DIR}"
 mycmd.trace "- WORKTREES_PARENT_DIR: ${WORKTREES_PARENT_DIR}"
 
 # --------------------------------------------------------------------------------------------------
@@ -104,6 +106,11 @@ myproject.find_and_add_files_to_fileset MYCMD_LIB_FILES "${SYSTEM_BASE}" -maxdep
 myproject.register_fileset PYTHON_FILES
 myproject.find_and_add_files_to_fileset PYTHON_FILES "${SUPPORT_DIR}" -name '*.py'
 
+# Release Artifacts
+myproject.register_fileset RELEASE_ARTIFACTS
+myproject.add_files_to_fileset RELEASE_ARTIFACTS "${BIN_DIR}" "${SYSTEM_BASE}" "${VENDOR_DIR}"
+myproject.add_files_to_fileset RELEASE_ARTIFACTS LICENSE README.md
+
 # --------------------------------------------------------------------------------------------------
 # Main Tasks
 
@@ -121,6 +128,20 @@ function format_shell_files() {
 
 myproject.register_task_with_fileset format format_shell_files ALL_SHELL_FILES
 myproject.register_task_description format "Format all shell script source files with shfmt."
+
+function format_check_shell_files() {
+    local -n format_fileset="${1}"
+
+    if myproject.is_verbose_enabled; then
+        mycmd.output "Checking the format of the following files:"
+        myproject.list_files "${!format_fileset}"
+    fi
+
+    mycmd.bin_execute shfmt --language-dialect bash --indent=4 --binary-next-line --case-indent --diff "${format_fileset[@]}"
+}
+
+myproject.register_task_with_fileset format-check format_check_shell_files ALL_SHELL_FILES
+myproject.register_task_description format-check "Check the format all shell script source files with shfmt."
 
 mycmd.add_to_init_bin_batch shellcheck
 function lint_shell_files() {
@@ -191,12 +212,54 @@ function format_all() {
 myproject.register_task format-all format_all
 myproject.register_task_description format-all "Format all files in the project."
 
+function format_check_all() {
+    myproject.execute_tasks format-check \; python format-check
+}
+
+myproject.register_task format-check-all format_check_all
+myproject.register_task_description format-check-all "Check the format of all files in the project."
+
 function lint_all() {
     myproject.execute_tasks lint \; python lint
 }
 
 myproject.register_task lint-all lint_all
 myproject.register_task_description lint-all "Lint all files in the project."
+
+function release_check() {
+    myproject.execute_tasks clean-up \; format-check-all \; lint-all \; test execute-all
+}
+
+myproject.register_task release-check release_check
+myproject.register_task_description release-check "Execute all release check build tasks: check format, lint, and tests."
+
+mycmd.add_to_init_bin_batch sed
+
+function release() {
+    local release_name
+    if (($# > 0)); then
+        release_name="${1}"
+    else
+        release_name="$(mycmd.bin_execute sed -r -n "s/declare -rgx _MYCMD_VERSION=\"(.*)\"/\1/p" "${MYCMD_LIB}")"
+    fi
+    readonly release_name
+
+    myproject.verbose_output "Using release version '${release_name}'".
+
+    myproject.execute_tasks release-check \; repo clean-dist-directory \; repo create-release-tarball "${release_name}"
+}
+
+myproject.register_task release release
+myproject.register_task_description release "Execute all release build tasks: release-check and create-dist-tarball."
+
+function update_version_and_manual_release() {
+    local -r release_name="${1}"
+
+    myproject.execute_tasks repo update-myproject-version "${release_name}" \; release \; repo create-manual-github-release "${release_name}"
+}
+
+myproject.register_task update-version-and-manual-release update_version_and_manual_release
+myproject.register_task_description update-version-and-manual-release "Update the MyProject version to the specified version and then create a GitHub release."
 
 function all() {
     myproject.execute_tasks clean-up \; format-all \; lint-all \; test execute-all

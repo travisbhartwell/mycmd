@@ -22,7 +22,7 @@ function snapshot_mycmd_launcher_help() {
 
 function filter_mycmd_launcher_help() {
     sed -E \
-        -e "s/mycmd version 0.1-.*/mycmd version 0.1-GITHASH/" \
+        -e "s/mycmd version .*-.*/mycmd version VERSION-GITHASH/" \
         -e "s%${HOME}%HOME%"
 }
 
@@ -37,7 +37,7 @@ function snapshot_mycmd_launcher_version() {
 }
 
 function filter_mycmd_launcher_version() {
-    sed -E "s/mycmd version 0.1-.*/mycmd version 0.1-GITHASH/"
+    sed -E "s/mycmd version .*-.*/mycmd version VERSION-GITHASH/"
 }
 
 # ------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ function snapshot_command_help() {
 }
 
 function filter_command_help() {
-    sed -E "s/0.1-.*/0.1-GITHASH/"
+    sed -E "s/mycmd test-command version .*-.*/mycmd test-command version VERSION-GITHASH/"
 }
 
 # ------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ function snapshot_command_version() {
 }
 
 function filter_command_version() {
-    sed -E "s/0.1-.*/0.1-GITHASH/"
+    sed -E "s/mycmd test-command version .*-.*/mycmd test-command version VERSION-GITHASH/"
 }
 
 # ------------------------------------------------------------------------------

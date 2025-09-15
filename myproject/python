@@ -36,6 +36,15 @@ function black_format() {
 myproject.register_task_with_fileset format black_format PYTHON_FILES
 myproject.register_task_description format "Format Python files with Black."
 
+function check_black_format() {
+    local -n fileset="${1}"
+
+    uvx_run black --check "${fileset[@]}"
+}
+
+myproject.register_task_with_fileset format-check check_black_format PYTHON_FILES
+myproject.register_task_description format-check "Check the format of Python files with Black."
+
 # --------------------------------------------------------------------------------------------------
 # Python Task Support Functions
 mycmd.add_to_init_bin_batch uvx

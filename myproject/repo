@@ -12,7 +12,14 @@ myproject.register_task_definition_file_description "Tasks for dealing with the 
 # Global Dependencies
 mycmd.trace "The following variables set in main are used in the test task definition file:"
 # shellcheck disable=SC2154
+mycmd.trace "- TMP_WORKING_DIR:        ${TMP_WORKING_DIR}"
+# shellcheck disable=SC2154
 mycmd.trace "- WORKTREES_PARENT_DIR:   ${WORKTREES_PARENT_DIR}"
+
+readonly DIST_PARENT_DIR="${TMP_WORKING_DIR}/dist"
+
+mycmd.trace "The following variables are defined here:"
+mycmd.trace "- DIST_PARENT_DIR: ${DIST_PARENT_DIR}"
 
 myproject.source_myproject_lib "git"
 
@@ -269,6 +276,129 @@ myproject.register_task rollback-snapshot-worktree-to-previous-snapshot-in-seque
 myproject.register_task_description rollback-snapshot-worktree-to-previous-snapshot-in-sequence "Rollback the snapshot worktree checkout to the previous in sequence snapshot git tag."
 
 # --------------------------------------------------------------------------------------------------
+# Project Release Tasks
+
+function clean_dist_directory() {
+    if [[ -d "${DIST_PARENT_DIR}" ]]; then
+        myproject.output_only_if_not_quiet "Cleaning up artifacts in dist directory '${DIST_PARENT_DIR}'."
+        rm -rf "${DIST_PARENT_DIR:?}"/* || true
+    fi
+}
+
+myproject.register_task clean-dist-directory clean_dist_directory
+myproject.register_task_description clean-dist-directory "Clean the dist directory."
+
+mycmd.add_to_init_bin_batch rsync
+
+function create_release_tarball() {
+    local -n release_artifacts_fileset="${1}"
+    local -r release_name="${2}"
+    local -r mycmd_release_name="mycmd-${release_name}"
+
+    local -r release_dist_dir="${DIST_PARENT_DIR}/${mycmd_release_name}"
+
+    if git.is_working_tree_dirty; then
+        mycmd.error_output "There are unstaged changes, not creating a dist tarball."
+        return 1
+    fi
+
+    if [[ -d "${release_dist_dir}" ]]; then
+        mycmd.error_output "Release working directory '${release_dist_dir}' already exists, not overwriting."
+        return 1
+    else
+        mkdir -p "${release_dist_dir}" || true
+    fi
+
+    myproject.output_only_if_not_quiet "Copying release artifacts to working directory: '${release_dist_dir}'."
+
+    local src_dir
+    for src_dir in "${release_artifacts_fileset[@]}"; do
+        if ! mycmd.bin_execute rsync -a --exclude=".*" "${src_dir}" "${release_dist_dir}"; then
+            mycmd.error_output "Error copying release artifacts from '${src_dir}' to dist directory."
+            return 1
+        fi
+    done
+
+    local release_tarball
+    release_tarball="$(get_release_tarball_filename "${release_name}")"
+    readonly release_tarball
+
+    if ! tar_dist_directory "${mycmd_release_name}" "${release_tarball}"; then
+        return 1
+    fi
+}
+
+myproject.register_task_with_fileset create-release-tarball create_release_tarball RELEASE_ARTIFACTS
+myproject.register_task_description create-release-tarball "Create a release tarball with the specified release name."
+
+mycmd.add_to_init_bin_batch sed
+
+function update_mycmd_version() {
+    local -n fileset="${1}"
+    local -r new_version="${2}"
+
+    if git.is_working_tree_dirty; then
+        mycmd.error_output "There are unstaged changes, not updating version information."
+        return 1
+    fi
+
+    mycmd.bin_execute sed -i \
+        -e "s/^mycmd:command\.register_version \".*\"/mycmd:command.register_version \"${new_version}\"/" \
+        -e "s/^mycmd:command_group\.register_version \".*\"/mycmd:command_group.register_version \"${new_version}\"/" \
+        -e "s/declare -rgx _MYCMD_VERSION=.*/declare -rgx _MYCMD_VERSION=\"${new_version}\"/" \
+        "${fileset[@]}"
+
+    if git.has_unstaged_changes_in_paths "${fileset[@]}"; then
+        local -r message="Update MyCmd to version ${new_version}."
+
+        if ! git.commit_changes_in_paths_with_message "${message}" "${fileset[@]}"; then
+            return 1
+        fi
+
+        if ! git.push_changes_with_annotated_tags; then
+            return 1
+        fi
+    fi
+}
+
+myproject.register_task_with_fileset update-mycmd-version update_mycmd_version IMPLEMENTATION_FILES
+myproject.register_task_description update-mycmd-version "Update the MyCmd version string for MyCmd in the source."
+
+function create_manual_github_release() {
+    local -r release_name="${1}"
+
+    local release_tarball
+    release_tarball="$(get_release_tarball_filename "${release_name}")"
+    readonly release_tarball
+
+    local -r editor="${EDITOR:-vim}"
+    if ! mycmd.init_bin_no_exit "${editor}"; then
+        mycmd.error_output "Required tool '${editor}' not found."
+        return 1
+    fi
+
+    local release_notes="${DIST_PARENT_DIR}/mycmd-${release_name}-notes.md"
+
+    # shellcheck disable=SC2162
+    read -p "Press enter to edit release notes in ${editor}."
+
+    "${editor}" "${release_notes}"
+
+    if [[ ! -s "${release_notes}" ]]; then
+        mycmd.error_output "No release notes were created, not creating a release."
+        return 1
+    fi
+
+    if ! git.create_github_release "${release_name}" "${release_tarball}" "${release_notes}"; then
+        mycmd.error_output "Error creating GH release."
+        return 1
+    fi
+}
+
+myproject.register_task create-manual-github-release create_manual_github_release
+myproject.register_task_description create-manual-github-release "Create a GitHub release with the specified release version."
+
+# --------------------------------------------------------------------------------------------------
 # Task Support Functions
 function get_new_local_snapshot_tag_name() {
     local latest_local_snapshot_tag
@@ -427,6 +557,35 @@ function get_next_development_snapshot_tag_name_from_previous() {
 
 function get_next_local_snapshot_tag_name_from_previous() {
     _get_next_tag_name_from_previous "${1}" "${LOCAL_SNAPSHOT_TAG_PREFIX}"
+}
+
+function get_release_tarball_filename() {
+    local -r mycmd_version="${1}"
+
+    echo "${DIST_PARENT_DIR}/mycmd-${mycmd_version}.tar.gz"
+}
+
+function tar_dist_directory() {
+    local -r dist_dir="${1}"
+    local -r release_tarball="${2}"
+
+    local tarball_options="-cz"
+
+    if mycmd.is_mac_os; then
+        if tar --help | grep -q bsdtar; then
+            tarball_options="${tarball_options} --no-xattrs --no-mac-metadata"
+        fi
+    fi
+
+    pushd "${DIST_PARENT_DIR}" &>/dev/null
+
+    # shellcheck disable=SC2086
+    if ! tar ${tarball_options} -f "${release_tarball}" "${dist_dir}"; then
+        mycmd.error_output "Error creating tarball."
+        return 1
+    fi
+
+    popd &>/dev/null
 }
 
 mycmd.trace "Finished loading the repo task definition file."
