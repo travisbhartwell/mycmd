@@ -2,7 +2,7 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-mycmd:command.register_version "0.1"
+mycmd:command.register_version "0.01"
 mycmd:command.register_short_description "Select and page a log file previously logged with log-both."
 
 mycmd:command.register_help_text "If there are multiple rotated copies of the log file present, this will prompt the user for which version"
