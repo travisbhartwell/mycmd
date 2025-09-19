@@ -20,42 +20,64 @@ Read the development log for MyCmd [here](https://iam.travishartwell.net/mycmd/)
 
 ## Installation
 
-MyCmd is pre-release software and currently the only method of installation is via git checkout.
+MyCmd is still pre-release software, but we currently support a few mechanisms for installation.
 
 **Requirements**
 
-The following are required to run MyCmd:
+To run MyCmd, the following are required:
 
-1. Bash -- likely a 5.x version
+1. Bash 5.x -- if you are on Mac OS, that means installing from Homebrew or another means, as the `bash` shipped with Mac OS is too old.
 2. GNU Coreutils
-3. GNU findutils
-4. GNU sed
-5. GNU grep
 
-If you are running on Mac OS, you can install all of these with [Homebrew](https://brew.sh):
+If you want to use the [logging command group](./mycmd/logging), the following are also required:
 
-``` shell
-brew install bash coreutils findutils gnu-sed grep
-```
+1. `script`
+2. `fzf`
+3. `zcat`
 
-**Checkout and Installation**
-
-I make git tags with known good snapshots of my in-progress development. I have provided a script to help set up a git worktree with this snapshot in [support/setup-dev-environment.sh](./support/setup-dev-environment.sh). This script will take a parent directory to set up the git checkouts in. This directory cannot be your home directory directly, as `~/mycmd` is the directory reserved for user written command groups and commands.
-
-Additionally, this script was initially meant as a setup for myself to set up my development environment, so the default git URL for the repo is the `git` protocol which uses my ssh id with GitHub to check it out. If you do not want to use a git account, you can just use the http url, by setting the `MYCMD_USE_GIT_HTTPS` environment variable when running `setup-dev-environment.sh`.
-
-Therefore, if we want to check out things in `~/.local/share/mycmd`, do the following:
+If you are running on Mac OS, you can install those not already included with Mac OS with [Homebrew](https://brew.sh):
 
 ``` shell
-# Uncomment below to use HTTPS protocol for the git checkout
-#MYCMD_USE_GIT_HTTPS=1
-
-curl -sSL -O "https://raw.githubusercontent.com/travisbhartwell/mycmd/main/support/setup-dev-environment.sh" \
-  && chmod +x setup-dev-environment.sh \
-  && ./setup-dev-environment.sh $HOME/.local/share
+brew install bash coreutils fzf
 ```
 
-Once this is done, be sure to add the `mycmd/snapshot/bin` directory to your `PATH` in your shell configuration. So, in the case above, that would be the directory `~/.local/share/mycmd/snapshot/bin`. Once that is done, you should be able to run the `mycmd` command.
+**Installation with Mise**
+
+You can use the excellent [Mise](https://mise.jdx.dev) to install MyCmd. Assuming you have Mise installed and configured according to the [Getting Started Documentation](https://mise.jdx.dev/getting-started.html), you can install MyCmd by:
+
+``` shell
+mise use -g github:travisbhartwell/mycmd
+```
+
+Mise handles exposing the `mycmd` command to your `PATH` and thus requires no additional configuration, by default.
+
+**Installation From a Release Tarball**
+
+Get the latest release from the [releases page](https://github.com/travisbhartwell/mycmd/releases/latest). Download the GZipped Tarball attached to the release and untar it. It is recommended to put this in `$HOME/.local/share`. For example, if you have downloaded the first release version, you would do the following:
+
+``` shell
+mkdir -p $HOME/.local/share && 
+  cd $HOME/.local/share &&
+  tar xvf ~/Downloads/mycmd-0.01.tar.gz
+```
+
+This will untar the release contents into `$HOME/.local/share/mycmd-0.01`. You can either put `$HOME/.local/share/mycmd-0.01/bin` on your `PATH` in your shell or symlink `$HOME/.local/share/mycmd-0.01/bin/mycmd` into a directory such as `$HOME/.local/bin` that is already on your `PATH`.
+
+**Installation From a Git Checkout**
+
+You could also use a Git checkout, but as MyCmd is still in active development, note that the [main branch](https://github.com/travisbhartwell/mycmd/tree/main) isn't guaranteed to always be in a working state. If you do use a git checkout, it is suggested that you use one of the [tags](https://github.com/travisbhartwell/mycmd/tags). Tag names prefixed with `snapshot-` are interim snapshot releases, and tag names prefixed with `v` are release versions. Again, doing this in `$HOME/.local/share` is suggested. So, for example, to do a git checkout of the initial release, `v0.01`:
+
+``` shell
+mkdir -p $HOME/.local/share && 
+  cd $HOME/.local/share &&
+  git clone --branch v0.01 https://github.com/travisbhartwell/mycmd.git 
+```
+
+You can either put `$HOME/.local/share/mycmd/bin` on your `PATH` in your shell or symlink `$HOME/.local/share/mycmd/bin/mycmd` into a directory such as `$HOME/.local/bin` that is already on your `PATH`.
+
+**Development Worktrees**
+
+This is the mechanism I use on my main development machine where I develop MyCmd itself. See the [development documentation](./DEVELOPMENT.md) for more details.
 
 ## Inspiration and Similar Projects
 

@@ -111,9 +111,13 @@ function mycmd_launcher.set_mycmd_user_environment() {
     fi
 
     if [[ ! -d "${MYCMD_USER_BASE_DIR}" ]]; then
-        # coverage skip: 2
-        echo >&2 "Required MyCmd user library directory, '${MYCMD_USER_BASE_DIR}' not found."
-        exit 1
+        # coverage skip: 6
+        echo >&2 "Required MyCmd user library directory, '${MYCMD_USER_BASE_DIR}' not found, automatically creating it."
+
+        if ! mkdir -p "${MYCMD_USER_BASE_DIR}" 2>/dev/null; then
+            echo >&2 "Error creating '${MYCMD_USER_BASE_DIR}'."
+            exit 1
+        fi
     fi
 
     readonly MYCMD_USER_BASE_DIR
