@@ -12,7 +12,7 @@ set -o nounset -o errexit -o errtrace -o pipefail
     exit 1
 }
 
-mycmd:command_group.register_version "0.01"
+mycmd:command_group.register_version "0.02"
 mycmd:command_group.register_short_description "MyCmd Logging Command Group Library"
 mycmd:command_group.register_help_text "Library for common routines for logging command output."
 

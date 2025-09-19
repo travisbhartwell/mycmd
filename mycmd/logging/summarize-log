@@ -2,7 +2,7 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-mycmd:command.register_version "0.01"
+mycmd:command.register_version "0.02"
 mycmd:command.register_short_description "Provide summary of the specified log file, for preview."
 
 # shellcheck disable=SC2154

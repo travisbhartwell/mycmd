@@ -50,7 +50,7 @@ mycmd.load_mycmd_lib_support_lib "command-group"
 
 # ------------------------------------------------------------------------------
 # Configuring the MyCmd top-level command group
-declare -rgx _MYCMD_VERSION="0.01"
+declare -rgx _MYCMD_VERSION="0.02"
 readonly _MYCMD_SHORT_DESCRIPTION="MyCmd: The Bash Command Framework"
 readonly _MYCMD_HELP_TEXT="MyCmd is a framework for creating and managing Bash commands and scripts.
 

@@ -2,7 +2,7 @@
 # -*- mode: shell-script; sh-shell: bash; sh-basic-offset: 4; sh-indentation: 4; coding: utf-8 -*-
 # shellcheck shell=bash
 
-mycmd:command.register_version "0.01"
+mycmd:command.register_version "0.02"
 mycmd:command.register_short_description "Log stdout/stderr of specified command to a log file, with rotation."
 
 # shellcheck disable=SC2154
