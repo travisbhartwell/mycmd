@@ -56,12 +56,8 @@ function mycmd.is_linux() {
 # Allow overriding the user config home in tests
 if [[ -v _MYCMD_TEST_USER_CONFIG_HOME ]]; then
     readonly _MYCMD_USER_CONFIG_DIRECTORY="${_MYCMD_TEST_USER_CONFIG_HOME}"
-elif mycmd.is_mac_os; then
-    # coverage skip: 1
-    readonly _MYCMD_USER_CONFIG_DIRECTORY="${HOME}/Library/Application Support/mycmd"
 else
-    # coverage skip: 6
-    # Falling back to the XDG standard for Linux and other OSes
+    # coverage skip: 5
     if [[ -v XDG_CONFIG_HOME ]]; then
         readonly _MYCMD_USER_CONFIG_DIRECTORY="${XDG_CONFIG_HOME}/mycmd"
     else
@@ -97,14 +93,10 @@ function mycmd.get_user_config_file() {
 # Allow overriding the user cache home in tests
 if [[ -v _MYCMD_TEST_USER_CACHE_HOME ]]; then
     readonly _MYCMD_USER_CACHE_DIRECTORY="${_MYCMD_TEST_USER_CACHE_HOME}"
-elif mycmd.is_mac_os; then
-    # coverage skip: 1
-    readonly _MYCMD_USER_CACHE_DIRECTORY="${HOME}/Library/Caches/mycmd"
 else
-    # coverage skip: 6
-    # Falling back to the XDG standard for Linux and other OSes
+    # coverage skip: 5
     if [[ -v XDG_CACHE_HOME ]]; then
-        reaodnly _MYCMD_USER_CACHE_DIRECTORY="${XDG_CACHE_HOME}/mycmd"
+        readonly _MYCMD_USER_CACHE_DIRECTORY="${XDG_CACHE_HOME}/mycmd"
     else
         readonly _MYCMD_USER_CACHE_DIRECTORY="${HOME}/.cache/mycmd"
     fi
