@@ -47,4 +47,3 @@ curl -sSL -O "https://raw.githubusercontent.com/travisbhartwell/mycmd/main/suppo
 ```
 
 Once this is done, be sure to add the `mycmd/snapshot/bin` directory to your `PATH` in your shell configuration. So, in the case above, that would be the directory `~/.local/share/mycmd/snapshot/bin`. Once that is done, you should be able to run the `mycmd` command.
-

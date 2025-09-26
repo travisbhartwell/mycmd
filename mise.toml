@@ -1,9 +1,10 @@
 [alias]
 myproject = "https://github.com/travisbhartwell/myproject-tool-plugin"
+mycmd = "github:travisbhartwell/mycmd"
 
 [tools]
-"github:travisbhartwell/mycmd" = "latest"
-"myproject" = "latest"
+mycmd = "latest"
+myproject = "latest"
 shellcheck = "latest"
 shfmt = "latest"
 uv = "latest"

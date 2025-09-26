@@ -41,6 +41,23 @@ If you are running on Mac OS, you can install those not already included with Ma
 brew install bash coreutils fzf
 ```
 
+**Installation with Homebrew**
+
+I have created a [Homebrew tap](https://github.com/travisbhartwell/homebrew-mycmd/) to install MyCmd via Homebrew. It has the dependencies on the other required Homebrew packages mentioned above, and will automatically install those when you install it. To use this, do the following:
+
+``` shell
+brew tap travisbhartwell/mycmd
+brew install mycmd
+```
+
+Or:
+
+``` shell
+brew install travisbhartwell/mycmd/mycmd 
+```
+
+Currently, this has only been tested with Homebrew on Mac OS, but should also work with Homebrew on Linux.
+
 **Installation with Mise**
 
 You can use the excellent [Mise](https://mise.jdx.dev) to install MyCmd. Assuming you have Mise installed and configured according to the [Getting Started Documentation](https://mise.jdx.dev/getting-started.html), you can install MyCmd by:
